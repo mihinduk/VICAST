@@ -1,0 +1,25 @@
+name: vicast
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  # Core tools
+  - python=3.9
+  - bwa=0.7.17
+  - samtools=1.17
+  - blast=2.13.0
+  - megahit=1.2.9
+  - lofreq=2.1.5
+  - fastp=0.23.2
+  - seqkit=2.3.1
+  - snpeff=5.1
+  # Python packages
+  - biopython=1.79
+  - pandas=1.5.3
+  - numpy=1.23.5
+  - matplotlib=3.6.2
+  - pyyaml=6.0
+  - pip:
+    - argparse
+    - tabulate
