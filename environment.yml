@@ -8,18 +8,39 @@ dependencies:
   - python=3.9
   - bwa=0.7.17
   - samtools=1.17
-  - blast=2.13.0
+  - bcftools=1.17
+  - blast=2.13.0  # Pathway 4: BLASTx annotation
   - megahit=1.2.9
   - lofreq=2.1.5
   - fastp=0.23.2
   - seqkit=2.3.1
-  - snpeff=5.1
-  # Python packages
+  - snpeff=5.1  # Note: May need upgrade to 5.2+ for Java 21 support
+
+  # Python packages (all pathways)
   - biopython=1.79
   - pandas=1.5.3
   - numpy=1.23.5
   - matplotlib=3.6.2
   - pyyaml=6.0
+
+  # Optional but recommended
+  - entrez-direct  # For NCBI downloads
+
   - pip:
     - argparse
     - tabulate
+
+# Additional manual installations required:
+#
+# Pathway 3 (VADR annotation):
+#   - VADR must be installed separately
+#   - Run: bash setup/install_vadr.sh /path/to/software
+#   - Requires: Perl, various Perl modules
+#
+# SnpEff 5.2+ with Java 21:
+#   - For latest SnpEff features
+#   - Run: bash setup/install_java21_conda.sh
+#
+# BLAST databases (Pathway 4):
+#   - Download nr, refseq_protein, or custom viral database
+#   - See: https://ftp.ncbi.nlm.nih.gov/blast/db/

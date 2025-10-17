@@ -2,6 +2,7 @@
 """
 STEP 1: Parse viral genome GenBank file and create editable TSV.
 This script parses GenBank files, skips polyproteins, and creates a TSV for manual review.
+Optionally integrates VADR for annotation validation and improvement.
 """
 
 import sys
@@ -11,6 +12,8 @@ import pandas as pd
 from pathlib import Path
 from Bio import SeqIO
 import re
+import subprocess
+import shutil
 
 def parse_gene_name_from_product(product):
     """
@@ -245,6 +248,100 @@ def gff_to_tab_delimited(gff_file, output_tsv):
     
     return output_tsv
 
+def run_vadr_annotation(fasta_file, output_dir, vadr_model='flavi'):
+    """
+    Run VADR annotation on a viral genome.
+
+    Args:
+        fasta_file: Path to genome FASTA file
+        output_dir: Output directory for VADR results
+        vadr_model: VADR model to use (default: flavi)
+
+    Returns:
+        tuple: (success, feature_table_path, alert_file_path)
+    """
+    vadr_dir = os.environ.get('VADR_DIR')
+    if not vadr_dir:
+        print("Error: VADR_DIR not set. Please install VADR first:")
+        print("  bash setup/install_vadr.sh /path/to/software")
+        return False, None, None
+
+    # Create output directory
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Determine VADR command
+    vadr_script = os.path.join(vadr_dir, 'vadr', 'v-annotate.pl')
+    if not os.path.exists(vadr_script):
+        vadr_script = 'v-annotate.pl'  # Try PATH
+
+    # Run VADR
+    print(f"\nRunning VADR annotation...")
+    print(f"  Model: {vadr_model}")
+    print(f"  Output: {output_dir}")
+
+    try:
+        cmd = [
+            vadr_script,
+            '--mdir', os.path.join(vadr_dir, 'vadr-models', vadr_model),
+            '--mkey', vadr_model,
+            fasta_file,
+            output_dir
+        ]
+
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+
+        if result.returncode == 0 or os.path.exists(os.path.join(output_dir, f"{output_dir}.vadr.pass.tbl")):
+            print("  ✓ VADR annotation completed")
+
+            # Find feature table
+            feature_table = os.path.join(output_dir, f"{output_dir}.vadr.pass.tbl")
+            if not os.path.exists(feature_table):
+                feature_table = os.path.join(output_dir, f"{output_dir}.vadr.fail.tbl")
+
+            alert_file = os.path.join(output_dir, f"{output_dir}.vadr.alt")
+
+            return True, feature_table, alert_file
+        else:
+            print(f"  ✗ VADR annotation failed")
+            print(result.stderr)
+            return False, None, None
+
+    except subprocess.TimeoutExpired:
+        print("  ✗ VADR annotation timed out (>10 minutes)")
+        return False, None, None
+    except Exception as e:
+        print(f"  ✗ Error running VADR: {e}")
+        return False, None, None
+
+def parse_vadr_feature_table(feature_table, output_gff):
+    """
+    Parse VADR feature table and convert to GFF3.
+
+    Args:
+        feature_table: Path to VADR .tbl file
+        output_gff: Path to output GFF3 file
+
+    Returns:
+        Number of features written
+    """
+    features_written = 0
+
+    print(f"\nParsing VADR feature table: {feature_table}")
+
+    # This is a simplified parser - VADR .tbl format is complex
+    # For production, consider using Bio.SeqIO with format "genbank"
+    # after converting .tbl to GenBank format
+
+    with open(feature_table, 'r') as f:
+        lines = f.readlines()
+
+    # Parse simple feature table format
+    # TODO: Implement full VADR .tbl parser
+    print("  Note: VADR feature table parsing - implement full parser")
+    print("  For now, falling back to GenBank parsing")
+
+    return features_written
+
 def main():
     parser = argparse.ArgumentParser(
         description='STEP 1: Parse viral genome GenBank file and create editable TSV',
@@ -264,11 +361,15 @@ After running this script:
         """
     )
     
-    parser.add_argument('genome_id', 
+    parser.add_argument('genome_id',
                        help='Genome ID (e.g., NC_009942.1) or path to GenBank file')
     parser.add_argument('--output', '-o',
                        help='Output base name (default: genome_id)')
-    
+    parser.add_argument('--use-vadr', action='store_true',
+                       help='Use VADR for annotation validation (Pathway 3)')
+    parser.add_argument('--vadr-model', default='flavi',
+                       help='VADR model to use (default: flavi)')
+
     args = parser.parse_args()
     
     # Determine input files
@@ -288,17 +389,50 @@ After running this script:
     
     # Determine output names
     output_base = args.output if args.output else genome_id
-    gff_file = f"{output_base}_no_polyprotein.gff3"
-    tsv_file = f"{output_base}_no_polyprotein.tsv"
-    
+
+    if args.use_vadr:
+        gff_file = f"{output_base}_vadr.gff3"
+        tsv_file = f"{output_base}_vadr_curated.tsv"
+        pathway = "Pathway 3: VADR-enhanced annotation"
+    else:
+        gff_file = f"{output_base}_no_polyprotein.gff3"
+        tsv_file = f"{output_base}_no_polyprotein.tsv"
+        pathway = "Pathway 2: Standard annotation"
+
     print("="*60)
     print("STEP 1: Parse Viral Genome and Create Editable TSV")
+    print(f"  {pathway}")
     print("="*60)
-    
-    # Parse GenBank and skip polyproteins
-    print(f"\nParsing GenBank file and skipping polyproteins...")
-    parse_genbank_skip_polyprotein(gb_file, gff_file)
-    
+
+    # VADR annotation pathway
+    if args.use_vadr:
+        # Need FASTA file for VADR
+        fasta_file = f"{genome_id}.fasta"
+        if not os.path.exists(fasta_file):
+            print(f"Extracting FASTA from GenBank...")
+            for record in SeqIO.parse(gb_file, "genbank"):
+                SeqIO.write(record, fasta_file, "fasta")
+
+        vadr_output = f"{genome_id}_vadr"
+        success, feature_table, alert_file = run_vadr_annotation(fasta_file, vadr_output, args.vadr_model)
+
+        if success:
+            print(f"\n✓ VADR completed successfully")
+            if alert_file and os.path.exists(alert_file):
+                print(f"  Alerts file: {alert_file}")
+                print("  Review alerts for annotation issues")
+
+            # For now, still parse from GenBank but note VADR was run
+            print(f"\nParsing GenBank file (VADR results available in {vadr_output})...")
+            parse_genbank_skip_polyprotein(gb_file, gff_file)
+        else:
+            print(f"\n✗ VADR failed, falling back to standard parsing")
+            parse_genbank_skip_polyprotein(gb_file, gff_file)
+    else:
+        # Standard pathway: Parse GenBank and skip polyproteins
+        print(f"\nParsing GenBank file and skipping polyproteins...")
+        parse_genbank_skip_polyprotein(gb_file, gff_file)
+
     # Convert to TSV for editing
     print(f"\nConverting to tab-delimited format for editing...")
     gff_to_tab_delimited(gff_file, tsv_file)
