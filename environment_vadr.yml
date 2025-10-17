@@ -1,0 +1,41 @@
+name: vicast-vadr
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  # Core tools
+  - python=3.9
+  - bwa=0.7.17
+  - samtools=1.17
+  - bcftools=1.17
+  
+  # VADR and its dependencies (Pathway 3)
+  - vadr>=1.6.4  # Includes blast>=2.15.0, infernal, hmmer, minimap2
+  
+  # Other analysis tools
+  - megahit=1.2.9
+  - lofreq=2.1.5
+  - fastp=0.23.2
+  - seqkit=2.3.1
+  - snpeff=5.1
+
+  # Python packages (all pathways)
+  - biopython=1.79
+  - pandas=1.5.3
+  - numpy=1.23.5
+  - matplotlib=3.6.2
+  - pyyaml=6.0
+
+  # Optional but recommended
+  - entrez-direct  # For NCBI downloads
+
+  - pip:
+    - argparse
+    - tabulate
+
+# This environment includes VADR for Pathway 3
+# Use this environment when running:
+#   python3 step1_parse_viral_genome.py NC_XXXXXX --use-vadr
+#
+# For Pathways 1, 2, and 4, use the base 'vicast' environment instead

@@ -44,11 +44,21 @@ git clone https://github.com/mihinduk/VICAST.git
 cd VICAST
 ```
 
-2. **Create conda environment:**
+2. **Create conda environment(s):**
+
+**For most users (Pathways 1, 2, 4):**
 ```bash
 conda env create -f environment.yml
 conda activate vicast
 ```
+
+**For Pathway 3 (VADR) - separate environment:**
+```bash
+conda env create -f environment_vadr.yml
+conda activate vicast-vadr
+```
+
+**Why two environments?** VADR requires BLAST >=2.15.0, while other pathways work with BLAST 2.13.0. See [ENVIRONMENT_SETUP.md](docs/ENVIRONMENT_SETUP.md) for details.
 
 3. **Setup SnpEff and dependencies:**
 ```bash
