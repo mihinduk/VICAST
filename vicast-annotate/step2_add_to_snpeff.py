@@ -83,7 +83,7 @@ def tsv_to_gff(tsv_file, output_gff):
             attributes = []
 
             # Generate unique ID from gene_name, protein_id, or sequential counter
-            gene_name_val = row.get('gene_name', '')
+            gene_name_val = row.get('gene_name', '') or row.get('gene', '')
             protein_id_val = row.get('protein_id', '')
 
             if pd.notna(gene_name_val) and gene_name_val:
@@ -96,22 +96,42 @@ def tsv_to_gff(tsv_file, output_gff):
                 # Generate sequential ID only if needed
                 unique_id = f"{row['type']}_{features_written + 1}"
 
-            attributes.append(f"ID={unique_id}")
+            # For CDS features, create proper gene -> mRNA -> CDS hierarchy
+            if row['type'] == 'CDS':
+                # Write mRNA feature first (parent of CDS)
+                mrna_id = unique_id
+                mrna_attributes = [f"ID={mrna_id}"]
 
-            # Use gene_name column if available, otherwise fall back to gene column
-            gene_value = row.get('gene_name', '') or row.get('gene', '')
-            if pd.notna(gene_value) and gene_value:
-                attributes.append(f"gene={gene_value}")
-            
+                if pd.notna(gene_name_val) and gene_name_val:
+                    mrna_attributes.append(f"gene={gene_name_val}")
+                if pd.notna(row.get('product', '')) and row['product']:
+                    mrna_attributes.append(f"product={row['product']}")
+
+                mrna_line = f"{row['seqid']}\t{row['source']}\tmRNA\t{row['start']}\t{row['end']}\t.\t{row['strand']}\t.\t{';'.join(mrna_attributes)}\n"
+                f.write(mrna_line)
+                features_written += 1
+
+                # Now write CDS with Parent pointing to mRNA
+                cds_id = f"{unique_id}.cds"
+                attributes.append(f"ID={cds_id}")
+                attributes.append(f"Parent={mrna_id}")
+            else:
+                # Non-CDS features (UTR, gene, etc.)
+                attributes.append(f"ID={unique_id}")
+
+            # Add common attributes
+            if pd.notna(gene_name_val) and gene_name_val and row['type'] != 'CDS':
+                attributes.append(f"gene={gene_name_val}")
+
             if pd.notna(row.get('product', '')) and row['product']:
                 attributes.append(f"product={row['product']}")
-            if pd.notna(row.get('protein_id', '')) and row['protein_id']:
-                attributes.append(f"protein_id={row['protein_id']}")
-            
+            if pd.notna(protein_id_val) and protein_id_val:
+                attributes.append(f"protein_id={protein_id_val}")
+
             # Add user notes if present
             if pd.notna(row.get('notes', '')) and row['notes']:
                 attributes.append(f"Note={row['notes']}")
-            
+
             # Write GFF line
             gff_line = f"{row['seqid']}\t{row['source']}\t{row['type']}\t{row['start']}\t{row['end']}\t.\t{row['strand']}\t.\t{';'.join(attributes)}\n"
             f.write(gff_line)
@@ -183,9 +203,10 @@ def generate_cds_protein_fasta(genome_fasta, tsv_file, genome_id, snpeff_data_di
         if strand == '-':
             cds_seq = cds_seq.reverse_complement()
 
-        # Generate sequence ID - must match GFF3 ID format from tsv_to_gff
+        # Generate sequence ID - must match mRNA ID from GFF3 (the parent of CDS)
+        # This matches the mRNA ID created in tsv_to_gff()
         if gene_name:
-            seq_id = gene_name
+            seq_id = gene_name  # mRNA ID = gene_name
         elif protein_id:
             seq_id = protein_id
         else:
