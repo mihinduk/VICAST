@@ -76,15 +76,26 @@ def tsv_to_gff(tsv_file, output_gff):
             # Skip if action is DELETE
             if 'action' in df.columns and row.get('action') == 'DELETE':
                 continue
-            
+
             # Build attributes
             attributes = []
-            if pd.notna(row.get('ID', '')) and row['ID']:
-                attributes.append(f"ID={row['ID']}")
+
+            # Generate unique ID from gene_name, protein_id, or sequential counter
+            gene_name_val = row.get('gene_name', '')
+            protein_id_val = row.get('protein_id', '')
+
+            if pd.notna(gene_name_val) and gene_name_val:
+                # Use gene_name as ID (best option)
+                unique_id = f"{gene_name_val}_{features_written + 1}"
+            elif pd.notna(protein_id_val) and protein_id_val:
+                # Use protein_id if no gene_name
+                unique_id = protein_id_val
             else:
-                # Generate ID if missing
-                attributes.append(f"ID={row['type']}_{features_written + 1}")
-            
+                # Generate sequential ID
+                unique_id = f"{row['type']}_{features_written + 1}"
+
+            attributes.append(f"ID={unique_id}")
+
             # Use gene_name column if available, otherwise fall back to gene column
             gene_value = row.get('gene_name', '') or row.get('gene', '')
             if pd.notna(gene_value) and gene_value:
