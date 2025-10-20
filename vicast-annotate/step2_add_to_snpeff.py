@@ -87,13 +87,13 @@ def tsv_to_gff(tsv_file, output_gff):
             protein_id_val = row.get('protein_id', '')
 
             if pd.notna(gene_name_val) and gene_name_val:
-                # Use gene_name as ID (best option)
-                unique_id = f"{gene_name_val}_{features_written + 1}"
+                # Use gene_name as ID (clean and readable)
+                unique_id = gene_name_val
             elif pd.notna(protein_id_val) and protein_id_val:
                 # Use protein_id if no gene_name
                 unique_id = protein_id_val
             else:
-                # Generate sequential ID
+                # Generate sequential ID only if needed
                 unique_id = f"{row['type']}_{features_written + 1}"
 
             attributes.append(f"ID={unique_id}")
@@ -166,6 +166,8 @@ def generate_cds_protein_fasta(genome_fasta, tsv_file, genome_id, snpeff_data_di
     cds_sequences = []
     protein_sequences = []
 
+    feature_counter = 0
+
     for idx, row in cds_df.iterrows():
         start = int(row['start']) - 1  # Convert to 0-based
         end = int(row['end'])
@@ -181,15 +183,14 @@ def generate_cds_protein_fasta(genome_fasta, tsv_file, genome_id, snpeff_data_di
         if strand == '-':
             cds_seq = cds_seq.reverse_complement()
 
-        # Generate sequence ID using gene_name|protein_id format
-        if gene_name and protein_id:
-            seq_id = f"{gene_name}|{protein_id}"
-        elif gene_name:
+        # Generate sequence ID - must match GFF3 ID format from tsv_to_gff
+        if gene_name:
             seq_id = gene_name
         elif protein_id:
             seq_id = protein_id
         else:
-            seq_id = f"CDS_{idx}"
+            feature_counter += 1
+            seq_id = f"CDS_{feature_counter}"
 
         # Description
         description = product if product else "hypothetical protein"
