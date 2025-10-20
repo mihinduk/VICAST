@@ -70,37 +70,30 @@ Pathway 1: Already in SnpEff
 
 **Purpose:** Test standard annotation pipeline (Pathway 2)
 
-**Step 2a: Download genome**
+**Command:**
 ```bash
 # Create test directory
 mkdir -p test_dengue
 cd test_dengue
 
-# Download Dengue virus genome
-python3 -c "
-from Bio import Entrez, SeqIO
-Entrez.email = 'vicast_test@example.com'
-handle = Entrez.efetch(db='nucleotide', id='NC_001477', rettype='gb', retmode='text')
-with open('NC_001477.gb', 'w') as f:
-    f.write(handle.read())
-handle.close()
-
-handle = Entrez.efetch(db='nucleotide', id='NC_001477', rettype='fasta', retmode='text')
-with open('NC_001477.fasta', 'w') as f:
-    f.write(handle.read())
-handle.close()
-print('Downloaded NC_001477 (Dengue virus)')
-"
-```
-
-**Step 2b: Parse GenBank file**
-```bash
+# Download and parse Dengue virus genome (automatic download)
 python3 ../vicast-annotate/step1_parse_viral_genome.py NC_001477
 ```
 
+**Note:** The script automatically downloads from NCBI if the GenBank file doesn't exist locally.
+
 **Expected Output:**
 ```
+GenBank file not found locally: NC_001477.gb
+
+Downloading NC_001477 from NCBI...
+  Downloading GenBank format...
+    ✓ Saved to NC_001477.gb
+  Downloading FASTA format...
+    ✓ Saved to NC_001477.fasta
+
 STEP 1: Parse Viral Genome and Create Editable TSV
+  Pathway 2: Standard annotation
 Parsing GenBank file and skipping polyproteins...
   Skipping polyprotein: polyprotein
   Features written: 10
@@ -112,8 +105,8 @@ Created tab-delimited file: NC_001477_no_polyprotein.tsv
 ```
 
 **Expected Files:**
-- `NC_001477.gb` - GenBank file
-- `NC_001477.fasta` - Genome sequence
+- `NC_001477.gb` - GenBank file (auto-downloaded)
+- `NC_001477.fasta` - Genome sequence (auto-downloaded)
 - `NC_001477_no_polyprotein.gff3` - GFF3 annotation
 - `NC_001477_no_polyprotein.tsv` - Editable TSV
 

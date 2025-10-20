@@ -10,10 +10,13 @@ import os
 import argparse
 import pandas as pd
 from pathlib import Path
-from Bio import SeqIO
+from Bio import SeqIO, Entrez
 import re
 import subprocess
 import shutil
+
+# Set email for NCBI Entrez
+Entrez.email = "vicast@example.com"  # Required by NCBI
 
 def parse_gene_name_from_product(product):
     """
@@ -342,6 +345,50 @@ def parse_vadr_feature_table(feature_table, output_gff):
 
     return features_written
 
+def download_ncbi_genome(genome_id, output_dir='.'):
+    """
+    Download genome from NCBI in both GenBank and FASTA format.
+
+    Args:
+        genome_id: NCBI accession (e.g., NC_001477)
+        output_dir: Directory to save files (default: current)
+
+    Returns:
+        tuple: (gb_file, fasta_file) paths
+    """
+    gb_file = os.path.join(output_dir, f"{genome_id}.gb")
+    fasta_file = os.path.join(output_dir, f"{genome_id}.fasta")
+
+    print(f"\nDownloading {genome_id} from NCBI...")
+
+    try:
+        # Download GenBank format
+        print(f"  Downloading GenBank format...")
+        handle = Entrez.efetch(db="nucleotide", id=genome_id, rettype="gb", retmode="text")
+        with open(gb_file, 'w') as f:
+            f.write(handle.read())
+        handle.close()
+        print(f"    ✓ Saved to {gb_file}")
+
+        # Download FASTA format
+        print(f"  Downloading FASTA format...")
+        handle = Entrez.efetch(db="nucleotide", id=genome_id, rettype="fasta", retmode="text")
+        with open(fasta_file, 'w') as f:
+            f.write(handle.read())
+        handle.close()
+        print(f"    ✓ Saved to {fasta_file}")
+
+        return gb_file, fasta_file
+
+    except Exception as e:
+        print(f"  ✗ Error downloading from NCBI: {e}")
+        print(f"\nTroubleshooting:")
+        print(f"  1. Check internet connectivity")
+        print(f"  2. Verify accession ID: {genome_id}")
+        print(f"  3. Try manual download from NCBI:")
+        print(f"     https://www.ncbi.nlm.nih.gov/nuccore/{genome_id}")
+        return None, None
+
 def main():
     parser = argparse.ArgumentParser(
         description='STEP 1: Parse viral genome GenBank file and create editable TSV',
@@ -350,10 +397,10 @@ def main():
 Examples:
   # Process downloaded genome
   python3 step1_parse_viral_genome.py NC_009942.1
-  
+
   # Process with custom output names
   python3 step1_parse_viral_genome.py NC_009942.1 --output my_genome
-  
+
 After running this script:
   1. Review the generated TSV file
   2. Make any necessary edits (add/remove/modify features)
@@ -381,11 +428,17 @@ After running this script:
         # Genome ID provided, look for downloaded files
         genome_id = args.genome_id
         gb_file = f"{genome_id}.gb"
-        
+
         if not os.path.exists(gb_file):
-            print(f"Error: GenBank file not found: {gb_file}")
-            print(f"\nPlease run: download_ncbi_genome {genome_id}")
-            sys.exit(1)
+            # Try to download from NCBI
+            print(f"GenBank file not found locally: {gb_file}")
+            downloaded_gb, downloaded_fasta = download_ncbi_genome(genome_id)
+
+            if not downloaded_gb or not os.path.exists(downloaded_gb):
+                print(f"\n✗ Failed to download genome from NCBI")
+                sys.exit(1)
+
+            gb_file = downloaded_gb
     
     # Determine output names
     output_base = args.output if args.output else genome_id
