@@ -286,7 +286,7 @@ def run_vadr_annotation(fasta_file, output_dir, vadr_model='flavi'):
         cmd = [
             vadr_script,
             '-f',  # Force overwrite if output directory exists
-            '--mdir', os.path.join(vadr_dir, 'vadr-models', vadr_model),
+            '--mdir', os.path.join(vadr_dir, 'vadr-models'),
             '--mkey', vadr_model,
             fasta_file,
             output_dir
