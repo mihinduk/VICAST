@@ -12,6 +12,8 @@ import subprocess
 import shutil
 from pathlib import Path
 from datetime import datetime
+from Bio import SeqIO
+from Bio.Seq import Seq
 
 # Import validation functions if available
 try:
@@ -133,6 +135,113 @@ def tsv_to_gff(tsv_file, output_gff):
         print(f"  {feat_type}: {count}")
     
     return True, features_written, feature_counts.to_dict()
+
+def generate_cds_protein_fasta(genome_fasta, tsv_file, genome_id, snpeff_data_dir):
+    """
+    Generate CDS and protein FASTA files for SnpEff validation.
+
+    Args:
+        genome_fasta: Path to genome FASTA file
+        tsv_file: Path to TSV annotation file
+        genome_id: Genome identifier
+        snpeff_data_dir: SnpEff data directory
+
+    Returns:
+        tuple: (cds_file, protein_file) paths
+    """
+    # Load genome sequence
+    genome_record = SeqIO.read(genome_fasta, "fasta")
+    genome_seq = genome_record.seq
+
+    print(f"  Extracting CDS sequences from genome ({len(genome_seq)} bp)")
+
+    # Load TSV annotations
+    df = pd.read_csv(tsv_file, sep='\t')
+
+    # Filter for CDS features that are marked KEEP
+    cds_df = df[(df['type'] == 'CDS') & (df.get('action', 'KEEP') != 'DELETE')]
+
+    print(f"  Found {len(cds_df)} CDS features")
+
+    cds_sequences = []
+    protein_sequences = []
+
+    for idx, row in cds_df.iterrows():
+        start = int(row['start']) - 1  # Convert to 0-based
+        end = int(row['end'])
+        strand = row['strand']
+        gene_name = row.get('gene_name', '') or row.get('gene', '')
+        protein_id = row.get('protein_id', '')
+        product = row.get('product', '')
+
+        # Extract CDS sequence
+        cds_seq = genome_seq[start:end]
+
+        # Reverse complement if on minus strand
+        if strand == '-':
+            cds_seq = cds_seq.reverse_complement()
+
+        # Generate sequence ID using gene_name|protein_id format
+        if gene_name and protein_id:
+            seq_id = f"{gene_name}|{protein_id}"
+        elif gene_name:
+            seq_id = gene_name
+        elif protein_id:
+            seq_id = protein_id
+        else:
+            seq_id = f"CDS_{idx}"
+
+        # Description
+        description = product if product else "hypothetical protein"
+
+        # Create CDS record
+        cds_record = SeqIO.SeqRecord(
+            cds_seq,
+            id=seq_id,
+            description=description
+        )
+        cds_sequences.append(cds_record)
+
+        # Translate to protein
+        try:
+            # Try standard translation
+            protein_seq = cds_seq.translate(to_stop=True)
+
+            # If sequence doesn't start with M, try with alternate start codon
+            if not str(protein_seq).startswith('M') and len(cds_seq) >= 3:
+                # Some viral genes use alternate start codons
+                # Force first codon to be Met
+                protein_seq = Seq('M') + cds_seq[3:].translate(to_stop=True)
+
+            protein_record = SeqIO.SeqRecord(
+                protein_seq,
+                id=seq_id,
+                description=description
+            )
+            protein_sequences.append(protein_record)
+
+        except Exception as e:
+            print(f"    Warning: Could not translate {seq_id}: {e}")
+            # Create empty protein record
+            protein_record = SeqIO.SeqRecord(
+                Seq(''),
+                id=seq_id,
+                description=f"{description} [translation failed]"
+            )
+            protein_sequences.append(protein_record)
+
+    # Write to genome-specific directory in SnpEff data
+    genome_dir = os.path.join(snpeff_data_dir, genome_id)
+    cds_file = os.path.join(genome_dir, 'cds.fa')
+    protein_file = os.path.join(genome_dir, 'protein.fa')
+
+    SeqIO.write(cds_sequences, cds_file, "fasta")
+    SeqIO.write(protein_sequences, protein_file, "fasta")
+
+    print(f"  Generated CDS FASTA: {cds_file} ({len(cds_sequences)} sequences)")
+    print(f"  Generated protein FASTA: {protein_file} ({len(protein_sequences)} sequences)")
+
+    return cds_file, protein_file
 
 def add_genome_to_snpeff(genome_id, fasta_file, gff_file, snpeff_data_dir=None, validate=True):
     """
@@ -365,12 +474,35 @@ After successful addition:
             report_file = f"{args.genome_id}_curation_report.txt"
             generate_curation_report(gb_file, args.tsv_file, gff_file, report_file)
     
+    # Generate CDS and protein FASTA files for SnpEff validation
+    print("\n" + "-"*40)
+    print("Generating CDS and protein FASTA files...")
+    print("-"*40)
+
+    # Determine snpEff data directory
+    snpeff_data_dir = args.data_dir
+    if not snpeff_data_dir:
+        snpeff_home = os.environ.get('SNPEFF_HOME')
+        if snpeff_home:
+            snpeff_data_dir = os.path.join(snpeff_home, 'data')
+        else:
+            print("Warning: SNPEFF_HOME not set, using default ./data")
+            snpeff_data_dir = 'data'
+
+    try:
+        cds_file, protein_file = generate_cds_protein_fasta(
+            fasta_file, args.tsv_file, args.genome_id, snpeff_data_dir
+        )
+    except Exception as e:
+        print(f"  Warning: Could not generate CDS/protein files: {e}")
+        print("  Continuing without validation files...")
+
     # Add to snpEff
     print("\n" + "-"*40)
     print("Adding genome to snpEff database...")
     print("-"*40)
-    success = add_genome_to_snpeff(args.genome_id, fasta_file, gff_file, 
-                                   args.data_dir, validate=(not args.no_validate))
+    success = add_genome_to_snpeff(args.genome_id, fasta_file, gff_file,
+                                   snpeff_data_dir, validate=(not args.no_validate))
     
     if success:
         print("\n" + "="*60)
