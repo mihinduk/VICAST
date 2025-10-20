@@ -290,15 +290,20 @@ def add_genome_to_snpeff(genome_id, fasta_file, gff_file, snpeff_data_dir=None, 
         elif not errors:  # Only warnings
             print("\n[SUCCESS] GFF validation passed with warnings")
     
-    # Determine snpEff data directory
+    # Determine snpEff home and data directory
+    snpeff_home = os.environ.get('SNPEFF_HOME')
+
     if not snpeff_data_dir:
-        snpeff_home = os.environ.get('SNPEFF_HOME')
         if not snpeff_home:
             print("ERROR: SNPEFF_HOME not set. Please source the snpEff configuration:")
             print("  export SCRATCH_DIR=/path/to/your/scratch")
             print("  source /ref/sahlab/software/snpeff_configs/snpeff_current.sh")
             return False
         snpeff_data_dir = os.path.join(snpeff_home, 'data')
+    else:
+        # If data_dir provided, derive snpeff_home from it
+        if not snpeff_home:
+            snpeff_home = os.path.dirname(snpeff_data_dir)
     
     # Create genome directory
     genome_dir = os.path.join(snpeff_data_dir, genome_id)
