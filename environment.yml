@@ -9,7 +9,7 @@ dependencies:
   - bwa=0.7.17
   - samtools=1.17
   - bcftools=1.17
-  - blast=2.13.0  # Pathway 4: BLASTx annotation
+  - blast>=2.15.0  # Pathway 3: BLASTx annotation
   - megahit=1.2.9
   - lofreq=2.1.5
   - fastp=0.23.2
@@ -33,15 +33,11 @@ dependencies:
 
 # Additional manual installations required:
 #
-# Pathway 3 (VADR annotation):
-#   - VADR must be installed separately
-#   - Run: bash setup/install_vadr.sh /path/to/software
-#   - Requires: Perl, various Perl modules
-#
 # SnpEff 5.2+ with Java 21:
-#   - For latest SnpEff features
+#   - For latest SnpEff features and better performance
 #   - Run: bash setup/install_java21_conda.sh
 #
-# BLAST databases (Pathway 4):
+# BLAST databases (Pathway 3):
 #   - Download nr, refseq_protein, or custom viral database
 #   - See: https://ftp.ncbi.nlm.nih.gov/blast/db/
+#   - Or use smaller viral-specific database for faster searches
