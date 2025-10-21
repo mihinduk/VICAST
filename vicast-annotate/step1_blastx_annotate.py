@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-STEP 1 (Pathway 4): BLASTx-based annotation for poorly annotated genomes.
+STEP 1 (Pathway 3): BLASTx-based annotation for poorly annotated genomes.
 This script uses homology-based annotation when NCBI annotations are poor/missing.
 """
 
@@ -225,12 +225,11 @@ def create_annotation_tsv(annotations, output_tsv, seqid):
 
 def main():
     parser = argparse.ArgumentParser(
-        description='STEP 1 (Pathway 4): BLASTx-based annotation for poorly annotated genomes',
+        description='STEP 1 (Pathway 3): BLASTx-based annotation for poorly annotated genomes',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Use this pathway when:
   - NCBI has no or very poor annotations
-  - VADR cannot annotate (no suitable model)
   - You need homology-based annotation
 
 Workflow:
@@ -281,7 +280,7 @@ After running:
     output_tsv = f"{output_base}_blastx.tsv"
     
     print("="*60)
-    print("STEP 1 (Pathway 4): BLASTx-based Annotation")
+    print("STEP 1 (Pathway 3): BLASTx-based Annotation")
     print("="*60)
     print(f"\nGenome: {args.fasta_file}")
     print(f"BLAST DB: {args.blast_db}")
