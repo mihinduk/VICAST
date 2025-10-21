@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=create_vicast_env
 #SBATCH --output=create_vicast_env_%j.out
-#SBATCH --mem=16G
+#SBATCH --mem=32G
 #SBATCH --time=2:00:00
 #SBATCH --cpus-per-task=4
 
@@ -10,7 +10,7 @@ echo "Creating VICAST conda environment"
 echo "=========================================="
 echo "Start time: $(date)"
 echo "Job ID: $SLURM_JOB_ID"
-echo "Memory: 16GB"
+echo "Memory: 32GB"
 echo ""
 
 # Activate conda
@@ -30,25 +30,43 @@ cd "$PIPELINE_DIR"
 echo "Working directory: $(pwd)"
 echo ""
 
-# Check if environment.yml exists
-if [ ! -f "environment.yml" ]; then
-    echo "ERROR: environment.yml not found in $(pwd)"
-    exit 1
+# Use minimal environment for faster creation (only VICAST-annotate essentials)
+ENV_FILE="environment_minimal.yml"
+
+# Check if environment file exists
+if [ ! -f "$ENV_FILE" ]; then
+    echo "ERROR: $ENV_FILE not found in $(pwd)"
+    echo "Trying environment.yml instead..."
+    ENV_FILE="environment.yml"
+    if [ ! -f "$ENV_FILE" ]; then
+        echo "ERROR: No environment file found"
+        exit 1
+    fi
 fi
 
-echo "Found environment.yml"
+echo "Found $ENV_FILE"
 echo ""
 
 # Show what will be installed
 echo "Environment specification:"
 echo "------------------------"
-head -20 environment.yml
+head -20 "$ENV_FILE"
 echo "..."
 echo ""
 
+# Check if mamba is available (much faster than conda)
+if command -v mamba &> /dev/null; then
+    echo "Found mamba - using faster solver"
+    ENV_CREATOR="mamba"
+else
+    echo "Using conda (consider installing mamba for faster solving)"
+    ENV_CREATOR="conda"
+fi
+echo ""
+
 # Create the environment
-echo "Creating environment (this may take 10-30 minutes)..."
-conda env create -f environment.yml
+echo "Creating environment with $ENV_CREATOR (this may take 10-30 minutes)..."
+$ENV_CREATOR env create -f "$ENV_FILE"
 
 if [ $? -eq 0 ]; then
     echo ""
