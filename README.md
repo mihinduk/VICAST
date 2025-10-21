@@ -61,7 +61,19 @@ export SOFTWARE_DIR=/path/to/software
 source setup/setup_snpeff_custom_paths.sh $SOFTWARE_DIR
 ```
 
-4. **Validate installation:**
+4. **Set SnpEff environment variables (REQUIRED):**
+```bash
+# On HTCF
+echo 'export SNPEFF_JAR=/ref/sahlab/software/snpEff/snpEff.jar' >> ~/.bashrc
+echo 'export SNPEFF_DATA=/ref/sahlab/software/snpEff/data' >> ~/.bashrc
+source ~/.bashrc
+
+# On other systems - adjust paths to your SnpEff installation
+export SNPEFF_JAR=/path/to/snpEff.jar
+export SNPEFF_DATA=/path/to/snpEff/data
+```
+
+5. **Validate installation:**
 ```bash
 validate_vicast_setup
 ```

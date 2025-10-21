@@ -253,6 +253,45 @@ If you get conflicts, try:
 
 ---
 
+## Required: SnpEff Environment Variables
+
+**⚠️ IMPORTANT: Set these before using VICAST!**
+
+VICAST requires SnpEff environment variables to be configured. Without these, step2 will fail.
+
+### On HTCF (typical setup):
+
+```bash
+# Add to your ~/.bashrc for permanent setup
+echo 'export SNPEFF_JAR=/ref/sahlab/software/snpEff/snpEff.jar' >> ~/.bashrc
+echo 'export SNPEFF_DATA=/ref/sahlab/software/snpEff/data' >> ~/.bashrc
+
+# Reload your bashrc
+source ~/.bashrc
+
+# Verify
+echo $SNPEFF_JAR
+java -jar $SNPEFF_JAR -version
+```
+
+### On other systems:
+
+```bash
+# Replace paths with your SnpEff installation location
+export SNPEFF_JAR=/path/to/snpEff.jar
+export SNPEFF_DATA=/path/to/snpEff/data
+
+# Make permanent by adding to ~/.bashrc
+echo 'export SNPEFF_JAR=/path/to/snpEff.jar' >> ~/.bashrc
+echo 'export SNPEFF_DATA=/path/to/snpEff/data' >> ~/.bashrc
+```
+
+**Without these variables:**
+- ✅ Pathway 1 works (just checks existing databases)
+- ✅ Step1 of Pathway 2 works (parsing GenBank)
+- ❌ Step2 of Pathway 2 **FAILS** (can't build database)
+- ❌ Pathways 3-4 **FAIL** at step2
+
 ## Using Existing Environments
 
 **You don't need to create a new environment if you already have one with:**
@@ -264,6 +303,11 @@ If you get conflicts, try:
 Just activate your existing environment and use VICAST:
 ```bash
 conda activate your_existing_env
+
+# Make sure SnpEff variables are set (see above!)
+echo $SNPEFF_JAR  # Should show path to snpEff.jar
+
+# Then use VICAST
 python3 vicast-annotate/step1_parse_viral_genome.py NC_001477
 ```
 
