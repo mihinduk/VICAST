@@ -1,31 +1,37 @@
 name: vicast
 channels:
-  - conda-forge
   - bioconda
+  - conda-forge
   - defaults
 dependencies:
-  # Core tools
+  # Core Python
   - python=3.9
-  - bwa=0.7.17
-  - samtools=1.17
-  - bcftools=1.17
-  - blast>=2.15.0  # Pathway 3: BLASTx annotation
-  - megahit=1.2.9
-  - lofreq=2.1.5
-  - fastp=0.23.2
-  - seqkit=2.3.1
-  - snpeff=5.1  # Note: May need upgrade to 5.2+ for Java 21 support
 
-  # Python packages (all pathways)
-  - biopython=1.79
-  - pandas=1.5.3
-  - numpy=1.23.5
-  - matplotlib=3.6.2
-  - pyyaml=6.0
-  - pip  # Required for pip-installed packages
+  # VICAST-annotate (all pathways need these)
+  - biopython
+  - pandas
+  - numpy
+  - matplotlib
+  - pyyaml
 
-  # Optional but recommended
+  # Pathway 3: BLASTx annotation
+  - blast
+
+  # SnpEff for variant annotation
+  - snpeff
+
+  # VICAST-analyze: Variant calling tools (can be omitted for annotation-only)
+  - bwa
+  - samtools
+  - bcftools
+  - megahit
+  - lofreq
+  - fastp
+  - seqkit
+
+  # Utilities
   - entrez-direct  # For NCBI downloads
+  - pip
 
   - pip:
     - argparse
