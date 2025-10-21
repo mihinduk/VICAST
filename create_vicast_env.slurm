@@ -17,10 +17,16 @@ echo ""
 echo "Activating conda..."
 source /ref/sahlab/software/anaconda3/bin/activate
 
-# Get the directory where this script is located
-SCRIPT_DIR="$(dirname "$0")"
-cd "$SCRIPT_DIR"
+# Extract pipeline directory from original sbatch command
+# SLURM preserves the original command in job details
+ORIGINAL_SCRIPT_PATH=$(scontrol show job $SLURM_JOB_ID | grep -oP 'Command=\K[^ ]+')
+PIPELINE_DIR="$(dirname "$ORIGINAL_SCRIPT_PATH")"
 
+echo "Original script: $ORIGINAL_SCRIPT_PATH"
+echo "Pipeline directory: $PIPELINE_DIR"
+echo ""
+
+cd "$PIPELINE_DIR"
 echo "Working directory: $(pwd)"
 echo ""
 
