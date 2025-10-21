@@ -273,11 +273,32 @@ With VADR removed, the codebase is now:
 - ✅ Ready for testing with real-world genomes
 
 **Recommended next actions:**
-1. Test complete Pathway 2 workflow on HTCF
-2. Implement Pathway 3 (BLASTx annotation) if needed
-3. Test Pathway 4 (segmented viruses) thoroughly
-4. Create comprehensive testing documentation
-5. Consider creating example workflows
+1. ✅ Verify Pathway 3 (BLASTx) script exists and is properly updated
+2. Test complete Pathway 2 workflow on HTCF
+3. Test Pathway 3 (BLASTx) on HTCF with BLAST+ installed
+4. Test Pathway 4 (segmented viruses) thoroughly
+5. Create comprehensive testing documentation
+6. Consider creating example workflows
+
+### Pathway 3 (BLASTx) Status
+
+**Script:** `vicast-annotate/step1_blastx_annotate.py`
+- ✅ Script exists and is well-implemented
+- ✅ Updated from "Pathway 4" to "Pathway 3"
+- ✅ Help text displays correctly
+- ✅ Command-line argument parsing works
+- ⏳ Full functional testing requires:
+  - BLAST+ installation (`conda install -c bioconda blast`)
+  - Access to BLAST database (nr, refseq_protein, or viral database)
+  - Should be tested on HTCF with proper environment
+
+**Features implemented:**
+- BLASTx execution against protein databases
+- Tabular output parsing
+- Overlapping hit merging (keeps best hits)
+- Product/gene name extraction from BLAST titles
+- TSV generation for manual curation
+- Comprehensive error handling and timeouts
 
 ### Lessons Learned
 
@@ -290,3 +311,62 @@ With VADR removed, the codebase is now:
 - Every optional feature has a cost in documentation, testing, and support
 - VADR's cost outweighed its benefit for typical use cases
 - Sometimes less is more
+
+---
+
+## Session Summary (2025-10-20)
+
+### Completed Work
+
+1. **VADR Removal** (Complete)
+   - Removed ~100 lines of VADR-specific code
+   - Deleted 3 files (environment_vadr.yml, 2 setup scripts)
+   - Updated 6 files (READMEs, Python scripts, docs)
+   - Committed changes to git (2 commits)
+
+2. **Pathway Renumbering** (Complete)
+   - BLASTx: Pathway 4 → Pathway 3
+   - Segmented viruses: Special case → Pathway 4
+   - Updated all documentation and code references
+
+3. **Documentation** (Complete)
+   - Rewrote ENVIRONMENT_SETUP.md for single environment
+   - Updated decision tree and pathway descriptions
+   - Added SESSION_NOTES.md with implementation details
+
+4. **Pathway 3 Verification** (Complete)
+   - Confirmed step1_blastx_annotate.py exists
+   - Updated pathway numbers in script
+   - Verified help text and argument parsing
+   - Documented testing requirements
+
+### Git Commits
+- `a42bc11` - Remove VADR pathway and streamline to single environment
+- `2224b16` - Update step1_blastx_annotate.py from Pathway 4 to Pathway 3
+
+### Testing Status
+
+| Pathway | Status | Notes |
+|---------|--------|-------|
+| 1. SnpEff check | ✅ Working | Tested in previous session |
+| 2. Well-annotated | ✅ Working | Tested with Dengue (NC_001477) |
+| 3. BLASTx | ⏳ Ready | Needs BLAST+ and database on HTCF |
+| 4. Segmented | ⏳ Ready | Needs testing on HTCF |
+
+### Ready for Production
+
+The VICAST pipeline is now:
+- ✅ Streamlined (single environment)
+- ✅ Well-documented (clear pathway structure)
+- ✅ Maintainable (simpler codebase)
+- ✅ Git committed (all changes saved)
+- ⏳ Needs testing on HTCF (Pathways 3 & 4)
+
+### Next Session Goals
+
+When resuming work:
+1. Test Pathway 2 end-to-end on HTCF
+2. Test Pathway 3 with BLAST+ on HTCF
+3. Test Pathway 4 with segmented viruses
+4. Create example workflows for documentation
+5. Consider adding integration tests
