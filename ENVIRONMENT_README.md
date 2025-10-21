@@ -109,19 +109,52 @@ conda activate vicast
 
 ### "Disk quota exceeded"
 
-This means your home directory is full. Solutions:
+This means your home directory is full. This is the **most common issue** on HPC systems.
 
-1. **Clean conda cache:**
+**Quick fix (works 90% of the time):**
+
+```bash
+# Clean conda package cache (completely safe)
+conda clean --all
+```
+
+This removes cached package files (~2-5 GB typically) that have already been installed. **Your existing environments are NOT affected.**
+
+**Check space before/after:**
+```bash
+# Before cleaning
+du -sh ~/miniforge3/pkgs/cache/
+# Example output: 1.9G
+
+# Clean
+conda clean --all
+
+# After cleaning
+du -sh ~/miniforge3/pkgs/cache/
+# Example output: 12M  (much smaller!)
+```
+
+**If still getting disk quota errors:**
+
+1. **Check overall home directory usage:**
    ```bash
-   conda clean --all
+   du -sh ~
+   quota -s  # If available on your system
    ```
 
-2. **Use a different location:**
+2. **Use a different location** (like scratch space):
    ```bash
-   conda env create -f environment_minimal.yml -p /scratch/your_path/vicast_env
+   conda env create -f environment_minimal.yml -p /scratch/your_username/vicast_env
+   conda activate /scratch/your_username/vicast_env
    ```
 
 3. **Contact your system administrator** for more quota
+
+**Prevention:**
+```bash
+# Set conda to use scratch space for package cache
+conda config --add pkgs_dirs /scratch/your_username/.conda/pkgs
+```
 
 ### "Solving environment takes forever"
 
