@@ -2,9 +2,24 @@
 
 This guide walks through creating and testing the `vicast` conda environment from `environment.yml`.
 
+## Important: HPC Best Practices
+
+**⚠️ DO NOT create conda environments on login nodes!**
+
+**Why?**
+- Conda uses `/tmp` in your home directory by default
+- Login node `/tmp` is small and **shared by all users**
+- Installing on login nodes fills this space and causes problems for everyone
+- Conda solver also needs substantial memory (16-32 GB)
+
+**Always use:**
+- ✅ SLURM batch job (recommended - see below)
+- ✅ Interactive session with `srun`
+- ❌ NEVER directly on login node
+
 ## Step 1: Submit Environment Creation Job
 
-Since conda environment creation can be memory-intensive, we'll use SLURM:
+Since conda environment creation can be memory-intensive and uses significant /tmp space, we'll use SLURM:
 
 ```bash
 # SSH to HTCF
@@ -33,6 +48,22 @@ tail -f create_vicast_env_*.out
 
 # Or check periodically
 cat create_vicast_env_*.out
+```
+
+**Alternative: Use interactive session**
+
+If you prefer to watch the installation interactively:
+
+```bash
+# Request interactive session with resources
+srun --mem=32G --time=2:00:00 --tmp=20G --pty bash
+
+# Once in interactive session
+source /ref/sahlab/software/anaconda3/bin/activate
+conda env create -f environment_minimal.yml
+
+# Exit when done
+exit
 ```
 
 **Job typically takes:** 10-30 minutes

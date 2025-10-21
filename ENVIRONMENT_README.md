@@ -82,12 +82,39 @@ conda env create -f environment.yml
 
 ### On HPC/SLURM systems (like HTCF):
 
+**⚠️ IMPORTANT: DO NOT install on login nodes!**
+
+Conda uses `/tmp` in your home directory by default, which is small and shared with all users. Installing on login nodes can fill this space and cause problems for everyone.
+
+**Option 1: Submit as a SLURM job (RECOMMENDED)**
+
 ```bash
-# Submit as a job to avoid memory issues
+# This automatically runs in an interactive session with proper resources
 sbatch create_vicast_env.slurm
 ```
 
 The SLURM script automatically uses `environment_minimal.yml` and falls back to `environment.yml` if needed.
+
+**Option 2: Use an interactive session**
+
+```bash
+# Request interactive session with enough memory and tmp space
+srun --mem=32G --time=2:00:00 --tmp=20G --pty bash
+
+# Once in the interactive session, create environment
+source /ref/sahlab/software/anaconda3/bin/activate
+conda env create -f environment_minimal.yml
+
+# Exit when done
+exit
+```
+
+**Why interactive sessions?**
+- ✅ Doesn't fill shared `/tmp` on login nodes
+- ✅ Has dedicated temporary space
+- ✅ Won't affect other users
+- ✅ Has enough memory for conda solver
+- ✅ Proper HPC citizenship!
 
 ### On local machine or with sufficient memory:
 
@@ -155,6 +182,42 @@ du -sh ~/miniforge3/pkgs/cache/
 # Set conda to use scratch space for package cache
 conda config --add pkgs_dirs /scratch/your_username/.conda/pkgs
 ```
+
+### "/tmp is full" or "No space left on device" (during conda install)
+
+**Problem:** Conda fills `/tmp` in your home directory on login nodes.
+
+**Why this happens:**
+- Conda uses `/tmp` for extracting packages during installation
+- Login node `/tmp` is small and shared by all users
+- Installing on login nodes affects everyone!
+
+**Solution: Use interactive session or SLURM job**
+
+```bash
+# Option 1: Interactive session (get your own /tmp space)
+srun --mem=32G --time=2:00:00 --tmp=20G --pty bash
+conda env create -f environment_minimal.yml
+exit
+
+# Option 2: Submit as job (recommended)
+sbatch create_vicast_env.slurm
+```
+
+**Or configure conda to use a different tmp directory:**
+```bash
+# Create tmp directory in scratch space
+mkdir -p /scratch/your_username/tmp
+
+# Tell conda to use it
+export TMPDIR=/scratch/your_username/tmp
+conda env create -f environment_minimal.yml
+
+# Make permanent by adding to ~/.bashrc
+echo "export TMPDIR=/scratch/your_username/tmp" >> ~/.bashrc
+```
+
+**Note:** This is good HPC citizenship! Don't fill shared resources on login nodes.
 
 ### "Solving environment takes forever"
 
