@@ -254,6 +254,10 @@ def generate_cds_protein_fasta(genome_fasta, tsv_file, genome_id, snpeff_data_di
 
     # Write to genome-specific directory in SnpEff data
     genome_dir = os.path.join(snpeff_data_dir, genome_id)
+
+    # Create directory if it doesn't exist
+    os.makedirs(genome_dir, exist_ok=True)
+
     cds_file = os.path.join(genome_dir, 'cds.fa')
     protein_file = os.path.join(genome_dir, 'protein.fa')
 
