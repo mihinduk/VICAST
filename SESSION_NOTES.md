@@ -365,8 +365,174 @@ The VICAST pipeline is now:
 ### Next Session Goals
 
 When resuming work:
-1. Test Pathway 2 end-to-end on HTCF
-2. Test Pathway 3 with BLAST+ on HTCF
+1. ✅ Test Pathway 2 end-to-end on HTCF - **COMPLETE**
+2. Test Pathway 3 with BLAST+ on HTCF (needs BLAST installation)
 3. Test Pathway 4 with segmented viruses
 4. Create example workflows for documentation
 5. Consider adding integration tests
+
+---
+
+## Session 2: Testing in viral_genomics Environment (2025-10-21)
+
+### Environment Setup Issues Discovered
+
+1. **NumPy/Pandas Version Conflict**
+   - Error: `pandas is incompatible with numpy < 1.22.4`
+   - Had numpy 1.22.3, pandas needed >=1.22.4
+   - Fix: `pip install --upgrade numpy` (upgraded to 2.0.2)
+   - Note: `conda install numpy=1.22.4` didn't work (permissions issue)
+
+2. **SnpEff Environment Variables Missing**
+   - Variables not set by default (SNPEFF_JAR, SNPEFF_DATA)
+   - Required for step2 to work
+   - Added to ~/.bashrc for permanent setup
+   - Documented in README and ENVIRONMENT_README
+
+3. **CDS/Protein FASTA Directory Bug**
+   - Bug: Script tried to write files before directory existed
+   - Error: `No such file or directory: .../NC_038433.1/cds.fa`
+   - Fix: Added `os.makedirs(genome_dir, exist_ok=True)` in step2
+   - Committed fix: 6963ae2
+
+### Pathway Testing Results
+
+**Environment Used:** `viral_genomics` (existing environment)
+**Test Genome:** NC_038433.1 (Culex tritaeniorhynchus rhabdovirus)
+
+| Pathway | Status | Notes |
+|---------|--------|-------|
+| **1. SnpEff Check** | ✅ **WORKING** | Tested with NC_045512 (SARS-CoV-2) |
+| **2. Well-Annotated** | ✅ **WORKING** | Full end-to-end test with NC_038433.1 |
+| **3. BLASTx** | ⏳ **READY** | Script exists, needs BLAST installed |
+| **4. Segmented** | ⏳ **READY** | Script exists, needs testing |
+
+### Pathway 2 Detailed Test Results
+
+**Step 0: Pathway Detection**
+```bash
+python3 vicast-annotate/step0_check_snpeff.py NC_045512
+```
+- ✅ Correctly identified NC_045512 in SnpEff (Pathway 1)
+- ✅ Clear recommendation and next steps
+
+**Step 1: Parse Genome**
+```bash
+python3 vicast-annotate/step1_parse_viral_genome.py NC_038433.1
+```
+- ✅ Auto-downloaded NC_038433.1.gb from NCBI
+- ✅ Auto-downloaded NC_038433.1.fasta
+- ✅ Parsed GenBank file
+- ✅ Skipped polyproteins (if any)
+- ✅ Generated NC_038433.1_no_polyprotein.gff3
+- ✅ Generated NC_038433.1_no_polyprotein.tsv (editable)
+- ✅ Found 9 CDS features
+
+**Manual Curation Step**
+- User reviewed and edited TSV file
+- All features validated
+
+**Step 2: Add to SnpEff**
+```bash
+python3 vicast-annotate/step2_add_to_snpeff.py NC_038433.1 NC_038433.1_no_polyprotein.tsv
+```
+- ✅ Generated CDS FASTA (9 sequences)
+- ✅ Generated protein FASTA (9 sequences)
+- ✅ Validated GFF3 (warnings about mRNA+CDS overlap are normal)
+- ✅ Copied files to SnpEff data directory
+- ✅ Built SnpEff database successfully
+- ✅ Database ready for variant annotation
+
+**Database Location:**
+- `/ref/sahlab/software/snpEff/data/NC_038433.1/`
+- Contains: sequences.fa, genes.gff, cds.fa, protein.fa, snpEffectPredictor.bin
+
+### Code Fixes Applied
+
+1. **Fix CDS/protein directory creation** (commit 6963ae2)
+   - Added directory creation before writing FASTA files
+   - Prevents "No such file or directory" errors
+
+2. **Document SnpEff environment variables** (commit 6824eac)
+   - Added to README.md and ENVIRONMENT_README.md
+   - Included HTCF-specific paths
+   - Showed how to add to ~/.bashrc
+
+3. **Document HPC best practices** (commit 0fab9f6)
+   - Warning about not installing on login nodes
+   - Conda /tmp usage issues
+   - Interactive session requirements
+
+4. **Fix environment files** (commit 51641da)
+   - Removed strict BLAST version (>=2.15.0 → blast)
+   - Removed exact version pins
+   - Created environment_minimal.yml
+
+### Lessons Learned
+
+1. **Existing environments work fine**
+   - Don't need dedicated `vicast` environment
+   - Any environment with Python, Biopython, Pandas works
+   - Just need to upgrade numpy if version conflict
+
+2. **Environment variables are critical**
+   - Must document SNPEFF_JAR and SNPEFF_DATA prominently
+   - Should be in ~/.bashrc for permanent setup
+   - Scripts fail silently without them
+
+3. **Directory creation is needed**
+   - Can't assume directories exist
+   - Use `os.makedirs(dir, exist_ok=True)` pattern
+
+4. **HPC citizenship matters**
+   - Login node /tmp issues affect everyone
+   - Conda cache can fill disk quotas
+   - Need clear warnings in documentation
+
+### Ready for Production
+
+VICAST is now production-ready for Pathways 1 and 2:
+- ✅ Documentation complete
+- ✅ Environment setup documented
+- ✅ Bugs fixed
+- ✅ Tested on real genome
+- ✅ Works in existing environments
+- ✅ All changes committed and pushed
+
+### For Colleagues
+
+Colleagues can now:
+1. Use existing environment (if has Python, Biopython, Pandas)
+2. Or create minimal environment: `conda env create -f environment_minimal.yml`
+3. Set SnpEff variables in ~/.bashrc
+4. Run VICAST annotation pipelines
+
+**Recommended test:**
+```bash
+# Set up environment variables (one time)
+echo 'export SNPEFF_JAR=/ref/sahlab/software/snpEff/snpEff.jar' >> ~/.bashrc
+echo 'export SNPEFF_DATA=/ref/sahlab/software/snpEff/data' >> ~/.bashrc
+source ~/.bashrc
+
+# Test with Dengue virus (well-annotated example)
+mkdir -p ~/vicast_test && cd ~/vicast_test
+python3 /path/to/VICAST/vicast-annotate/step1_parse_viral_genome.py NC_001477
+# Review the TSV file
+python3 /path/to/VICAST/vicast-annotate/step2_add_to_snpeff.py NC_001477 NC_001477_no_polyprotein.tsv
+```
+
+### Remaining Work
+
+1. **Pathway 3 (BLASTx)** - Needs BLAST installation for testing
+   - Script is complete and updated
+   - Needs `conda install -c bioconda blast` in test environment
+   - Or test with colleague who has BLAST installed
+
+2. **Pathway 4 (Segmented)** - Needs testing with real data
+   - Script exists (vicast_annotate_segmented.py)
+   - Needs test with influenza or rotavirus segments
+
+3. **Documentation** - Could add
+   - Example workflows
+   - Troubleshooting guide expansion
+   - Video walkthrough (optional)
