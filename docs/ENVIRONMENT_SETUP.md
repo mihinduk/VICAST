@@ -1,133 +1,111 @@
 # VICAST Environment Setup Guide
 
-## Why Two Environments?
+## Overview
 
-VICAST uses **two separate conda environments** due to BLAST version requirements:
-
-- **Pathways 1, 2, 4** work with BLAST 2.13.0
-- **Pathway 3 (VADR)** requires BLAST >=2.15.0
-
-VADR has strict dependency requirements that conflict with some tools in the base environment.
-
-## Environment Overview
-
-| Environment | Use For | Key Tools |
-|-------------|---------|-----------|
-| `vicast` | Pathways 1, 2, 4 | SnpEff, BLAST 2.13, Python tools |
-| `vicast-vadr` | Pathway 3 only | VADR, BLAST 2.15+, SnpEff |
+VICAST uses a **single conda environment** that includes all necessary tools for viral genome annotation and SnpEff database creation.
 
 ## Installation
 
-### Base Environment (vicast)
-
-For most users - supports Pathways 1, 2, and 4:
+### Create VICAST Environment
 
 ```bash
-# Create environment
+# Create environment from YAML file
 conda env create -f environment.yml
 
-# Activate
+# Activate environment
 conda activate vicast
 
-# Verify
+# Verify installation
 python3 -c "import Bio; print('Biopython OK')"
 snpeff -version
-blast+ -version
+blastp -version
 ```
 
-**Use this for:**
+**This environment supports:**
 - Pathway 1: Checking existing SnpEff databases
 - Pathway 2: Well-annotated genomes (standard pipeline)
-- Pathway 4: BLASTx-based annotation
-- Segmented virus handling
+- Pathway 3: BLASTx-based annotation
+- Pathway 4: Segmented virus handling
 
-### VADR Environment (vicast-vadr)
+## What's Included
 
-Only needed if using Pathway 3 (VADR-enhanced annotation):
+The `vicast` environment includes:
 
-```bash
-# Create environment
-conda env create -f environment_vadr.yml
-
-# Activate
-conda activate vicast-vadr
-
-# Verify VADR
-v-annotate.pl -h
-python3 -c "import Bio; print('Biopython OK')"
-```
-
-**Use this for:**
-- Pathway 3: VADR-enhanced annotation
-- When using `--use-vadr` flag
+| Tool | Version | Purpose |
+|------|---------|---------|
+| Python | 3.8+ | Core scripting |
+| Biopython | Latest | GenBank/FASTA parsing |
+| Pandas | Latest | Data manipulation |
+| SnpEff | 5.2+ | Variant annotation |
+| BLAST+ | 2.15+ | Homology annotation |
+| pip | Latest | Python package management |
 
 ## Usage Workflow
 
-### For Pathways 1, 2, 4 (Base Environment)
+### Standard Usage
 
 ```bash
-# Activate base environment
+# Activate environment
 conda activate vicast
 
-# Pathway 1: Check if genome exists
+# Pathway 1: Check if genome exists in SnpEff
 python3 vicast-annotate/step0_check_snpeff.py NC_001477
 
-# Pathway 2: Standard annotation
-python3 vicast-annotate/vicast_annotate.py NC_001477
+# Pathway 2: Standard annotation (well-annotated genomes)
+python3 vicast-annotate/step1_parse_viral_genome.py NC_001477
+python3 vicast-annotate/step2_add_to_snpeff.py NC_001477 NC_001477_no_polyprotein.tsv
 
-# Pathway 4: BLASTx annotation
+# Pathway 3: BLASTx annotation (poorly annotated genomes)
 python3 vicast-annotate/step1_blastx_annotate.py genome.fasta --blast-db nr
+python3 vicast-annotate/step2_add_to_snpeff.py genome genome_blastx.tsv
 
-# Segmented viruses
+# Pathway 4: Segmented viruses (multi-chromosome)
 python3 vicast-annotate/vicast_annotate_segmented.py influenza_h1n1 \
   --segments CY121680,CY121681,CY121682,CY121683,CY121684,CY121685,CY121686,CY121687 \
   --names PB2,PB1,PA,HA,NP,NA,M,NS
 ```
 
-### For Pathway 3 (VADR Environment)
-
-```bash
-# Activate VADR environment
-conda activate vicast-vadr
-
-# Run with VADR
-python3 vicast-annotate/step1_parse_viral_genome.py NC_009942 --use-vadr
-
-# Continue with step2 in same environment
-python3 vicast-annotate/step2_add_to_snpeff.py NC_009942 NC_009942_vadr_curated.tsv
-```
-
 ## Troubleshooting
-
-### "VADR not found" Error
-
-**Problem:** Running Pathway 3 in base `vicast` environment
-
-**Solution:** Switch to `vicast-vadr` environment:
-```bash
-conda deactivate
-conda activate vicast-vadr
-```
-
-### "Wrong BLAST version" Warning
-
-**Problem:** Using wrong environment for pathway
-
-**Solution:**
-- Pathways 1, 2, 4: Use `vicast` environment
-- Pathway 3: Use `vicast-vadr` environment
 
 ### Environment Creation Fails
 
 **Common causes:**
+
 1. **Memory limit**: Conda solver needs substantial memory
    - Solution: Run on login node or request more memory
-   
+
 2. **Channel conflicts**: Package versions incompatible
-   - Solution: Update conda channels: `conda config --add channels bioconda`
-   
-3. **Disk space**: Environments can be large (~5-7 GB each)
-   - Solution: Check `df -h` and clean old environments
+   - Solution: Update conda channels:
+     ```bash
+     conda config --add channels defaults
+     conda config --add channels bioconda
+     conda config --add channels conda-forge
+     ```
+
+3. **Disk space**: Environment can be large (~5-7 GB)
+   - Solution: Check available space: `df -h`
+   - Clean old environments: `conda env remove -n old_env`
+
+### Package Import Errors
+
+**Problem:** `ImportError: No module named 'Bio'`
+
+**Solution:** Ensure environment is activated:
+```bash
+conda activate vicast
+python3 -c "import Bio; print('Success!')"
+```
+
+### BLAST Database Issues
+
+**Problem:** BLASTx cannot find database
+
+**Solution:** Set BLASTDB environment variable:
+```bash
+export BLASTDB=/path/to/blast/databases
+# Or specify full path in command:
+python3 step1_blastx_annotate.py genome.fasta --blast-db /full/path/to/nr
+```
 
 ### Which Environment Am I In?
 
@@ -138,81 +116,130 @@ conda env list
 # Shows active environment with *:
 #   base                     /path/to/conda
 #   vicast                *  /path/to/conda/envs/vicast
-#   vicast-vadr             /path/to/conda/envs/vicast-vadr
 ```
 
 ## Storage Requirements
 
 | Component | Size |
 |-----------|------|
-| Base `vicast` environment | ~5 GB |
-| VADR `vicast-vadr` environment | ~7 GB |
-| **Total for both environments** | **~12 GB** |
+| VICAST environment | ~5-7 GB |
+| SnpEff data directory | Varies by genomes added |
+| BLAST databases (if using Pathway 3) | Can be large (nr ~200 GB) |
 
-## Alternative: Single Environment with Updated BLAST
+## For HPC/SLURM Users
 
-If disk space is limited, you can create a single environment with BLAST 2.15+:
+### Environment Setup on HPC
+
+Create environment on login node (one-time):
 
 ```bash
-# Modify environment.yml
-# Change: blast=2.13.0
-# To: blast>=2.15.0
+# On HTCF, activate conda first
+source /ref/sahlab/software/anaconda3/bin/activate
 
-# Add VADR
-# Add line: - vadr>=1.6.4
-
-# Create unified environment
+# Create VICAST environment
 conda env create -f environment.yml
 ```
 
-**Pros:** One environment, simpler
-**Cons:** Larger install, longer solve time, potential conflicts
+### Using in SLURM Jobs
+
+```bash
+#!/bin/bash
+#SBATCH --job-name=vicast_annotate
+#SBATCH --mem=8G
+#SBATCH --time=2:00:00
+
+# Activate conda (HTCF-specific)
+source /ref/sahlab/software/anaconda3/bin/activate
+
+# Activate VICAST environment
+conda activate vicast
+
+# Run VICAST pipeline
+python3 vicast-annotate/step1_parse_viral_genome.py NC_001477
+python3 vicast-annotate/step2_add_to_snpeff.py NC_001477 NC_001477_no_polyprotein.tsv
+```
 
 ## Best Practices
 
-1. **Start with base environment** - Most users only need Pathways 1 & 2
-2. **Add VADR environment only if needed** - When you need Pathway 3
-3. **Keep environments updated** - `conda update --all`
-4. **Clean unused environments** - `conda env remove -n old_env`
-5. **Export working environments** - `conda env export > working_env.yml`
+1. **Keep environment updated**
+   ```bash
+   conda activate vicast
+   conda update --all
+   ```
+
+2. **Export working environment** (for reproducibility)
+   ```bash
+   conda env export > vicast_working_$(date +%Y%m%d).yml
+   ```
+
+3. **Clean package cache** (save disk space)
+   ```bash
+   conda clean --all
+   ```
+
+4. **Use environment.yml for installation** (not manual package installs)
+   - Ensures all dependencies are compatible
+   - Makes environment reproducible
+
+5. **Test after installation**
+   ```bash
+   conda activate vicast
+   validate_vicast_setup  # If available
+   ```
+
+## Updating VICAST
+
+When updating VICAST from GitHub:
+
+```bash
+# Pull latest changes
+cd VICAST
+git pull origin main
+
+# Update environment if environment.yml changed
+conda env update -f environment.yml --prune
+```
+
+## Environment Variables
+
+VICAST uses these environment variables (set via `setup/snpeff_env.sh`):
+
+```bash
+export SNPEFF_JAR=/path/to/snpEff.jar
+export SNPEFF_DATA=/path/to/snpEff/data
+export SCRATCH_DIR=/path/to/scratch  # Optional
+```
+
+Load them with:
+```bash
+source setup/snpeff_env.sh
+```
+
+Or add to your `~/.bashrc` for automatic loading:
+```bash
+# Add to ~/.bashrc
+source /path/to/VICAST/setup/snpeff_env.sh
+```
 
 ## Quick Reference
 
 ```bash
-# Create both environments
+# One-time setup
 conda env create -f environment.yml
-conda env create -f environment_vadr.yml
 
-# Use base environment (most common)
+# Each session
 conda activate vicast
-python3 vicast-annotate/vicast_annotate.py NC_001477
-
-# Use VADR environment (Pathway 3 only)
-conda activate vicast-vadr
-python3 vicast-annotate/step1_parse_viral_genome.py NC_009942 --use-vadr
-
-# Switch environments
-conda deactivate
-conda activate vicast  # or vicast-vadr
-```
-
-## For HPC/SLURM Users
-
-Create environments on login node, then use in jobs:
-
-```bash
-#!/bin/bash
-#SBATCH --job-name=vicast
-#SBATCH --mem=8G
-
-# Activate appropriate environment
-source /path/to/conda/bin/activate
-conda activate vicast  # or vicast-vadr
+source setup/snpeff_env.sh
 
 # Run VICAST
-python3 vicast-annotate/vicast_annotate.py NC_001477
+python3 vicast-annotate/step0_check_snpeff.py GENOME_ID
+python3 vicast-annotate/step1_parse_viral_genome.py GENOME_ID
+python3 vicast-annotate/step2_add_to_snpeff.py GENOME_ID GENOME_ID_no_polyprotein.tsv
+
+# When done
+conda deactivate
 ```
 
 ---
 
-For more details, see: [DEPENDENCIES.md](DEPENDENCIES.md)
+For dependency details, see: [DEPENDENCIES.md](DEPENDENCIES.md)

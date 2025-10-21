@@ -200,12 +200,9 @@ def recommend_pathway(genome_id):
         return 2, "Well-annotated (NCBI)", \
                "NCBI has good quality annotations - use standard pipeline with manual curation", \
                details
-    elif quality == 'poor':
-        return 3, "VADR annotation", \
-               "NCBI annotations are incomplete - VADR can improve them", \
-               details
     else:
-        return 4, "BLASTx annotation", \
+        # For poor or no annotations, use BLASTx
+        return 3, "BLASTx annotation", \
                "No quality annotations available - use homology-based annotation", \
                details
 
@@ -222,11 +219,11 @@ Pathway 1: Already in SnpEff
 Pathway 2: Well-annotated (NCBI has good annotations)
   → Use step1_parse_viral_genome.py → step2_add_to_snpeff.py
 
-Pathway 3: Can be annotated with VADR
-  → Use step1_parse_viral_genome.py --use-vadr → step2_add_to_snpeff.py
-
-Pathway 4: Requires BLASTx-based annotation
+Pathway 3: Requires BLASTx-based annotation
   → Use step1_blastx_annotate.py → step2_add_to_snpeff.py
+
+Pathway 4: Segmented viruses (multiple chromosomes)
+  → Use vicast_annotate_segmented.py
 
 Examples:
   python3 step0_check_snpeff.py NC_001477
@@ -266,18 +263,17 @@ Examples:
         print(f"  python3 step1_parse_viral_genome.py {args.genome_id}")
         print(f"  # Review and edit the TSV file")
         print(f"  python3 step2_add_to_snpeff.py {args.genome_id} {args.genome_id}_no_polyprotein.tsv")
-        
+
     elif pathway_num == 3:
-        print("\nUse VADR-enhanced annotation pipeline:")
-        print(f"  python3 step1_parse_viral_genome.py {args.genome_id} --use-vadr")
-        print(f"  # Review VADR validation results and edit TSV")
-        print(f"  python3 step2_add_to_snpeff.py {args.genome_id} {args.genome_id}_vadr_curated.tsv")
-        
-    elif pathway_num == 4:
         print("\nUse BLASTx-based annotation pipeline:")
         print(f"  python3 step1_blastx_annotate.py {args.genome_id}")
         print(f"  # Review and edit the TSV file")
         print(f"  python3 step2_add_to_snpeff.py {args.genome_id} {args.genome_id}_blastx.tsv")
+
+    elif pathway_num == 4:
+        print("\nUse segmented virus annotation pipeline:")
+        print(f"  python3 vicast_annotate_segmented.py {args.genome_id} --segments ACC1,ACC2,... --names SEG1,SEG2,...")
+        print(f"  # Combines all segments into single database")
     
     print("\n" + "="*60)
     

@@ -8,8 +8,8 @@ VICAST-annotate addresses the challenge of poorly annotated viral genomes by pro
 
 1. **Pathway 1**: Already in SnpEff → Use existing database
 2. **Pathway 2**: Well-annotated (NCBI) → Standard pipeline with manual curation
-3. **Pathway 3**: VADR annotation → Enhanced validation for poorly annotated genomes
-4. **Pathway 4**: BLASTx annotation → Homology-based annotation for novel/unannotated genomes
+3. **Pathway 3**: BLASTx annotation → Homology-based annotation for novel/unannotated genomes
+4. **Pathway 4**: Segmented viruses → Multi-chromosome genomes (influenza, rotavirus, etc.)
 
 ## Quick Start
 
@@ -84,43 +84,7 @@ python3 step2_add_to_snpeff.py NC_001477 NC_001477_no_polyprotein.tsv
 
 ---
 
-### Pathway 3: VADR-Enhanced Annotation
-
-**When to use**: NCBI annotations are incomplete but genome has recognizable viral features
-
-**Workflow**:
-```bash
-# Step 1: Parse with VADR validation
-python3 step1_parse_viral_genome.py NC_009942.1 --use-vadr
-
-# VADR will:
-# - Validate existing annotations
-# - Identify annotation errors
-# - Generate quality reports
-
-# Manual curation: Review VADR alerts and edit TSV
-# Files: NC_009942.1_vadr_curated.tsv
-#        NC_009942.1_vadr/ (VADR results)
-
-# Step 2: Add to SnpEff
-python3 step2_add_to_snpeff.py NC_009942.1 NC_009942.1_vadr_curated.tsv
-```
-
-**VADR Models**:
-- `flavi` - Flaviviruses (default)
-- `corona` - Coronaviruses
-- `calici` - Caliciviruses
-- `flua` - Influenza A
-- Custom models in `$VADR_DIR/vadr-models/`
-
-**Custom model**:
-```bash
-python3 step1_parse_viral_genome.py NC_XXXXXX --use-vadr --vadr-model corona
-```
-
----
-
-### Pathway 4: BLASTx-Based Annotation
+### Pathway 3: BLASTx-Based Annotation
 
 **When to use**: No quality annotations available, need homology-based annotation
 
@@ -167,12 +131,7 @@ python3 step2_add_to_snpeff.py NC_XXXXXX NC_XXXXXX_blastx.tsv
 
 ### Pathway-Specific Requirements
 
-**Pathway 3 (VADR)**:
-- VADR 1.6+ installed
-- VADR models for your virus family
-- Install: `bash setup/install_vadr.sh /path/to/software`
-
-**Pathway 4 (BLASTx)**:
+**Pathway 3 (BLASTx)**:
 - BLAST+ installed: `conda install -c bioconda blast`
 - Access to BLAST database (nr, refseq_protein, or custom)
 
@@ -186,7 +145,6 @@ source setup/snpeff_env.sh
 # Or set manually:
 export SNPEFF_JAR=/path/to/snpEff.jar
 export SNPEFF_DATA=/path/to/snpEff/data
-export VADR_DIR=/path/to/vadr  # For pathway 3
 ```
 
 ## Decision Tree
@@ -204,12 +162,12 @@ Start: Check genome ID
     │        NO
     │         │
     │         v
-    ├──> VADR model available? ──YES──> Pathway 3: VADR
+    ├──> Multiple segments? ──YES──> Pathway 4: Segmented
     │         │
     │        NO
     │         │
     │         v
-    └──> Use BLASTx ──────────────────────> Pathway 4: BLASTx
+    └──> Use BLASTx ──────────────────────> Pathway 3: BLASTx
 ```
 
 ## Manual Curation Guidelines
@@ -252,7 +210,6 @@ test_vicast_annotate NC_001477
 
 # Check specific components
 validate_snpeff
-validate_vadr
 validate_python_packages
 ```
 
@@ -269,13 +226,12 @@ validate_python_packages
 - `{genome_id}_no_polyprotein.gff3`
 
 **Pathway 3**:
-- `{genome_id}_vadr/` - VADR validation results
-- `{genome_id}_vadr_curated.tsv`
-- `{genome_id}_vadr.gff3`
-
-**Pathway 4**:
 - `{genome_id}_blastx.txt` - BLAST results
 - `{genome_id}_blastx.tsv`
+
+**Pathway 4 (Segmented)**:
+- Combined sequences.fa with all segments
+- Combined genes.gff with all annotations
 
 ### SnpEff Database
 ```
@@ -293,14 +249,9 @@ $SNPEFF_DATA/{genome_id}/
 - Run pathway 2, 3, or 4 to add it
 
 **"No CDS features found"** (Pathway 2)
-- Try pathway 3 (VADR) or pathway 4 (BLASTx)
+- Try pathway 3 (BLASTx) for homology-based annotation
 
-**"VADR model not found"** (Pathway 3)
-- Install VADR models: `bash setup/install_vadr.sh`
-- Check `$VADR_DIR/vadr-models/`
-- Use different model: `--vadr-model corona`
-
-**"BLASTx no hits"** (Pathway 4)
+**"BLASTx no hits"** (Pathway 3)
 - Use viral-specific database
 - Relax E-value: `--evalue 1e-3`
 - Check if genome is truly novel
@@ -320,23 +271,15 @@ python3 vicast_annotate.py NC_001477
 # → Added to SnpEff in ~5 minutes
 ```
 
-### Example 2: Novel Flavivirus (Poor Annotations)
+### Example 2: Uncharacterized Virus (No Annotations)
 ```bash
-python3 vicast_annotate.py NC_XXXXXX --pathway 3
-# → Pathway 3: VADR with flavi model
-# → VADR identifies and corrects annotation errors
-# → Manual refinement of gene boundaries
-```
-
-### Example 3: Uncharacterized Virus (No Annotations)
-```bash
-python3 vicast_annotate.py novel_virus.fasta --pathway 4 --blast-db /data/viral_proteins
-# → Pathway 4: BLASTx against viral database
+python3 vicast_annotate.py novel_virus.fasta --pathway 3 --blast-db /data/viral_proteins
+# → Pathway 3: BLASTx against viral database
 # → Identifies homologous proteins
 # → Extensive manual curation needed
 ```
 
-### Example 4: Already Available
+### Example 3: Already Available
 ```bash
 python3 step0_check_snpeff.py NC_045512
 # → Pathway 1: SARS-CoV-2 already in SnpEff
@@ -348,8 +291,8 @@ python3 step0_check_snpeff.py NC_045512
 ### v2.1.0
 - Initial release with 4-pathway system
 - Automatic pathway detection
-- VADR integration
 - BLASTx homology-based annotation
+- Segmented virus support
 - Comprehensive testing suite
 
 ## Citation
