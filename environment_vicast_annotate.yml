@@ -1,4 +1,4 @@
-name: vicast
+name: vicast_annotate
 channels:
   - bioconda
   - conda-forge
@@ -15,6 +15,9 @@ dependencies:
   # Pathway 3: BLASTx annotation (flexible version - 2.13+ works fine)
   - blast
 
+  # Pathway 2 QC: Gap detection and ORF finding
+  - emboss
+
   # SnpEff (may need manual upgrade to 5.2+ for Java 21)
   - snpeff
 
@@ -24,13 +27,16 @@ dependencies:
   - pip:
     - argparse
 
-# Note: This is a minimal environment for VICAST-annotate only.
-# For full VICAST (with variant calling), use environment.yml instead.
+# VICAST-annotate: Genome annotation pipelines (Pathways 1-4)
 #
-# Why minimal?
-# - Faster to create (fewer packages = less memory during solve)
-# - Only includes packages needed for annotation pipelines
-# - Full environment.yml includes variant calling tools (bwa, samtools, etc.)
+# Use this environment for:
+# - Adding poorly annotated viral genomes to SnpEff databases
+# - BLASTx-based homology annotation
+# - Polyprotein curation and quality control
+# - Segmented virus handling
+#
+# For variant calling, use environment_vicast_analyze.yml instead
+# For everything (annotation + variant calling), use environment.yml
 #
 # Manual installations:
 # - SnpEff 5.2+ with Java 21 (optional): bash setup/install_java21_conda.sh

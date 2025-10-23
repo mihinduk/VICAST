@@ -17,6 +17,9 @@ dependencies:
   # Pathway 3: BLASTx annotation
   - blast
 
+  # Pathway 2 QC: Gap detection and ORF finding
+  - emboss
+
   # SnpEff for variant annotation
   - snpeff
 

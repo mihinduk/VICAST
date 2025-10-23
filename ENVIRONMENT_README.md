@@ -1,80 +1,110 @@
 # VICAST Environment Files
 
-VICAST provides two conda environment files to suit different needs.
+VICAST provides three conda environment files for different use cases.
 
 ## Quick Recommendation
 
-**For most users (VICAST-annotate only):**
+**For genome annotation (Pathways 1-4):**
 ```bash
-conda env create -f environment_minimal.yml
+conda env create -f environment_vicast_annotate.yml
 ```
 
-**For full pipeline (annotation + variant calling):**
+**For variant calling and passage analysis:**
+```bash
+conda env create -f environment_vicast_analyze.yml
+```
+
+**For everything (annotation + variant calling):**
 ```bash
 conda env create -f environment.yml
 ```
 
 ---
 
-## environment_minimal.yml ⚡ (RECOMMENDED)
+## environment_vicast_annotate.yml ⚡ (MOST COMMON)
 
-**Best for:** VICAST-annotate pipelines (Pathways 1-4)
+**Best for:** Genome annotation workflows
 
 **Includes:**
 - Python 3.9
 - Biopython, Pandas, NumPy
-- BLAST (for Pathway 3 - BLASTx annotation)
-- SnpEff (for variant annotation)
+- BLAST (Pathway 3 - homology annotation)
+- EMBOSS (Pathway 2 QC - gap detection/ORF finding)
+- SnpEff (variant annotation)
 
 **Advantages:**
-- ✅ **Faster to create** (~5-10 minutes vs 20-30 minutes)
-- ✅ **Less memory needed** (works with 16GB)
-- ✅ **Smaller disk footprint** (~3-4 GB vs ~7-8 GB)
-- ✅ **Fewer conflicts** (fewer packages = easier to solve)
-- ✅ **Everything you need** for annotation workflows
+- ✅ **Lightweight** (~3-4 GB, fast install)
+- ✅ **Purpose-built** for annotation
+- ✅ **Less memory** (works with 16GB RAM)
+- ✅ **Quick setup** (~5-10 minutes)
 
 **Use this if:**
-- You only need VICAST-annotate (genome annotation)
-- You want faster environment creation
-- You have limited disk space
-- You're testing/learning VICAST
+- Adding viral genomes to SnpEff
+- Curating polyprotein annotations
+- BLASTx-based annotation transfer
+- Only need annotation (no variant calling)
 
 ---
 
-## environment.yml 🔬 (FULL)
+## environment_vicast_analyze.yml 📊 (VARIANT CALLING)
 
-**Best for:** Complete VICAST (annotation + variant calling)
+**Best for:** Passage studies and variant calling
 
-**Includes everything in minimal, plus:**
-- bwa, samtools, bcftools (alignment and variant calling)
-- megahit (assembly)
-- lofreq (low-frequency variant calling)
-- fastp, seqkit (read processing)
+**Includes everything in annotate, plus:**
+- bwa, samtools, bcftools (alignment)
+- lofreq, freebayes (variant callers)
+- fastp, fastqc, multiqc (QC)
+- megahit, spades (assembly)
+- bedtools, mosdepth (coverage)
 - Additional analysis tools
 
 **Advantages:**
-- ✅ **Complete toolkit** for viral genomics
-- ✅ **Ready for VICAST-analyze** (coming soon)
-- ✅ **All-in-one environment**
+- ✅ **Complete toolkit** for passage experiments
+- ✅ **Low-frequency variants** (lofreq)
+- ✅ **Coverage analysis**
+- ✅ **Multiple variant callers**
 
 **Use this if:**
-- You need variant calling pipelines
-- You want to analyze passage experiments
-- You're doing full viral genomics workflows
-- You have plenty of disk space and time
+- Tracking virus evolution across passages
+- Detecting minority variants
+- Analyzing deep sequencing data
+- Need full genomic analysis pipeline
+
+---
+
+## environment.yml 🔬 (EVERYTHING)
+
+**Best for:** Complete VICAST (annotation + variant calling)
+
+**Includes:**
+- All vicast_annotate tools
+- All vicast_analyze tools
+- Everything in one environment
+
+**Advantages:**
+- ✅ **One environment** for all workflows
+- ✅ **No switching** between environments
+- ✅ **Convenient** for diverse projects
+
+**Use this if:**
+- You do both annotation and variant calling
+- You want simplicity over size
+- Disk space isn't a concern
+- You prefer one environment for everything
 
 ---
 
 ## Comparison
 
-| Feature | minimal | full |
-|---------|---------|------|
-| Creation time | 5-10 min | 20-30 min |
-| Disk space | ~3-4 GB | ~7-8 GB |
-| Memory needed | 16 GB | 32 GB |
-| Packages | ~30 | ~50 |
-| VICAST-annotate | ✅ | ✅ |
-| VICAST-analyze | ❌ | ✅ |
+| Feature | annotate | analyze | full |
+|---------|----------|---------|------|
+| Creation time | 5-10 min | 10-15 min | 20-30 min |
+| Disk space | ~3-4 GB | ~5-6 GB | ~8-10 GB |
+| Memory needed | 16 GB | 16-24 GB | 32 GB |
+| Packages | ~15 | ~35 | ~50 |
+| Annotation (Pathways 1-4) | ✅ | ❌ | ✅ |
+| Variant calling | ❌ | ✅ | ✅ |
+| Passage analysis | ❌ | ✅ | ✅ |
 
 ---
 
@@ -89,11 +119,14 @@ Conda uses `/tmp` in your home directory by default, which is small and shared w
 **Option 1: Submit as a SLURM job (RECOMMENDED)**
 
 ```bash
-# This automatically runs in an interactive session with proper resources
-sbatch create_vicast_env.slurm
+# For annotation environment
+sbatch create_vicast_env.slurm environment_vicast_annotate.yml
+
+# Or for variant calling environment
+sbatch create_vicast_env.slurm environment_vicast_analyze.yml
 ```
 
-The SLURM script automatically uses `environment_minimal.yml` and falls back to `environment.yml` if needed.
+The SLURM script uses the specified environment file.
 
 **Option 2: Use an interactive session**
 
@@ -102,8 +135,8 @@ The SLURM script automatically uses `environment_minimal.yml` and falls back to 
 srun --mem=32G --time=2:00:00 --tmp=20G --pty bash
 
 # Once in the interactive session, create environment
-source /ref/sahlab/software/anaconda3/bin/activate
-conda env create -f environment_minimal.yml
+source /ref/sahlab/software/miniforge3/bin/activate
+conda env create -f environment_vicast_annotate.yml
 
 # Exit when done
 exit
@@ -118,13 +151,19 @@ exit
 
 ### On local machine or with sufficient memory:
 
-**Minimal environment:**
+**Annotation environment:**
 ```bash
-conda env create -f environment_minimal.yml
-conda activate vicast
+conda env create -f environment_vicast_annotate.yml
+conda activate vicast_annotate
 ```
 
-**Full environment:**
+**Variant calling environment:**
+```bash
+conda env create -f environment_vicast_analyze.yml
+conda activate vicast_analyze
+```
+
+**Full environment (everything):**
 ```bash
 conda env create -f environment.yml
 conda activate vicast
@@ -316,14 +355,23 @@ python3 vicast-annotate/step1_parse_viral_genome.py NC_001477
 ## Which Environment Should I Use?
 
 ```
-Do you need variant calling pipelines?
+What's your primary workflow?
 │
-├─ YES → Use environment.yml (full)
+├─ Genome annotation (Pathways 1-4)
+│  └→ environment_vicast_annotate.yml ⚡
 │
-└─ NO → Use environment_minimal.yml (recommended)
-    │
-    └─ Just genome annotation? → minimal ✓
+├─ Variant calling & passage analysis
+│  └→ environment_vicast_analyze.yml 📊
+│
+└─ Both annotation + variant calling
+   └→ environment.yml 🔬
 ```
+
+**Quick decision tree:**
+- Adding viruses to SnpEff? → **vicast_annotate**
+- Analyzing passage experiments? → **vicast_analyze**
+- Doing everything? → **full (environment.yml)**
+- Want fastest install? → **vicast_annotate**
 
 ---
 
