@@ -376,15 +376,23 @@ def add_genome_to_snpeff(genome_id, fasta_file, gff_file, snpeff_data_dir=None, 
         # Check if snpeff command exists
         snpeff_jar = os.path.join(snpeff_home, 'snpEff.jar')
         java_home = os.environ.get('JAVA_HOME')
-        
+
+        # Build base command
         if java_home and os.path.exists(snpeff_jar):
             # Use direct Java command
             java_cmd = os.path.join(java_home, 'bin', 'java')
-            cmd = [java_cmd, '-jar', snpeff_jar, 'build', '-gff3', '-v', genome_id]
+            cmd = [java_cmd, '-jar', snpeff_jar, 'build', '-gff3', '-v']
         else:
             # Try using snpeff command
-            cmd = ['snpeff', 'build', '-gff3', '-v', genome_id]
-        
+            cmd = ['snpeff', 'build', '-gff3', '-v']
+
+        # Add validation skip flags if validation disabled
+        if not validate:
+            cmd.extend(['-noCheckProtein', '-noCheckCds'])
+
+        # Add genome ID
+        cmd.append(genome_id)
+
         result = subprocess.run(cmd, capture_output=True, text=True)
         
         if result.returncode == 0:
