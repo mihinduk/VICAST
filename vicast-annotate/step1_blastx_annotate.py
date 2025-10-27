@@ -566,6 +566,8 @@ NEXT STEPS:
                        help='E-value threshold (default: 1e-5)')
     parser.add_argument('--overlap-threshold', type=float, default=0.5,
                        help='Overlap threshold for merging hits (default: 0.5)')
+    parser.add_argument('--no-merge', action='store_true',
+                       help='Skip merging overlapping hits (keep all hits)')
 
     # Output
     parser.add_argument('--output', '-o',
@@ -706,8 +708,13 @@ NEXT STEPS:
         print("  - Subject genome is truly novel")
         sys.exit(1)
 
-    # Merge overlapping hits
-    merged_hits = merge_overlapping_hits(hits, args.overlap_threshold)
+    # Merge overlapping hits (unless --no-merge specified)
+    if args.no_merge:
+        print("\nSkipping merge (--no-merge specified)")
+        print(f"  Keeping all {len(hits)} hits")
+        merged_hits = hits
+    else:
+        merged_hits = merge_overlapping_hits(hits, args.overlap_threshold)
 
     #=========================================================================
     # STEP 6: Create annotation TSV
