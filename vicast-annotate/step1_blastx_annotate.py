@@ -509,6 +509,75 @@ def create_annotation_tsv(hits, output_tsv, seqid):
 
     return output_tsv
 
+
+def generate_protein_fasta(hits, subject_fasta, output_fasta, seqid):
+    """
+    Generate protein FASTA file from BLASTx hits.
+
+    Args:
+        hits: List of hit dictionaries with genomic coordinates
+        subject_fasta: Path to subject genome FASTA
+        output_fasta: Output protein FASTA path
+        seqid: Sequence ID
+
+    Returns:
+        Output FASTA path
+    """
+    from Bio import SeqIO
+    from Bio.Seq import Seq
+
+    print(f"\nGenerating protein FASTA...")
+
+    # Read subject genome
+    genome_seq = None
+    for record in SeqIO.parse(subject_fasta, "fasta"):
+        if record.id == seqid or record.id.split()[0] == seqid:
+            genome_seq = str(record.seq)
+            break
+
+    if not genome_seq:
+        print(f"  ⚠ Warning: Could not find sequence {seqid} in {subject_fasta}")
+        return None
+
+    # Generate protein sequences
+    proteins = []
+    for i, hit in enumerate(hits, 1):
+        start = hit['start'] - 1  # Convert to 0-based
+        end = hit['end']
+        strand = hit['strand']
+
+        # Extract nucleotide sequence
+        nt_seq = genome_seq[start:end]
+
+        # Reverse complement if minus strand
+        if strand == '-':
+            nt_seq = str(Seq(nt_seq).reverse_complement())
+
+        # Translate
+        try:
+            protein_seq = str(Seq(nt_seq).translate(to_stop=False))
+
+            # Create FASTA header
+            gene_name = hit.get('gene', f'ORF{i}')
+            product = hit['product']
+            header = f">{seqid}_{gene_name} {product} [BLASTx:{hit['hit_id']} E={hit['evalue']:.2e} ID={hit['identity']:.1f}%] [{start+1}:{end}({strand})]"
+
+            proteins.append(f"{header}\n{protein_seq}")
+
+        except Exception as e:
+            print(f"  ⚠ Warning: Could not translate {gene_name}: {e}")
+            continue
+
+    # Write to file
+    with open(output_fasta, 'w') as f:
+        f.write('\n'.join(proteins) + '\n')
+
+    print(f"  ✓ Created: {output_fasta}")
+    print(f"  Total proteins: {len(proteins)}")
+
+    return output_fasta
+
+
 #=============================================================================
 # MAIN WORKFLOW
 #=============================================================================
@@ -726,8 +795,12 @@ NEXT STEPS:
 
     output_base = args.output if args.output else subject_id
     output_tsv = f"{output_base}_blastx.tsv"
+    output_fasta = f"{output_base}_blastx_proteins.faa"
 
     create_annotation_tsv(merged_hits, output_tsv, seqid)
+
+    # Generate protein FASTA from hits
+    generate_protein_fasta(merged_hits, subject_fasta, output_fasta, seqid)
 
     #=========================================================================
     # DONE
@@ -742,18 +815,25 @@ NEXT STEPS:
     print("\n" + "="*60)
     print("NEXT STEPS:")
     print("="*60)
-    print(f"\n1. REVIEW AND EDIT the TSV file:")
-    print(f"   {output_tsv}")
-    print("\n   Check for:")
+    print(f"\n1. REVIEW the annotation files:")
+    print(f"   TSV:     {output_tsv}")
+    print(f"   Proteins: {output_fasta}")
+    print("\n   Use the protein FASTA to:")
+    print("   - Verify protein sequences look correct")
+    print("   - Check for premature stops (indicated by * in sequence)")
+    print("   - BLAST against NCBI to confirm identities")
+    print("   - Assess annotation quality")
+
+    print(f"\n2. EDIT the TSV file if needed:")
     print("   - Verify gene boundaries are correct")
     print("   - Check for missed features")
     print("   - Refine gene names and products")
     print("   - Remove any false positives")
     print("   - Mark frameshifts if present")
 
-    print(f"\n2. SAVE your edited file (keep as TSV)")
+    print(f"\n3. SAVE your edited file (keep as TSV)")
 
-    print(f"\n3. RUN STEP 2 to add to SnpEff:")
+    print(f"\n4. RUN STEP 2 to add to SnpEff:")
     print(f"   python3 step2_add_to_snpeff.py {subject_id} {output_tsv}")
 
     print("\n" + "="*60)
