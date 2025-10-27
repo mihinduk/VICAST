@@ -23,6 +23,10 @@ dependencies:
   # SnpEff for variant annotation
   - snpeff
 
+  # Report generation (Pathway 2 QC)
+  - python-markdown  # Markdown to HTML conversion
+  - weasyprint       # HTML to PDF conversion
+
   # VICAST-analyze: Variant calling tools (can be omitted for annotation-only)
   - bwa
   - samtools

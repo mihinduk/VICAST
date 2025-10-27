@@ -330,7 +330,7 @@ class ViralAnnotationGapDetector:
     
     def generate_qc_report(self) -> str:
         """
-        Generate comprehensive QC report.
+        Generate comprehensive QC report (plain text for terminal output).
         Returns: Multi-line string summarizing all gaps and recommended actions.
         """
         report_lines = [
@@ -339,41 +339,41 @@ class ViralAnnotationGapDetector:
             "╚════════════════════════════════════════════════════════════════╝",
             ""
         ]
-        
+
         if not self.gaps:
             report_lines.append("✓ NO GAPS DETECTED: Annotation appears complete")
             return "\n".join(report_lines)
-        
+
         # Summary
         severity_counts = {}
         for gap in self.gaps:
             severity_counts[gap.severity] = severity_counts.get(gap.severity, 0) + 1
-        
+
         report_lines.append(f"Found {len(self.gaps)} gap(s):")
         for severity, count in severity_counts.items():
             report_lines.append(f"  • {severity.value}: {count}")
-        
+
         report_lines.append("")
         report_lines.append("DETAILED FINDINGS:")
-        
+
         for i, gap in enumerate(self.gaps, 1):
             report_lines.append(f"\nGap #{i}: {gap.upstream_gene} → {gap.downstream_gene}")
             report_lines.append(f"  Position: {gap.start:,} - {gap.end:,} ({gap.size_bp} bp)")
             report_lines.append(f"  Severity: {gap.severity.value}")
-            
+
             if gap.repair_findings:
                 report_lines.append(f"  Findings:")
                 for method, finding in gap.repair_findings.items():
                     report_lines.append(f"    • {method}: {finding}")
-        
+
         # Final recommendation
         report_lines.append("\n" + "="*68)
         report_lines.append("FINAL RECOMMENDATION:")
         report_lines.append("="*68)
-        
-        has_severe = any(g.severity in [GapSeverity.SEVERE, GapSeverity.CRITICAL] 
+
+        has_severe = any(g.severity in [GapSeverity.SEVERE, GapSeverity.CRITICAL]
                         for g in self.gaps)
-        
+
         if has_severe:
             report_lines.append("")
             report_lines.append("🚨 WARNING: Large gaps detected!")
@@ -390,8 +390,184 @@ class ViralAnnotationGapDetector:
             report_lines.append("")
             report_lines.append("✓ Minor gaps acceptable for a model virus annotation.")
             report_lines.append("  Recommend: Document gaps in methods section of publication")
-        
+
         return "\n".join(report_lines)
+
+    def generate_markdown_report(self, genome_id: str) -> str:
+        """
+        Generate Markdown-formatted QC report suitable for documentation.
+
+        Args:
+            genome_id: Genome accession (e.g., NC_038433.1)
+
+        Returns:
+            Markdown-formatted report string
+        """
+        from datetime import datetime
+
+        md_lines = [
+            f"# Pathway 2 QC Report: {genome_id}",
+            "",
+            f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}  ",
+            f"**Pipeline:** VICAST Pathway 2 - Model Annotation Validation  ",
+            "",
+            "---",
+            ""
+        ]
+
+        if not self.gaps:
+            md_lines.extend([
+                "## ✅ Result: PASSED",
+                "",
+                "**No gaps detected** - Annotation appears complete and suitable for use as a model in Pathway 3 annotation transfer.",
+                ""
+            ])
+            return "\n".join(md_lines)
+
+        # Summary
+        severity_counts = {}
+        for gap in self.gaps:
+            severity_counts[gap.severity] = severity_counts.get(gap.severity, 0) + 1
+
+        has_severe = any(g.severity in [GapSeverity.SEVERE, GapSeverity.CRITICAL]
+                        for g in self.gaps)
+
+        if has_severe:
+            md_lines.extend([
+                "## ❌ Result: FAILED",
+                "",
+                "**Large gaps detected** - Cannot use as model for annotation transfer until gaps are resolved.",
+                ""
+            ])
+        else:
+            md_lines.extend([
+                "## ⚠️ Result: PASSED with Minor Gaps",
+                "",
+                "**Minor gaps detected** - Acceptable for use as model, but should be documented.",
+                ""
+            ])
+
+        md_lines.extend([
+            "## Summary",
+            "",
+            f"Found **{len(self.gaps)} gap(s)** in annotation:",
+            ""
+        ])
+
+        # Severity breakdown table
+        md_lines.extend([
+            "| Severity | Count | Description |",
+            "|----------|-------|-------------|"
+        ])
+
+        for severity, count in severity_counts.items():
+            md_lines.append(f"| {severity.name} | {count} | {severity.value} |")
+
+        md_lines.extend(["", "---", ""])
+
+        # Detailed findings
+        md_lines.extend([
+            "## Detailed Gap Analysis",
+            ""
+        ])
+
+        for i, gap in enumerate(self.gaps, 1):
+            md_lines.extend([
+                f"### Gap #{i}: {gap.upstream_gene} → {gap.downstream_gene}",
+                "",
+                f"- **Position:** {gap.start:,} - {gap.end:,}",
+                f"- **Size:** {gap.size_bp:,} bp",
+                f"- **Severity:** {gap.severity.name} - {gap.severity.value}",
+                ""
+            ])
+
+            if gap.repair_findings:
+                md_lines.append("**Repair Attempts:**")
+                md_lines.append("")
+                for method, finding in gap.repair_findings.items():
+                    md_lines.append(f"- **{method.upper()}:** {finding}")
+                md_lines.append("")
+
+        md_lines.extend(["---", ""])
+
+        # Final recommendation
+        md_lines.extend([
+            "## Recommendations",
+            ""
+        ])
+
+        if has_severe:
+            md_lines.extend([
+                "### ⚠️ Action Required",
+                "",
+                "This annotation **CANNOT** be used as a model for Pathway 3 annotation transfer until gaps are resolved.",
+                "",
+                "**Required Steps:**",
+                "",
+                "1. **Identify missing proteins** using one or more methods:",
+                "   - ORF finding (EMBOSS `getorf`)",
+                "   - BLAST gap regions against NCBI NR",
+                "   - Synteny comparison with related well-annotated viruses",
+                "   - Domain search (HMMER)",
+                "",
+                "2. **Add newly identified CDS features** to the annotation TSV file",
+                "",
+                "3. **Re-run this QC step** to validate completeness",
+                "",
+                "4. **Proceed to step2** once no SEVERE/CRITICAL gaps remain",
+                "",
+                "### Alternative Approaches",
+                "",
+                "- Choose a different, more completely annotated virus as model",
+                "- Use Pathway 4 (de novo annotation) instead of Pathway 3",
+                ""
+            ])
+        else:
+            md_lines.extend([
+                "### ✅ Approved for Use",
+                "",
+                "Minor gaps are acceptable for model viruses. These likely represent:",
+                "",
+                "- 3' UTR regions",
+                "- Intergenic spacers",
+                "- Annotation boundary artifacts",
+                "",
+                "**Recommended:**",
+                "",
+                "- Document these gaps in the methods section of any publication",
+                "- Consider manual review to confirm no proteins are missing",
+                ""
+            ])
+
+        md_lines.extend([
+            "---",
+            "",
+            "## Methods",
+            "",
+            "**Gap Detection:**",
+            "",
+            "Gaps were identified by comparing consecutive CDS features in the genome annotation. ",
+            "Gap severity was classified based on size:",
+            "",
+            f"- **MINOR:** < {self.MINOR_GAP_THRESHOLD} bp",
+            f"- **MODERATE:** {self.MINOR_GAP_THRESHOLD}-{self.MODERATE_GAP_THRESHOLD} bp",
+            f"- **SEVERE:** {self.MODERATE_GAP_THRESHOLD}-{self.SEVERE_GAP_THRESHOLD} bp",
+            f"- **CRITICAL:** > {self.SEVERE_GAP_THRESHOLD} bp",
+            "",
+            "**Repair Methods Attempted:**",
+            "",
+            "1. **GETORF** - EMBOSS ORF finder to identify potential coding sequences",
+            "2. **HMMSCAN** - Domain search to identify conserved protein domains",
+            "3. **BLAST** - Homology search against NCBI databases",
+            "4. **SYNTENY** - Comparison with related virus gene order",
+            "",
+            "---",
+            "",
+            f"*Generated by VICAST Pathway 2 QC Module - {datetime.now().year}*",
+            ""
+        ])
+
+        return "\n".join(md_lines)
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -401,32 +577,41 @@ class ViralAnnotationGapDetector:
 class Pathway2QC:
     """
     Pathway 2 Quality Control: Validate and prepare well-annotated viruses.
-    
+
     New Step: Gap Detection & Repair (inserted before model approval)
     """
-    
-    def validate_model_for_transfer(self, nucleotide_fasta: str, 
+
+    def validate_model_for_transfer(self, nucleotide_fasta: str,
                                     annotation_tsv: str,
-                                    auto_repair: bool = False) -> Tuple[bool, str]:
+                                    auto_repair: bool = False,
+                                    save_reports: bool = True,
+                                    genome_id: str = None) -> Tuple[bool, str]:
         """
         Validate a virus annotation for use as model in Pathway 3 transfer.
-        
+
         Args:
             nucleotide_fasta: Path to virus nucleotide sequence
             annotation_tsv: Path to annotation TSV (with CDS features)
             auto_repair: If True, attempt programmatic repair. If False, only detect.
-        
+            save_reports: If True, save Markdown and PDF reports to disk
+            genome_id: Genome ID for report naming (extracted from filename if not provided)
+
         Returns:
             (is_approved: bool, report: str)
         """
-        
+
+        # Extract genome ID from filename if not provided
+        if genome_id is None:
+            import os
+            genome_id = os.path.basename(nucleotide_fasta).replace('.fasta', '')
+
         # Initialize detector
         detector = ViralAnnotationGapDetector(nucleotide_fasta, annotation_tsv)
-        
+
         # Load annotation
         if not detector.load_annotation():
             return False, "ERROR: Could not load annotation"
-        
+
         # Read sequence
         try:
             with open(nucleotide_fasta) as f:
@@ -435,21 +620,26 @@ class Pathway2QC:
                 genome_seq = ''.join(lines)
         except Exception as e:
             return False, f"ERROR reading sequence: {e}"
-        
+
         # Detect gaps
         gaps = detector.detect_gaps()
-        
+
         # Attempt repairs if requested
         if auto_repair and gaps:
             detector.attempt_repair_all_gaps(genome_seq)
-        
-        # Generate report
+
+        # Generate terminal report
         report = detector.generate_qc_report()
-        
+
+        # Save reports to disk if requested
+        if save_reports:
+            md_report = detector.generate_markdown_report(genome_id)
+            self._save_reports(genome_id, md_report)
+
         # Determine approval status
         has_critical = any(g.severity == GapSeverity.CRITICAL for g in gaps)
         has_severe = any(g.severity == GapSeverity.SEVERE for g in gaps)
-        
+
         # Approval logic
         if has_critical:
             is_approved = False  # Cannot use as model
@@ -457,8 +647,136 @@ class Pathway2QC:
             is_approved = False  # Cannot use without repair
         else:
             is_approved = True   # Safe to use
-        
+
         return is_approved, report
+
+    def _save_reports(self, genome_id: str, markdown_content: str) -> None:
+        """
+        Save Markdown and PDF reports to disk.
+
+        Args:
+            genome_id: Genome accession for filename
+            markdown_content: Markdown report content
+        """
+        import os
+
+        # Save Markdown report
+        md_filename = f"{genome_id}_pathway2_qc_report.md"
+        try:
+            with open(md_filename, 'w') as f:
+                f.write(markdown_content)
+            print(f"\n✓ Markdown report saved: {md_filename}")
+        except Exception as e:
+            print(f"\n⚠ Warning: Could not save Markdown report: {e}")
+
+        # Generate and save PDF report
+        pdf_filename = f"{genome_id}_pathway2_qc_report.pdf"
+        try:
+            self._markdown_to_pdf(markdown_content, pdf_filename)
+            print(f"✓ PDF report saved: {pdf_filename}")
+        except ImportError:
+            print(f"⚠ Warning: PDF generation requires 'markdown' and 'weasyprint' packages")
+            print(f"  Install with: conda install -c conda-forge python-markdown weasyprint")
+        except Exception as e:
+            print(f"⚠ Warning: Could not generate PDF: {e}")
+
+    def _markdown_to_pdf(self, markdown_content: str, pdf_filename: str) -> None:
+        """
+        Convert Markdown content to PDF.
+
+        Args:
+            markdown_content: Markdown text
+            pdf_filename: Output PDF filename
+        """
+        try:
+            import markdown
+            from weasyprint import HTML, CSS
+            from io import BytesIO
+        except ImportError:
+            raise ImportError("PDF generation requires 'markdown' and 'weasyprint' packages")
+
+        # Convert Markdown to HTML
+        md = markdown.Markdown(extensions=['tables', 'fenced_code'])
+        html_body = md.convert(markdown_content)
+
+        # Add CSS styling for professional appearance
+        html = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {{
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            color: #333;
+        }}
+        h1 {{
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }}
+        h2 {{
+            color: #34495e;
+            margin-top: 30px;
+            border-bottom: 2px solid #95a5a6;
+            padding-bottom: 5px;
+        }}
+        h3 {{
+            color: #7f8c8d;
+            margin-top: 20px;
+        }}
+        table {{
+            border-collapse: collapse;
+            width: 100%;
+            margin: 20px 0;
+        }}
+        th, td {{
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }}
+        th {{
+            background-color: #3498db;
+            color: white;
+        }}
+        tr:nth-child(even) {{
+            background-color: #f2f2f2;
+        }}
+        code {{
+            background-color: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }}
+        hr {{
+            border: none;
+            border-top: 1px solid #ddd;
+            margin: 30px 0;
+        }}
+        strong {{
+            color: #2c3e50;
+        }}
+        ul, ol {{
+            margin: 10px 0;
+            padding-left: 30px;
+        }}
+        li {{
+            margin: 5px 0;
+        }}
+    </style>
+</head>
+<body>
+{html_body}
+</body>
+</html>
+"""
+
+        # Generate PDF
+        HTML(string=html).write_pdf(pdf_filename)
 
 
 # ════════════════════════════════════════════════════════════════════════════

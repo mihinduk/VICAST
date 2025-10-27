@@ -21,6 +21,10 @@ dependencies:
   # SnpEff (may need manual upgrade to 5.2+ for Java 21)
   - snpeff
 
+  # Report generation (Pathway 2 QC)
+  - python-markdown  # Markdown to HTML conversion
+  - weasyprint       # HTML to PDF conversion
+
   # Utilities
   - pip
 

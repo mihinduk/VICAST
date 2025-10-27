@@ -6,8 +6,12 @@ This script validates that a virus annotation is suitable for use as a model
 in Pathway 3 annotation transfer. It detects gaps in polyprotein annotations
 that would result in missing proteins during transfer.
 
+MANUAL REVIEW WORKFLOW:
+This is a manual review step. The script generates reports and provides
+recommendations, but YOU decide whether to proceed or fix issues first.
+
 Usage:
-    python step1.5_qc_annotation.py <genome_id>
+    python step1.5_qc_annotation.py <genome_id> [options]
 
 Example:
     python step1.5_qc_annotation.py NC_038433.1
@@ -18,13 +22,16 @@ Input Files (auto-detected):
 
 Output:
     - QC report printed to stdout
-    - Exit code 0 if approved, 1 if gaps found
+    - <genome_id>_pathway2_qc_report.md (Markdown report)
+    - <genome_id>_pathway2_qc_report.pdf (PDF report, if dependencies available)
+    - Exit code 0 if approved or --force used, 1 if gaps found
 
 Integration:
     Run this between step1 and step2 to validate model quality:
     1. python step1_parse_viral_genome.py NC_038433.1
-    2. python step1.5_qc_annotation.py NC_038433.1  ← NEW
-    3. python step2_add_to_snpeff.py NC_038433.1 NC_038433.1_no_polyprotein.tsv
+    2. python step1.5_qc_annotation.py NC_038433.1  ← NEW (manual review)
+    3. Review generated reports, fix issues if needed
+    4. python step2_add_to_snpeff.py NC_038433.1 NC_038433.1_no_polyprotein.tsv
 """
 
 import sys
@@ -81,7 +88,11 @@ WHAT IT CHECKS:
 - Detects gaps between consecutive CDS features
 - Classifies severity (MINOR → CRITICAL)
 - Attempts to identify what proteins are missing
-- Blocks use as model if gaps are SEVERE or CRITICAL
+- Generates Markdown and PDF reports for documentation
+
+MANUAL REVIEW WORKFLOW:
+This is NOT an automatic gate. You review the generated reports and decide
+whether to fix issues or proceed. Use --force if you want to proceed despite gaps.
 
 EXAMPLE WORKFLOW:
 
@@ -89,29 +100,37 @@ Step 1: Parse genome
   python step1_parse_viral_genome.py NC_038433.1
   → Creates NC_038433.1.fasta, NC_038433.1_no_polyprotein.tsv
 
-Step 1.5: QC annotation (NEW)
+Step 1.5: QC annotation (MANUAL REVIEW)
   python step1.5_qc_annotation.py NC_038433.1
-  → Validates annotation completeness
-  → If gaps found: provides guidance to fix
-  → Exit code 1 = cannot proceed to step2
+  → Generates reports: NC_038433.1_pathway2_qc_report.{md,pdf}
+  → You review the reports
+  → If gaps found: you decide whether to fix or proceed
 
-Step 2: Add to SnpEff (only if QC passes)
+  If fixing:
+    - Use getorf, BLAST, or synteny to identify missing proteins
+    - Add to TSV manually
+    - Re-run step1.5 to validate
+
+  If proceeding anyway:
+    - Re-run with --force flag
+
+Step 2: Add to SnpEff
   python step2_add_to_snpeff.py NC_038433.1 NC_038433.1_no_polyprotein.tsv
 
-INTEGRATION MODES:
+INTEGRATION OPTIONS:
 
-Mode A: Manual (run explicitly)
-  Run this script after step1, review report, fix issues, re-run
+A. Manual review (recommended):
+  python step1.5_qc_annotation.py $GENOME_ID
+  # Review reports, make decision
 
-Mode B: Automated (in pipeline)
+B. Automated gate (strict):
   if ! python step1.5_qc_annotation.py $GENOME_ID; then
-      echo "QC failed - fix annotation"
+      echo "QC failed - review reports and fix"
       exit 1
   fi
 
-Mode C: Warning only (soft fail)
-  python step1.5_qc_annotation.py $GENOME_ID || echo "WARNING: Gaps detected"
-  # Continue anyway (not recommended for Pathway 3 models)
+C. Warning only (soft fail):
+  python step1.5_qc_annotation.py $GENOME_ID || echo "WARNING: Review QC reports"
         """
     )
 
@@ -122,7 +141,10 @@ Mode C: Warning only (soft fail)
                        help='Attempt automatic repair using ORF finding (experimental)')
 
     parser.add_argument('--force', action='store_true',
-                       help='Approve even if gaps found (NOT RECOMMENDED)')
+                       help='Proceed even if gaps found (for manual review workflow)')
+
+    parser.add_argument('--no-reports', action='store_true',
+                       help='Skip saving Markdown/PDF reports (only print to stdout)')
 
     args = parser.parse_args()
 
@@ -130,6 +152,7 @@ Mode C: Warning only (soft fail)
     print("STEP 1.5: Pathway 2 QC - Model Annotation Validation")
     print("="*70)
     print(f"\nGenome ID: {args.genome_id}")
+    print(f"Workflow: Manual Review (generate reports, you decide)")
 
     # Find input files
     fasta_file, tsv_file = find_input_files(args.genome_id)
@@ -154,11 +177,15 @@ Mode C: Warning only (soft fail)
         is_approved, report = qc.validate_model_for_transfer(
             fasta_file,
             tsv_file,
-            auto_repair=args.auto_repair
+            auto_repair=args.auto_repair,
+            save_reports=(not args.no_reports),
+            genome_id=args.genome_id
         )
     except Exception as e:
         print(f"\nERROR: QC failed with exception:")
         print(f"  {e}")
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
 
     # Print report
@@ -174,27 +201,36 @@ Mode C: Warning only (soft fail)
         sys.exit(0)
 
     elif args.force:
-        print("⚠ QC FAILED but --force specified: Proceeding anyway")
-        print("  WARNING: This model has gaps that will result in incomplete")
-        print("           annotation transfer in Pathway 3!")
+        print("⚠ QC IDENTIFIED GAPS but --force specified: Proceeding")
+        print("="*70)
+        print("\nMANUAL REVIEW DECISION: Proceed despite gaps")
+        print("  - You've reviewed the reports and decided to proceed")
+        print("  - Document these gaps in your methods section")
+        print("  - Be aware: Missing proteins cannot be transferred in Pathway 3")
+        print("\nNext step:")
+        print(f"  python step2_add_to_snpeff.py {args.genome_id} {tsv_file}")
         print("="*70)
         sys.exit(0)
 
     else:
-        print("✗ QC FAILED: Annotation has gaps - cannot use as model")
+        print("✗ QC IDENTIFIED GAPS: Review required")
         print("="*70)
-        print("\nREQUIRED ACTIONS:")
-        print("  1. Review gap report above")
-        print("  2. Identify missing proteins using suggested methods:")
-        print("     - ORF finding (getorf)")
-        print("     - BLAST gap region to NCBI")
-        print("     - Compare to related well-annotated viruses (synteny)")
-        print("  3. Add missing CDS features to TSV file")
-        print("  4. Re-run this QC step")
-        print("  5. Once QC passes, proceed to step2")
-        print("\nAlternatively:")
-        print(f"  - Use --force to proceed anyway (NOT RECOMMENDED)")
-        print(f"  - Choose a different, complete model virus")
+        print("\nMANUAL REVIEW OPTIONS:")
+        print("\n1. FIX THE GAPS (recommended for Pathway 3 models):")
+        print("   a. Review the generated reports")
+        print("   b. Identify missing proteins using suggested methods:")
+        print("      - ORF finding (getorf)")
+        print("      - BLAST gap region to NCBI")
+        print("      - Compare to related well-annotated viruses (synteny)")
+        print("   c. Add missing CDS features to TSV file")
+        print("   d. Re-run this QC step to validate")
+        print("\n2. PROCEED ANYWAY (use with caution):")
+        print(f"   python step1.5_qc_annotation.py {args.genome_id} --force")
+        print("   → Document gaps in methods section")
+        print("   → Missing proteins cannot be transferred to target viruses")
+        print("\n3. CHOOSE DIFFERENT MODEL:")
+        print("   → Find a more completely annotated virus as model")
+        print("   → Or use Pathway 4 (de novo annotation) instead")
         print("="*70)
         sys.exit(1)
 
