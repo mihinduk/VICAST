@@ -676,7 +676,7 @@ class Pathway2QC:
             print(f"✓ PDF report saved: {pdf_filename}")
         except ImportError:
             print(f"⚠ Warning: PDF generation requires 'markdown' and 'weasyprint' packages")
-            print(f"  Install with: conda install -c conda-forge python-markdown weasyprint")
+            print(f"  Install with: conda install -c conda-forge markdown weasyprint")
         except Exception as e:
             print(f"⚠ Warning: Could not generate PDF: {e}")
 

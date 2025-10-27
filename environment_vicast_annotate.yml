@@ -22,7 +22,7 @@ dependencies:
   - snpeff
 
   # Report generation (Pathway 2 QC)
-  - python-markdown  # Markdown to HTML conversion
+  - markdown         # Markdown to HTML conversion
   - weasyprint       # HTML to PDF conversion
 
   # Utilities
