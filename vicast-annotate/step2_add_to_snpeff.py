@@ -418,15 +418,18 @@ Prerequisites:
      source /ref/sahlab/software/snpeff_configs/snpeff_current.sh
 
 Examples:
-  # Add genome using edited TSV
+  # Add new genome using edited TSV
   python3 step2_add_to_snpeff.py NC_009942.1 NC_009942.1_no_polyprotein.tsv
-  
+
+  # Update existing genome (e.g., after adding missing proteins)
+  python3 step2_add_to_snpeff.py NC_038433.1 NC_038433.1_no_polyprotein.tsv --update
+
   # Use custom GFF name
   python3 step2_add_to_snpeff.py NC_009942.1 my_edited.tsv --gff my_genome.gff3
-  
-  # Skip validation (not recommended)
-  python3 step2_add_to_snpeff.py NC_009942.1 my_edited.tsv --no-validate
-  
+
+  # Skip validation (for polyproteins with expected codon warnings)
+  python3 step2_add_to_snpeff.py NC_027998.1 my_edited.tsv --no-validate
+
   # Generate curation report
   python3 step2_add_to_snpeff.py NC_009942.1 my_edited.tsv --report
 
@@ -452,7 +455,9 @@ After successful addition:
                        help='Skip GFF validation')
     parser.add_argument('--report', action='store_true',
                        help='Generate curation report')
-    
+    parser.add_argument('--update', action='store_true',
+                       help='Allow updating/overwriting existing genome in SnpEff database')
+
     args = parser.parse_args()
     
     # Check TSV file exists
@@ -479,7 +484,53 @@ After successful addition:
     print(f"FASTA file: {fasta_file}")
     print(f"Output GFF: {gff_file}")
     print(f"Validation: {'Enabled' if not args.no_validate else 'Disabled'}")
-    
+
+    # Check if genome already exists in SnpEff (safety check)
+    # Determine snpEff data directory for checking
+    snpeff_data_dir = args.data_dir
+    if not snpeff_data_dir:
+        snpeff_home = os.environ.get('SNPEFF_HOME')
+        if snpeff_home:
+            snpeff_data_dir = os.path.join(snpeff_home, 'data')
+        else:
+            # Try common locations
+            snpeff_data_dir = '/ref/sahlab/software/snpEff/data'
+            if not os.path.exists(snpeff_data_dir):
+                snpeff_data_dir = 'data'
+
+    genome_dir = os.path.join(snpeff_data_dir, args.genome_id)
+
+    if os.path.exists(genome_dir):
+        if not args.update:
+            print("\n" + "="*60)
+            print("ERROR: Genome already exists in SnpEff database")
+            print("="*60)
+            print(f"\nGenome directory exists: {genome_dir}")
+            print("\nTo prevent accidental overwrites, you must explicitly use --update flag")
+            print("to update an existing genome.")
+            print("\nOptions:")
+            print(f"  1. Use --update to overwrite existing genome:")
+            print(f"     python3 step2_add_to_snpeff.py {args.genome_id} {args.tsv_file} --update")
+            print(f"\n  2. Remove existing genome first:")
+            print(f"     rm -rf {genome_dir}")
+            print(f"     # Also remove from snpEff.config if present")
+            print(f"\n  3. Use a different genome ID")
+            print("\n" + "="*60)
+            sys.exit(1)
+        else:
+            print("\n" + "⚠"*30)
+            print("WARNING: Updating existing genome in SnpEff")
+            print("⚠"*30)
+            print(f"\nExisting genome directory: {genome_dir}")
+            print("This will overwrite:")
+            print(f"  - {genome_dir}/genes.gff")
+            print(f"  - {genome_dir}/sequences.fa")
+            print(f"  - {genome_dir}/cds.fa")
+            print(f"  - {genome_dir}/protein.fa")
+            print(f"  - {genome_dir}/snpEffectPredictor.bin")
+            print("\nProceeding with update...")
+            print("="*60)
+
     # Convert TSV to GFF
     print("\n" + "-"*40)
     print("Converting edited TSV to GFF3...")
@@ -510,15 +561,7 @@ After successful addition:
     print("Generating CDS and protein FASTA files...")
     print("-"*40)
 
-    # Determine snpEff data directory
-    snpeff_data_dir = args.data_dir
-    if not snpeff_data_dir:
-        snpeff_home = os.environ.get('SNPEFF_HOME')
-        if snpeff_home:
-            snpeff_data_dir = os.path.join(snpeff_home, 'data')
-        else:
-            print("Warning: SNPEFF_HOME not set, using default ./data")
-            snpeff_data_dir = 'data'
+    # Note: snpeff_data_dir already determined above during existence check
 
     try:
         cds_file, protein_file = generate_cds_protein_fasta(
