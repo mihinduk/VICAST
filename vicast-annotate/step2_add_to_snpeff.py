@@ -205,10 +205,14 @@ def generate_cds_protein_fasta(genome_fasta, tsv_file, genome_id, snpeff_data_di
 
         # Generate sequence ID - must match mRNA ID from GFF3 (the parent of CDS)
         # This matches the mRNA ID created in tsv_to_gff()
-        if gene_name:
-            seq_id = gene_name  # mRNA ID = gene_name
-        elif protein_id:
-            seq_id = protein_id
+        # Ensure values are strings and handle NA/None/empty values
+        gene_name_str = str(gene_name) if pd.notna(gene_name) and gene_name else ''
+        protein_id_str = str(protein_id) if pd.notna(protein_id) and protein_id else ''
+
+        if gene_name_str:
+            seq_id = gene_name_str  # mRNA ID = gene_name
+        elif protein_id_str:
+            seq_id = protein_id_str
         else:
             feature_counter += 1
             seq_id = f"CDS_{feature_counter}"
