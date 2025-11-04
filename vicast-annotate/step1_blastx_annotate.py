@@ -276,14 +276,14 @@ def create_blast_database(protein_fasta, output_name='model_proteins'):
 # BLASTX FUNCTIONS
 #=============================================================================
 
-def run_blastx(query_fasta, blast_db, evalue=1e-5, max_target_seqs=5):
+def run_blastx(query_fasta, blast_db, evalue=1e-3, max_target_seqs=5):
     """
     Run BLASTx against protein database.
 
     Args:
         query_fasta: Subject genome FASTA
         blast_db: BLAST database path
-        evalue: E-value threshold
+        evalue: E-value threshold (default 1e-3 for sensitivity to small proteins)
         max_target_seqs: Maximum hits per query
 
     Returns:
@@ -295,6 +295,7 @@ def run_blastx(query_fasta, blast_db, evalue=1e-5, max_target_seqs=5):
     print(f"  Query: {query_fasta}")
     print(f"  Database: {blast_db}")
     print(f"  E-value: {evalue}")
+    print(f"  Optimized for small proteins (word_size=2, seg=no)")
     print("  This may take several minutes...")
 
     try:
@@ -303,8 +304,11 @@ def run_blastx(query_fasta, blast_db, evalue=1e-5, max_target_seqs=5):
             '-query', query_fasta,
             '-db', blast_db,
             '-evalue', str(evalue),
+            '-word_size', '2',              # Smaller word size for short matches
+            '-seg', 'no',                   # Turn off low-complexity filtering
             '-max_target_seqs', str(max_target_seqs),
-            '-outfmt', '6 qseqid qstart qend sseqid pident evalue stitle',
+            '-max_hsps', '20',              # Allow more HSPs per hit
+            '-outfmt', '6 qseqid qstart qend sseqid pident evalue stitle qlen slen',
             '-out', output_file
         ]
 
@@ -353,7 +357,10 @@ def parse_blastx_results(blast_file):
                 if len(parts) < 7:
                     continue
 
+                # Parse fields - now includes qlen and slen at end
                 qseqid, qstart, qend, sseqid, pident, evalue, stitle = parts[:7]
+                qlen = parts[7] if len(parts) > 7 else None
+                slen = parts[8] if len(parts) > 8 else None
 
                 # Determine strand
                 qstart, qend = int(qstart), int(qend)
@@ -365,7 +372,7 @@ def parse_blastx_results(blast_file):
                 gene = extract_gene_from_title(stitle)
                 product = extract_product_from_title(stitle)
 
-                hits.append({
+                hit_dict = {
                     'query': qseqid,
                     'start': qstart,
                     'end': qend,
@@ -376,7 +383,15 @@ def parse_blastx_results(blast_file):
                     'gene': gene,
                     'product': product,
                     'hit_title': stitle[:100]
-                })
+                }
+
+                # Add optional fields if available
+                if qlen:
+                    hit_dict['qlen'] = int(qlen)
+                if slen:
+                    hit_dict['slen'] = int(slen)
+
+                hits.append(hit_dict)
 
         print(f"  Found {len(hits)} BLAST hits")
         return hits
@@ -631,8 +646,8 @@ NEXT STEPS:
                        help='Add model to SnpEff first (auto-run Pathway 2)')
 
     # BLAST parameters
-    parser.add_argument('--evalue', type=float, default=1e-5,
-                       help='E-value threshold (default: 1e-5)')
+    parser.add_argument('--evalue', type=float, default=1e-3,
+                       help='E-value threshold (default: 1e-3, optimized for small proteins)')
     parser.add_argument('--overlap-threshold', type=float, default=0.5,
                        help='Overlap threshold for merging hits (default: 0.5)')
     parser.add_argument('--no-merge', action='store_true',
@@ -773,7 +788,7 @@ NEXT STEPS:
         print("\n⚠ WARNING: No BLAST hits found!")
         print("\nPossible reasons:")
         print("  - Subject and model are not related")
-        print("  - E-value threshold too stringent (try --evalue 1e-3)")
+        print("  - E-value threshold too stringent (try --evalue 1e-2 or higher)")
         print("  - Subject genome is truly novel")
         sys.exit(1)
 
