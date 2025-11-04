@@ -123,17 +123,20 @@ def parse_genbank_skip_polyprotein(gb_file, output_gff):
                 # Skip polyprotein features
                 if feature.type == "CDS":
                     product = feature.qualifiers.get("product", [""])[0].lower()
-                    if "polyprotein" in product:
+                    notes = " ".join(feature.qualifiers.get("note", [])).lower()
+
+                    if "polyprotein" in product or "polyprotein" in notes:
                         polyproteins_skipped += 1
-                        print(f"  Skipping polyprotein: {feature.qualifiers.get('product', [''])[0]}")
+                        product_name = feature.qualifiers.get('product', [''])[0] or f"Note: {feature.qualifiers.get('note', [''])[0]}"
+                        print(f"  Skipping polyprotein: {product_name}")
                         continue
-                
+
                 # Skip source features (they're not needed for snpEff)
                 if feature.type == "source":
                     continue
-                
+
                 # Write feature to GFF3
-                if feature.type in ["CDS", "gene", "mRNA", "3'UTR", "5'UTR", "mat_peptide"]:
+                if feature.type in ["CDS", "gene", "3'UTR", "5'UTR", "mat_peptide"]:
                     start = int(feature.location.start) + 1  # GFF is 1-based
                     end = int(feature.location.end)
                     strand = "+" if feature.location.strand == 1 else "-"
