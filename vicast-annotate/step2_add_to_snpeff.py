@@ -217,8 +217,9 @@ def generate_cds_protein_fasta(genome_fasta, tsv_file, genome_id, snpeff_data_di
             feature_counter += 1
             seq_id = f"CDS_{feature_counter}"
 
-        # Description
-        description = product if product else "hypothetical protein"
+        # Description - ensure it's a string
+        product_str = str(product) if pd.notna(product) and product else ''
+        description = product_str if product_str else "hypothetical protein"
 
         # Create CDS record
         cds_record = SeqIO.SeqRecord(
