@@ -274,17 +274,18 @@ def generate_cds_protein_fasta(genome_fasta, tsv_file, genome_id, snpeff_data_di
 
     return cds_file, protein_file
 
-def add_genome_to_snpeff(genome_id, fasta_file, gff_file, snpeff_data_dir=None, validate=True):
+def add_genome_to_snpeff(genome_id, fasta_file, gff_file, snpeff_data_dir=None, validate=True, update=False):
     """
     Add a genome to snpEff database with optional validation.
-    
+
     Args:
         genome_id: Genome identifier (e.g., NC_009942.1)
         fasta_file: Path to genome FASTA file
         gff_file: Path to GFF3 annotation file
         snpeff_data_dir: Path to snpEff data directory (optional)
         validate: Whether to validate GFF before adding (default: True)
-    
+        update: Whether to overwrite existing genome entry (default: False)
+
     Returns:
         bool: Success status
     """
@@ -339,7 +340,14 @@ def add_genome_to_snpeff(genome_id, fasta_file, gff_file, snpeff_data_dir=None, 
     # Create genome directory
     genome_dir = os.path.join(snpeff_data_dir, genome_id)
     os.makedirs(genome_dir, exist_ok=True)
-    
+
+    # If updating, remove old snpEff database file to force clean rebuild
+    if update:
+        snpeff_bin = os.path.join(genome_dir, 'snpEffectPredictor.bin')
+        if os.path.exists(snpeff_bin):
+            print(f"  Removing old database file: {snpeff_bin}")
+            os.remove(snpeff_bin)
+
     # Copy files to snpEff structure
     sequences_file = os.path.join(genome_dir, 'sequences.fa')
     genes_file = os.path.join(genome_dir, 'genes.gff')
@@ -589,7 +597,8 @@ After successful addition:
     print("Adding genome to snpEff database...")
     print("-"*40)
     success = add_genome_to_snpeff(args.genome_id, fasta_file, gff_file,
-                                   snpeff_data_dir, validate=(not args.no_validate))
+                                   snpeff_data_dir, validate=(not args.no_validate),
+                                   update=args.update)
     
     if success:
         print("\n" + "="*60)
