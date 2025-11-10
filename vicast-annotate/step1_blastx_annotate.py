@@ -276,7 +276,7 @@ def create_blast_database(protein_fasta, output_name='model_proteins'):
 # BLASTX FUNCTIONS
 #=============================================================================
 
-def run_blastx(query_fasta, blast_db, evalue=0.05, max_target_seqs=5):
+def run_blastx(query_fasta, blast_db, evalue=0.05, max_target_seqs=100):
     """
     Run BLASTx against protein database.
 
@@ -284,7 +284,7 @@ def run_blastx(query_fasta, blast_db, evalue=0.05, max_target_seqs=5):
         query_fasta: Subject genome FASTA
         blast_db: BLAST database path
         evalue: E-value threshold (default 0.05, optimized for single-genome annotation transfer)
-        max_target_seqs: Maximum hits per query
+        max_target_seqs: Maximum hits per query (default 100, ensures all model proteins are considered)
 
     Returns:
         Path to BLAST output file, or None if failed
@@ -663,6 +663,8 @@ NEXT STEPS:
     # BLAST parameters
     parser.add_argument('--evalue', type=float, default=0.05,
                        help='E-value threshold (default: 0.05, optimized for single-genome annotation transfer)')
+    parser.add_argument('--max-target-seqs', type=int, default=100,
+                       help='Maximum BLAST hits to report (default: 100, ensures all model proteins found)')
     parser.add_argument('--overlap-threshold', type=float, default=0.5,
                        help='Overlap threshold for merging hits (default: 0.5)')
     parser.add_argument('--no-merge', action='store_true',
@@ -784,7 +786,7 @@ NEXT STEPS:
     print("STEP 4: Running BLASTx annotation")
     print("="*60)
 
-    blast_output = run_blastx(subject_fasta, blast_db, args.evalue)
+    blast_output = run_blastx(subject_fasta, blast_db, args.evalue, args.max_target_seqs)
     if not blast_output:
         print("\n✗ BLASTx failed")
         sys.exit(1)
