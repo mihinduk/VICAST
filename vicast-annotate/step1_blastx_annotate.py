@@ -276,26 +276,38 @@ def create_blast_database(protein_fasta, output_name='model_proteins'):
 # BLASTX FUNCTIONS
 #=============================================================================
 
-def run_blastx(query_fasta, blast_db, evalue=1e-3, max_target_seqs=5):
+def run_blastx(query_fasta, blast_db, evalue=0.05, max_target_seqs=5):
     """
     Run BLASTx against protein database.
 
     Args:
         query_fasta: Subject genome FASTA
         blast_db: BLAST database path
-        evalue: E-value threshold (default 1e-3 for sensitivity to small proteins)
+        evalue: E-value threshold (default 0.05, optimized for single-genome annotation transfer)
         max_target_seqs: Maximum hits per query
 
     Returns:
         Path to BLAST output file, or None if failed
+
+    Note:
+        Parameters optimized for viral genome annotation transfer (not database searching):
+        - E-value 0.05: More permissive to find divergent homologs in related strains
+        - Word size 5: Balanced for normal-sized viral proteins (50-800 aa)
+        - Gap costs 11,1: Standard for BLOSUM62
+        - Window size 40: Composition-based statistics
+
+        Since we're searching ONE viral genome (not millions), we prioritize:
+        - Hit length over stringency
+        - Finding full-length proteins over perfect short matches
+        - Sensitivity over specificity
     """
     output_file = f"{Path(query_fasta).stem}_blastx.txt"
 
     print(f"\nRunning BLASTx annotation...")
     print(f"  Query: {query_fasta}")
     print(f"  Database: {blast_db}")
-    print(f"  E-value: {evalue}")
-    print(f"  Optimized for small proteins (word_size=2, seg=no)")
+    print(f"  E-value: {evalue} (optimized for single-genome annotation transfer)")
+    print(f"  Word size: 5, Gap costs: 11,1, Window: 40")
     print("  This may take several minutes...")
 
     try:
@@ -304,7 +316,10 @@ def run_blastx(query_fasta, blast_db, evalue=1e-3, max_target_seqs=5):
             '-query', query_fasta,
             '-db', blast_db,
             '-evalue', str(evalue),
-            '-word_size', '2',              # Smaller word size for short matches
+            '-word_size', '5',              # Balanced for normal viral proteins (50-800 aa)
+            '-gapopen', '11',               # Gap open penalty (BLOSUM62 standard)
+            '-gapextend', '1',              # Gap extension penalty
+            '-window_size', '40',           # Window size for composition-based stats
             '-seg', 'no',                   # Turn off low-complexity filtering
             '-max_target_seqs', str(max_target_seqs),
             '-max_hsps', '20',              # Allow more HSPs per hit
@@ -646,8 +661,8 @@ NEXT STEPS:
                        help='Add model to SnpEff first (auto-run Pathway 2)')
 
     # BLAST parameters
-    parser.add_argument('--evalue', type=float, default=1e-3,
-                       help='E-value threshold (default: 1e-3, optimized for small proteins)')
+    parser.add_argument('--evalue', type=float, default=0.05,
+                       help='E-value threshold (default: 0.05, optimized for single-genome annotation transfer)')
     parser.add_argument('--overlap-threshold', type=float, default=0.5,
                        help='Overlap threshold for merging hits (default: 0.5)')
     parser.add_argument('--no-merge', action='store_true',
