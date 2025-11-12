@@ -126,17 +126,22 @@ def genbank_to_gff(gb_file, output_gff, skip_polyprotein=True, chr_name=None):
                 # Convert mat_peptide to CDS for SnpEff
                 output_type = "CDS" if feature.type == "mat_peptide" else feature.type
 
-                # Build attributes
+                # Build attributes - prioritize gene name for ID (more readable, matches FASTA)
                 attributes = []
-                if "locus_tag" in feature.qualifiers:
+                if "gene" in feature.qualifiers:
+                    # Use gene name as ID for consistency with FASTA files
+                    gene_id = feature.qualifiers['gene'][0]
+                    attributes.append(f"ID={gene_id}")
+                    attributes.append(f"gene={gene_id}")
+                elif "locus_tag" in feature.qualifiers:
                     attributes.append(f"ID={feature.qualifiers['locus_tag'][0]}")
                 elif "protein_id" in feature.qualifiers:
                     attributes.append(f"ID={feature.qualifiers['protein_id'][0]}")
                 else:
                     attributes.append(f"ID={output_type}_{features_written}")
+                    if "gene" in feature.qualifiers:
+                        attributes.append(f"gene={feature.qualifiers['gene'][0]}")
 
-                if "gene" in feature.qualifiers:
-                    attributes.append(f"gene={feature.qualifiers['gene'][0]}")
                 if "product" in feature.qualifiers:
                     attributes.append(f"product={feature.qualifiers['product'][0]}")
                 if "protein_id" in feature.qualifiers:
