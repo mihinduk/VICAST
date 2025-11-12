@@ -86,41 +86,46 @@ def combine_fastas(fasta_files, output_fasta, segment_names=None):
     
     return len(sequences)
 
-def genbank_to_gff(gb_file, output_gff, skip_polyprotein=True):
+def genbank_to_gff(gb_file, output_gff, skip_polyprotein=True, chr_name=None):
     """
     Convert GenBank to GFF3, skipping polyproteins.
-    
+
     Args:
         gb_file: GenBank file
         output_gff: Output GFF3 file
         skip_polyprotein: Skip polyprotein features
-        
+        chr_name: Optional chromosome name override (for segment renaming)
+
     Returns:
         int: Number of features written
     """
     features_written = 0
-    
+
     for record in SeqIO.parse(gb_file, "genbank"):
+        # Use custom chr_name if provided, otherwise use record.id
+        chromosome = chr_name if chr_name else record.id
+
         for feature in record.features:
-            # Skip polyproteins if requested
+            # Skip polyproteins if requested (check both product and note fields)
             if skip_polyprotein and feature.type == "CDS":
                 product = feature.qualifiers.get("product", [""])[0].lower()
-                if "polyprotein" in product:
+                notes = " ".join(feature.qualifiers.get("note", [])).lower()
+                if "polyprotein" in product or "polyprotein" in notes:
                     continue
-            
+
             # Skip source features
             if feature.type == "source":
                 continue
-            
-            # Write relevant features
-            if feature.type in ["CDS", "gene", "mRNA", "3'UTR", "5'UTR", "mat_peptide"]:
+
+            # Write relevant features (exclude mRNA to prevent mistranslation)
+            if feature.type in ["CDS", "gene", "3'UTR", "5'UTR", "mat_peptide"]:
                 start = int(feature.location.start) + 1  # GFF is 1-based
                 end = int(feature.location.end)
                 strand = "+" if feature.location.strand == 1 else "-"
-                
+
                 # Convert mat_peptide to CDS for SnpEff
                 output_type = "CDS" if feature.type == "mat_peptide" else feature.type
-                
+
                 # Build attributes
                 attributes = []
                 if "locus_tag" in feature.qualifiers:
@@ -129,56 +134,61 @@ def genbank_to_gff(gb_file, output_gff, skip_polyprotein=True):
                     attributes.append(f"ID={feature.qualifiers['protein_id'][0]}")
                 else:
                     attributes.append(f"ID={output_type}_{features_written}")
-                
+
                 if "gene" in feature.qualifiers:
                     attributes.append(f"gene={feature.qualifiers['gene'][0]}")
                 if "product" in feature.qualifiers:
                     attributes.append(f"product={feature.qualifiers['product'][0]}")
                 if "protein_id" in feature.qualifiers:
                     attributes.append(f"protein_id={feature.qualifiers['protein_id'][0]}")
-                
-                # Write GFF line
-                gff_line = f"{record.id}\tGenBank\t{output_type}\t{start}\t{end}\t.\t{strand}\t.\t{';'.join(attributes)}\n"
-                
+
+                # Write GFF line with chromosome name
+                gff_line = f"{chromosome}\tGenBank\t{output_type}\t{start}\t{end}\t.\t{strand}\t.\t{';'.join(attributes)}\n"
+
                 with open(output_gff, 'a') as f:
                     f.write(gff_line)
-                
+
                 features_written += 1
-    
+
     return features_written
 
-def combine_gffs(gb_files, output_gff, skip_polyprotein=True):
+def combine_gffs(gb_files, output_gff, skip_polyprotein=True, segment_names=None):
     """
     Convert multiple GenBank files to a combined GFF3.
-    
+
     Args:
         gb_files: List of GenBank file paths
         output_gff: Output combined GFF3 path
         skip_polyprotein: Skip polyprotein features
-        
+        segment_names: Optional list of segment names (for chromosome renaming)
+
     Returns:
         int: Total features written
     """
     print(f"\nCombining {len(gb_files)} GenBank files to GFF3...")
-    
+
     # Remove existing output file
     if os.path.exists(output_gff):
         os.remove(output_gff)
-    
+
     # Write GFF3 header
     with open(output_gff, 'w') as f:
         f.write("##gff-version 3\n")
-    
+
     total_features = 0
-    for gb_file in gb_files:
+    for i, gb_file in enumerate(gb_files):
         if not os.path.exists(gb_file):
             print(f"  ✗ Warning: {gb_file} not found, skipping")
             continue
-        
-        features = genbank_to_gff(gb_file, output_gff, skip_polyprotein)
-        print(f"  ✓ {Path(gb_file).stem}: {features} features")
+
+        # Use segment name if provided
+        chr_name = segment_names[i] if segment_names and i < len(segment_names) else None
+
+        features = genbank_to_gff(gb_file, output_gff, skip_polyprotein, chr_name)
+        display_name = chr_name if chr_name else Path(gb_file).stem
+        print(f"  ✓ {display_name}: {features} features")
         total_features += features
-    
+
     print(f"  ✓ Total features: {total_features}")
     return total_features
 
@@ -374,7 +384,7 @@ After successful completion:
     
     # Combine GFF files
     combined_gff = os.path.join(args.output_dir, f"{args.genome_id}_combined.gff3")
-    num_features = combine_gffs(gb_files, combined_gff, args.skip_polyprotein)
+    num_features = combine_gffs(gb_files, combined_gff, args.skip_polyprotein, segment_names)
     
     if num_features == 0:
         print("\nError: No features to combine")
