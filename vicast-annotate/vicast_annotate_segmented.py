@@ -197,13 +197,14 @@ def combine_gffs(gb_files, output_gff, skip_polyprotein=True, segment_names=None
     print(f"  ✓ Total features: {total_features}")
     return total_features
 
-def gff_to_tab_delimited(gff_file, output_tsv):
+def gff_to_tab_delimited(gff_file, output_tsv, segment_to_accession=None):
     """
     Convert GFF3 to tab-delimited format for manual editing.
 
     Args:
         gff_file: Path to GFF3 file
         output_tsv: Path to output TSV file
+        segment_to_accession: Optional dict mapping segment names to accession numbers
 
     Returns:
         Path to the TSV file
@@ -236,9 +237,15 @@ def gff_to_tab_delimited(gff_file, output_tsv):
                         key, value = attr.split('=', 1)
                         attr_dict[key] = value
 
+                # Get accession for this segment if available
+                accession = ''
+                if segment_to_accession and seqid in segment_to_accession:
+                    accession = segment_to_accession[seqid]
+
                 data.append({
                     'action': 'KEEP',  # Default action - user can change to DELETE or MODIFY
                     'segment': seqid,
+                    'accession': accession,
                     'source': source,
                     'type': feature_type,
                     'start': start,
@@ -591,14 +598,21 @@ After successful completion:
     # Combine GFF files
     combined_gff = os.path.join(args.output_dir, f"{args.genome_id}_combined.gff3")
     num_features = combine_gffs(gb_files, combined_gff, args.skip_polyprotein, segment_names)
-    
+
     if num_features == 0:
         print("\nError: No features to combine")
         sys.exit(1)
 
+    # Create segment-to-accession mapping for TSV
+    segment_to_accession = {}
+    if segment_names and 'accessions' in locals():
+        # Map segment names to accessions if both are available
+        if len(segment_names) == len(accessions):
+            segment_to_accession = dict(zip(segment_names, accessions))
+
     # Generate TSV for manual review
     combined_tsv = os.path.join(args.output_dir, f"{args.genome_id}_annotations.tsv")
-    gff_to_tab_delimited(combined_gff, combined_tsv)
+    gff_to_tab_delimited(combined_gff, combined_tsv, segment_to_accession)
 
     # Check if review is needed
     if not args.no_review:
