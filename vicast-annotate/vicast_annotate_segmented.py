@@ -197,6 +197,69 @@ def combine_gffs(gb_files, output_gff, skip_polyprotein=True, segment_names=None
     print(f"  ✓ Total features: {total_features}")
     return total_features
 
+def gff_to_tab_delimited(gff_file, output_tsv):
+    """
+    Convert GFF3 to tab-delimited format for manual editing.
+
+    Args:
+        gff_file: Path to GFF3 file
+        output_tsv: Path to output TSV file
+
+    Returns:
+        Path to the TSV file
+    """
+    import pandas as pd
+
+    data = []
+
+    with open(gff_file, 'r') as f:
+        for line in f:
+            if line.startswith("#") or not line.strip():
+                continue
+
+            parts = line.strip().split('\t')
+            if len(parts) >= 9:
+                seqid = parts[0]
+                source = parts[1]
+                feature_type = parts[2]
+                start = parts[3]
+                end = parts[4]
+                score = parts[5]
+                strand = parts[6]
+                phase = parts[7]
+                attributes = parts[8]
+
+                # Parse attributes
+                attr_dict = {}
+                for attr in attributes.split(';'):
+                    if '=' in attr:
+                        key, value = attr.split('=', 1)
+                        attr_dict[key] = value
+
+                data.append({
+                    'action': 'KEEP',  # Default action - user can change to DELETE or MODIFY
+                    'segment': seqid,
+                    'source': source,
+                    'type': feature_type,
+                    'start': start,
+                    'end': end,
+                    'strand': strand,
+                    'gene_name': attr_dict.get('gene', ''),
+                    'product': attr_dict.get('product', ''),
+                    'ID': attr_dict.get('ID', ''),
+                    'protein_id': attr_dict.get('protein_id', ''),
+                    'notes': ''  # For user to add custom notes
+                })
+
+    # Create DataFrame and save to TSV
+    df = pd.DataFrame(data)
+    df.to_csv(output_tsv, sep='\t', index=False)
+
+    print(f"\n✓ Created annotation TSV: {output_tsv}")
+    print(f"  Total features: {len(df)}")
+
+    return output_tsv
+
 def generate_cds_protein_fasta(genome_fasta, gff_file, genome_id, snpeff_data_dir):
     """
     Generate CDS and protein FASTA files for SnpEff validation.
@@ -463,6 +526,8 @@ After successful completion:
                        help='Skip polyprotein features (default: True)')
     parser.add_argument('--keep-polyprotein', action='store_false', dest='skip_polyprotein',
                        help='Keep polyprotein features')
+    parser.add_argument('--no-review', action='store_true',
+                       help='Skip TSV review step and proceed directly to snpEff build')
     
     args = parser.parse_args()
     
@@ -530,7 +595,35 @@ After successful completion:
     if num_features == 0:
         print("\nError: No features to combine")
         sys.exit(1)
-    
+
+    # Generate TSV for manual review
+    combined_tsv = os.path.join(args.output_dir, f"{args.genome_id}_annotations.tsv")
+    gff_to_tab_delimited(combined_gff, combined_tsv)
+
+    # Check if review is needed
+    if not args.no_review:
+        print("\n" + "="*60)
+        print("REVIEW ANNOTATIONS")
+        print("="*60)
+        print(f"\n1. REVIEW the annotation file:")
+        print(f"   {combined_tsv}")
+        print("\n   You can open this in Excel or a text editor.")
+        print("   - Check gene names and products")
+        print("   - Mark unwanted features with action='DELETE'")
+        print("   - Add missing annotations")
+        print("   - Correct any errors")
+        print(f"\n2. SAVE your edits (keep as TSV format)")
+        print(f"\n3. PRESS ENTER to continue building snpEff database...")
+        print("   (or Ctrl+C to abort)")
+
+        try:
+            input()
+        except KeyboardInterrupt:
+            print("\n\nAborted by user.")
+            sys.exit(0)
+
+        print("\nContinuing with snpEff build...")
+
     # Add to SnpEff
     success = add_to_snpeff(args.genome_id, combined_fasta, combined_gff)
     
