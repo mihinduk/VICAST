@@ -393,9 +393,11 @@ def add_to_snpeff(genome_id, fasta_file, gff_file, snpeff_data_dir=None):
         
         if java_home and os.path.exists(snpeff_jar):
             java_cmd = os.path.join(java_home, 'bin', 'java')
-            cmd = [java_cmd, '-jar', snpeff_jar, 'build', '-gff3', '-v', genome_id]
+            cmd = [java_cmd, '-jar', snpeff_jar, 'build', '-gff3', '-v',
+                   '-noCheckCds', '-noCheckProtein', genome_id]
         else:
-            cmd = ['snpeff', 'build', '-gff3', '-v', genome_id]
+            cmd = ['snpeff', 'build', '-gff3', '-v',
+                   '-noCheckCds', '-noCheckProtein', genome_id]
         
         result = subprocess.run(cmd, capture_output=True, text=True)
         
