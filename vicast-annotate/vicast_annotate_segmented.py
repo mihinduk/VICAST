@@ -192,6 +192,133 @@ def combine_gffs(gb_files, output_gff, skip_polyprotein=True, segment_names=None
     print(f"  ✓ Total features: {total_features}")
     return total_features
 
+def generate_cds_protein_fasta(genome_fasta, gff_file, genome_id, snpeff_data_dir):
+    """
+    Generate CDS and protein FASTA files for SnpEff validation.
+    Uses BioPython to ensure full-length sequences with proper line wrapping.
+
+    Args:
+        genome_fasta: Path to combined genome FASTA file
+        gff_file: Path to combined GFF3 file
+        genome_id: Genome identifier
+        snpeff_data_dir: SnpEff data directory
+
+    Returns:
+        tuple: (cds_file, protein_file) paths
+    """
+    from Bio.Seq import Seq
+
+    print(f"\nGenerating CDS and protein FASTA files...")
+
+    # Load all genome sequences into a dictionary using BioPython
+    genome_seqs = {}
+    for record in SeqIO.parse(genome_fasta, "fasta"):
+        genome_seqs[record.id] = record.seq
+
+    print(f"  Loaded {len(genome_seqs)} genome segments")
+
+    # Parse GFF3 to extract CDS features
+    cds_features = []
+    with open(gff_file, 'r') as f:
+        for line in f:
+            if line.startswith("#") or not line.strip():
+                continue
+
+            parts = line.strip().split('\t')
+            if len(parts) >= 9 and parts[2] == 'CDS':
+                seqid = parts[0]
+                start = int(parts[3]) - 1  # Convert to 0-based
+                end = int(parts[4])
+                strand = parts[6]
+                attributes = parts[8]
+
+                # Parse attributes
+                attr_dict = {}
+                for attr in attributes.split(';'):
+                    if '=' in attr:
+                        key, value = attr.split('=', 1)
+                        attr_dict[key] = value
+
+                cds_features.append({
+                    'seqid': seqid,
+                    'start': start,
+                    'end': end,
+                    'strand': strand,
+                    'id': attr_dict.get('ID', ''),
+                    'gene': attr_dict.get('gene', ''),
+                    'product': attr_dict.get('product', 'hypothetical protein')
+                })
+
+    print(f"  Found {len(cds_features)} CDS features")
+
+    # Generate CDS and protein sequences
+    cds_records = []
+    protein_records = []
+
+    for feature in cds_features:
+        seqid = feature['seqid']
+
+        if seqid not in genome_seqs:
+            print(f"    Warning: Sequence {seqid} not found in FASTA")
+            continue
+
+        # Extract FULL CDS sequence using BioPython slicing
+        cds_seq = genome_seqs[seqid][feature['start']:feature['end']]
+
+        # Reverse complement if on minus strand
+        if feature['strand'] == '-':
+            cds_seq = cds_seq.reverse_complement()
+
+        # Generate sequence ID
+        seq_id = feature['gene'] if feature['gene'] else feature['id']
+
+        # Create CDS record
+        cds_record = SeqIO.SeqRecord(
+            cds_seq,
+            id=seq_id,
+            description=feature['product']
+        )
+        cds_records.append(cds_record)
+
+        # Translate to protein (FULL sequence)
+        try:
+            protein_seq = cds_seq.translate(to_stop=True)
+
+            # If doesn't start with M, try alternate start
+            if not str(protein_seq).startswith('M') and len(cds_seq) >= 3:
+                protein_seq = Seq('M') + cds_seq[3:].translate(to_stop=True)
+
+            protein_record = SeqIO.SeqRecord(
+                protein_seq,
+                id=seq_id,
+                description=feature['product']
+            )
+            protein_records.append(protein_record)
+
+        except Exception as e:
+            print(f"    Warning: Could not translate {seq_id}: {e}")
+            protein_record = SeqIO.SeqRecord(
+                Seq(''),
+                id=seq_id,
+                description=f"{feature['product']} [translation failed]"
+            )
+            protein_records.append(protein_record)
+
+    # Write files using BioPython (handles full-length sequences with 60 char/line wrapping)
+    genome_dir = os.path.join(snpeff_data_dir, genome_id)
+    os.makedirs(genome_dir, exist_ok=True)
+
+    cds_file = os.path.join(genome_dir, 'cds.fa')
+    protein_file = os.path.join(genome_dir, 'protein.fa')
+
+    SeqIO.write(cds_records, cds_file, "fasta")
+    SeqIO.write(protein_records, protein_file, "fasta")
+
+    print(f"  Generated CDS FASTA: {cds_file} ({len(cds_records)} sequences)")
+    print(f"  Generated protein FASTA: {protein_file} ({len(protein_records)} sequences)")
+
+    return cds_file, protein_file
+
 def add_to_snpeff(genome_id, fasta_file, gff_file, snpeff_data_dir=None):
     """
     Add combined segmented genome to SnpEff.
@@ -229,7 +356,14 @@ def add_to_snpeff(genome_id, fasta_file, gff_file, snpeff_data_dir=None):
     print(f"  Genome directory: {genome_dir}")
     print(f"  Sequences: {sequences_file}")
     print(f"  Annotations: {genes_file}")
-    
+
+    # Generate CDS and protein FASTA files for validation
+    try:
+        generate_cds_protein_fasta(fasta_file, gff_file, genome_id, snpeff_data_dir)
+    except Exception as e:
+        print(f"  Warning: Could not generate CDS/protein files: {e}")
+        print("  Continuing without validation files...")
+
     # Update snpEff.config
     config_file = os.path.join(os.path.dirname(snpeff_data_dir), 'snpEff.config')
     
