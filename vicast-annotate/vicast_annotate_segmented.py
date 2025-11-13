@@ -119,41 +119,107 @@ def genbank_to_gff(gb_file, output_gff, skip_polyprotein=True, chr_name=None):
 
             # Write relevant features (exclude mRNA to prevent mistranslation)
             if feature.type in ["CDS", "gene", "3'UTR", "5'UTR", "mat_peptide"]:
-                start = int(feature.location.start) + 1  # GFF is 1-based
-                end = int(feature.location.end)
-                strand = "+" if feature.location.strand == 1 else "-"
+                from Bio.SeqFeature import CompoundLocation
+
+                # Check if this is a spliced feature (compound location with join)
+                is_compound = isinstance(feature.location, CompoundLocation)
 
                 # Convert mat_peptide to CDS for SnpEff
                 output_type = "CDS" if feature.type == "mat_peptide" else feature.type
 
-                # Build attributes - prioritize gene name for ID (more readable, matches FASTA)
-                attributes = []
-                if "gene" in feature.qualifiers:
-                    # Use gene name as ID for consistency with FASTA files
-                    gene_id = feature.qualifiers['gene'][0]
-                    attributes.append(f"ID={gene_id}")
-                    attributes.append(f"gene={gene_id}")
-                elif "locus_tag" in feature.qualifiers:
-                    attributes.append(f"ID={feature.qualifiers['locus_tag'][0]}")
-                elif "protein_id" in feature.qualifiers:
-                    attributes.append(f"ID={feature.qualifiers['protein_id'][0]}")
+                # Build base attributes
+                gene_name = feature.qualifiers.get('gene', [None])[0]
+                protein_id = feature.qualifiers.get('protein_id', [None])[0]
+                product = feature.qualifiers.get('product', [None])[0]
+
+                # For spliced CDS, create a parent mRNA feature first
+                if is_compound and feature.type in ["CDS", "mat_peptide"]:
+                    # Overall start/end for the mRNA feature
+                    mrna_start = int(feature.location.start) + 1
+                    mrna_end = int(feature.location.end)
+                    strand = "+" if feature.location.strand == 1 else "-"
+
+                    # Create mRNA parent ID
+                    if gene_name:
+                        mrna_id = f"{gene_name}_mRNA"
+                        gene_id = gene_name
+                    elif protein_id:
+                        mrna_id = f"{protein_id}_mRNA"
+                        gene_id = protein_id
+                    else:
+                        mrna_id = f"mRNA_{features_written}"
+                        gene_id = f"gene_{features_written}"
+
+                    # Write mRNA feature spanning all exons
+                    mrna_attrs = [f"ID={mrna_id}"]
+                    if gene_name:
+                        mrna_attrs.append(f"gene={gene_name}")
+                    if product:
+                        mrna_attrs.append(f"product={product}")
+
+                    mrna_line = f"{chromosome}\tGenBank\tmRNA\t{mrna_start}\t{mrna_end}\t.\t{strand}\t.\t{';'.join(mrna_attrs)}\n"
+                    with open(output_gff, 'a') as f:
+                        f.write(mrna_line)
+                    features_written += 1
+
+                    # Now write each exon as a separate CDS line
+                    phase = 0  # Phase for first exon
+                    for part_idx, part in enumerate(feature.location.parts):
+                        exon_start = int(part.start) + 1
+                        exon_end = int(part.end)
+
+                        # Build CDS attributes - all exons share same ID but have Parent
+                        cds_attrs = [f"ID={gene_id}", f"Parent={mrna_id}"]
+                        if gene_name:
+                            cds_attrs.append(f"gene={gene_name}")
+                        if product:
+                            cds_attrs.append(f"product={product}")
+                        if protein_id:
+                            cds_attrs.append(f"protein_id={protein_id}")
+
+                        # Write CDS line for this exon
+                        cds_line = f"{chromosome}\tGenBank\t{output_type}\t{exon_start}\t{exon_end}\t.\t{strand}\t{phase}\t{';'.join(cds_attrs)}\n"
+                        with open(output_gff, 'a') as f:
+                            f.write(cds_line)
+                        features_written += 1
+
+                        # Calculate phase for next exon
+                        exon_length = exon_end - exon_start + 1
+                        phase = (3 - ((exon_length - phase) % 3)) % 3
+
                 else:
-                    attributes.append(f"ID={output_type}_{features_written}")
-                    if "gene" in feature.qualifiers:
-                        attributes.append(f"gene={feature.qualifiers['gene'][0]}")
+                    # Simple (non-spliced) feature - write single line
+                    start = int(feature.location.start) + 1  # GFF is 1-based
+                    end = int(feature.location.end)
+                    strand = "+" if feature.location.strand == 1 else "-"
 
-                if "product" in feature.qualifiers:
-                    attributes.append(f"product={feature.qualifiers['product'][0]}")
-                if "protein_id" in feature.qualifiers:
-                    attributes.append(f"protein_id={feature.qualifiers['protein_id'][0]}")
+                    # Build attributes - prioritize gene name for ID (more readable, matches FASTA)
+                    attributes = []
+                    if gene_name:
+                        # Use gene name as ID for consistency with FASTA files
+                        attributes.append(f"ID={gene_name}")
+                        attributes.append(f"gene={gene_name}")
+                    elif "locus_tag" in feature.qualifiers:
+                        attributes.append(f"ID={feature.qualifiers['locus_tag'][0]}")
+                    elif protein_id:
+                        attributes.append(f"ID={protein_id}")
+                    else:
+                        attributes.append(f"ID={output_type}_{features_written}")
+                        if gene_name:
+                            attributes.append(f"gene={gene_name}")
 
-                # Write GFF line with chromosome name
-                gff_line = f"{chromosome}\tGenBank\t{output_type}\t{start}\t{end}\t.\t{strand}\t.\t{';'.join(attributes)}\n"
+                    if product:
+                        attributes.append(f"product={product}")
+                    if protein_id:
+                        attributes.append(f"protein_id={protein_id}")
 
-                with open(output_gff, 'a') as f:
-                    f.write(gff_line)
+                    # Write GFF line with chromosome name
+                    gff_line = f"{chromosome}\tGenBank\t{output_type}\t{start}\t{end}\t.\t{strand}\t.\t{';'.join(attributes)}\n"
 
-                features_written += 1
+                    with open(output_gff, 'a') as f:
+                        f.write(gff_line)
+
+                    features_written += 1
 
     return features_written
 
