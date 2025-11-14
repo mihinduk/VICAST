@@ -1,0 +1,104 @@
+name: viral_genomics_analyze
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+
+dependencies:
+  # =============================================================================
+  # Core Bioinformatics Tools
+  # =============================================================================
+  - bwa>=0.7.17              # Sequence alignment
+  - samtools>=1.15           # SAM/BAM manipulation
+  - bcftools>=1.15           # VCF manipulation
+  - lofreq>=2.1.5            # Variant calling for viral genomes
+  - seqkit>=2.3.0            # FASTA/Q manipulation
+  - entrez-direct>=16.2      # NCBI E-utilities (efetch, esearch)
+  
+  # =============================================================================
+  # Quality Control and Preprocessing
+  # =============================================================================
+  - fastp>=0.23.2            # FASTQ quality control and trimming
+  - fastqc>=0.11.9           # Quality control metrics
+  - megahit>=1.2.9           # De novo assembly (for diagnostics)
+  - seqtk>=1.3               # FASTQ/A processing toolkit
+  - blast>=2.12.0            # Sequence similarity search (for diagnostics)
+  
+  # =============================================================================
+  # Python and Core Data Science
+  # =============================================================================
+  - python>=3.9
+  - pip
+  
+  # Data manipulation
+  - pandas>=1.5.0
+  - numpy>=1.23.0
+  
+  # Bioinformatics
+  - biopython>=1.79
+  
+  # Statistics
+  - scipy>=1.9.0
+  
+  # =============================================================================
+  # Java (for snpEff)
+  # =============================================================================
+  - openjdk>=11              # snpEff requires Java
+  
+  # =============================================================================
+  # File Compression/Decompression
+  # =============================================================================
+  - gzip
+  - pigz                     # Parallel gzip for faster compression
+  
+  # =============================================================================
+  # Additional Python packages via pip
+  # =============================================================================
+  - pip:
+    # Add any Python packages not available via conda here
+    # - some_package>=1.0.0
+
+# =============================================================================
+# INSTALLATION INSTRUCTIONS
+# =============================================================================
+# 1. Install mambaforge or miniforge3 if you haven't already:
+#    wget https://github.com/conda-forge/miniforge/releases/latest/download/Mambaforge-Linux-x86_64.sh
+#    bash Mambaforge-Linux-x86_64.sh
+#
+# 2. Create the environment from this file:
+#    mamba env create -f viral_genomics_analysis.yml
+#
+# 3. Activate the environment:
+#    mamba activate viral_genomics_analysis
+#
+# 4. Verify installation:
+#    bwa
+#    samtools --version
+#    python --version
+#    which efetch
+#
+# =============================================================================
+# NOTES
+# =============================================================================
+# - This environment does NOT include visualization packages (matplotlib, seaborn)
+#   to keep it lean and focused on data generation
+# - If you need visualization later, create a separate environment or add:
+#   mamba install matplotlib seaborn plotly
+# - snpEff itself is NOT installed via conda - install it separately and
+#   configure the path in pipeline_config.sh
+# - This environment is optimized for viral genomics workflows with emphasis on:
+#   * Read mapping and variant calling
+#   * Consensus generation
+#   * Haplotype reconstruction
+#   * Genome annotation
+# =============================================================================
+
+# =============================================================================
+# UPDATING THE ENVIRONMENT
+# =============================================================================
+# To update all packages to their latest compatible versions:
+#    mamba env update -f viral_genomics_analysis.yml --prune
+#
+# To export your current environment (after customization):
+#    mamba env export > my_viral_genomics_analysis.yml
+# =============================================================================
