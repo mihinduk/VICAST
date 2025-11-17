@@ -8,6 +8,9 @@ if [ $# -lt 3 ]; then
     echo "Example: $0 sample_R1.fastq.gz sample_R2.fastq.gz GQ433359.1 4 --large-files"
     echo "Example: $0 sample_R1.fastq.gz sample_R2.fastq.gz GQ433359.1 4 --extremely-large-files"
     echo ""
+    echo "Prerequisites:"
+    echo "  Activate conda before running: source /ref/sahlab/software/anaconda3/bin/activate"
+    echo ""
     echo "Configuration:"
     echo "  Create pipeline_config.sh from pipeline_config.template.sh to customize paths"
     echo ""
@@ -48,10 +51,21 @@ if [ -f "$CONFIG_FILE" ]; then
 else
     echo "⚠️  No configuration file found. Using hardcoded paths."
     # Fallback defaults for backward compatibility
-    MAMBA_CMD="/home/mihindu/miniforge3/bin/mamba run -n viral_genomics_analyze"
-    SNPEFF_DIR="/home/mihindu/software/snpEff"
+    MAMBA_CMD="conda run -n viral_genomics"
+    SNPEFF_DIR="/ref/sahlab/software/snpEff"
     SNPEFF_JAR="${SNPEFF_DIR}/snpEff.jar"
     JAVA_PATH="java"
+fi
+
+# Check if conda is available
+if ! command -v conda &> /dev/null; then
+    echo "❌ Error: conda not found in PATH"
+    echo ""
+    echo "Please activate conda first:"
+    echo "  source /ref/sahlab/software/anaconda3/bin/activate"
+    echo ""
+    echo "Then re-run this script."
+    exit 1
 fi
 
 # Set up environment

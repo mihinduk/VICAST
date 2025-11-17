@@ -13,6 +13,9 @@ usage() {
     echo "  threads       : Number of threads to use"
     echo "  --large-files : Optional flag for large file handling"
     echo ""
+    echo "Prerequisites:"
+    echo "  Activate conda before running: source /ref/sahlab/software/anaconda3/bin/activate"
+    echo ""
     echo "Configuration:"
     echo "  Create pipeline_config.sh from pipeline_config.template.sh to customize paths"
     echo ""
@@ -56,8 +59,19 @@ else
     echo "⚠️  Configuration file not found: $CONFIG_FILE"
     echo "   Using hardcoded paths (consider creating pipeline_config.sh from template)"
     # Fallback to hardcoded paths for backward compatibility
-    MAMBA_CMD="/home/mihindu/miniforge3/bin/mamba run -n viral_genomics_analyze"
+    MAMBA_CMD="conda run -n viral_genomics"
     PIPELINE_BASE="/scratch/sahlab/kathie/viral_genomics_pipeline_dev/viral-genomics-pipeline"
+fi
+
+# Check if conda is available
+if ! command -v conda &> /dev/null; then
+    echo "❌ Error: conda not found in PATH"
+    echo ""
+    echo "Please activate conda first:"
+    echo "  source /ref/sahlab/software/anaconda3/bin/activate"
+    echo ""
+    echo "Then re-run this script."
+    exit 1
 fi
 
 # Set up HTCF environment
