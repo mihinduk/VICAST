@@ -22,7 +22,7 @@ MAMBA_CMD="/path/to/miniforge3/bin/mamba run -n viral_genomics_analyze"
 SNPEFF_DIR="/path/to/snpEff"
 
 # Example for HTCF:
-# SNPEFF_DIR="/home/mihindu/software/snpEff"
+# SNPEFF_DIR="/ref/sahlab/software/snpEff"
 
 # snpEff JAR file (usually in the snpEff directory)
 SNPEFF_JAR="${SNPEFF_DIR}/snpEff.jar"

@@ -13,7 +13,7 @@ MAMBA_CMD="/home/mihindu/miniforge3/bin/mamba run -n viral_genomics_analyze"
 # SNPEFF CONFIGURATION
 # =============================================================================
 # Directory where snpEff is installed
-SNPEFF_DIR="/home/mihindu/software/snpEff"
+SNPEFF_DIR="/ref/sahlab/software/snpEff"
 
 # snpEff JAR file (in the snpEff directory)
 SNPEFF_JAR="${SNPEFF_DIR}/snpEff.jar"
