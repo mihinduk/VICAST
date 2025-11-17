@@ -8,12 +8,13 @@
 # =============================================================================
 # CONDA/MAMBA ENVIRONMENT
 # =============================================================================
-# Path to mamba command for running tools in the viral_genomics_analyze environment
-# This should point to your miniforge3/mambaforge installation
-MAMBA_CMD="/path/to/miniforge3/bin/mamba run -n viral_genomics_analyze"
+# Conda/Mamba run command for running tools in the viral genomics environment
+# This should use conda run or mamba run with your environment name
+MAMBA_CMD="/path/to/conda_or_mamba run -n your_viral_env"
 
-# Example for HTCF:
-# MAMBA_CMD="/home/mihindu/miniforge3/bin/mamba run -n viral_genomics_analyze"
+# Example for HTCF (using shared anaconda3):
+# MAMBA_CMD="conda run -n viral_genomics"
+# Note: Must have already run: source /ref/sahlab/software/anaconda3/bin/activate
 
 # =============================================================================
 # SNPEFF CONFIGURATION
