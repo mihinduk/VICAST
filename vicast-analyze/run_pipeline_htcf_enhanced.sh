@@ -1,6 +1,7 @@
 #!/bin/bash
-# Enhanced Module 1: Viral Pipeline with Automatic Virus Configuration
-# This version automatically adds new viruses to known_viruses.json during assembly
+# Enhanced Viral Pipeline Wrapper
+# This script runs the consolidated pipeline and generates next_steps commands
+# The consolidated pipeline handles all virus configuration and database setup
 
 # Function to display usage
 usage() {
@@ -84,89 +85,15 @@ echo "Working directory: $(pwd)"
 echo "Time: $(date)"
 echo "========================================="
 
-# Step 1: Check virus configuration before running pipeline
+# Run the consolidated pipeline
+# The consolidated pipeline handles:
+# - snpEff database checking and building
+# - Reference genome download from NCBI if needed
+# - Complete assembly and variant calling workflow
 echo ""
-echo "Step 1: Checking virus configuration..."
-KNOWN_VIRUSES_FILE="${PIPELINE_BASE}/viral_pipeline/visualization/known_viruses.json"
-
-VIRUS_CONFIGURED=false
-if [ -f "$KNOWN_VIRUSES_FILE" ]; then
-    if grep -q "\"$ACCESSION\"" "$KNOWN_VIRUSES_FILE"; then
-        echo "✅ Virus $ACCESSION found in configuration"
-        VIRUS_CONFIGURED=true
-    else
-        echo "⚠️  Virus $ACCESSION not in configuration database"
-    fi
-else
-    echo "⚠️  Configuration file not found, will create new one"
-    mkdir -p "$(dirname "$KNOWN_VIRUSES_FILE")"
-    echo "{}" > "$KNOWN_VIRUSES_FILE"
-fi
-
-# Step 2: If virus not configured, download GenBank and add it
-if [ "$VIRUS_CONFIGURED" = false ]; then
-    echo ""
-    echo "Step 2: Downloading virus information..."
-    
-    # Create temporary directory for downloads
-    TEMP_DIR="./temp_virus_setup_$$"
-    mkdir -p "$TEMP_DIR"
-    
-    # Download GenBank file
-    echo "Downloading GenBank file for $ACCESSION..."
-    $MAMBA_CMD efetch -db nucleotide -id "$ACCESSION" -format gb > "$TEMP_DIR/${ACCESSION}.gb"
-    
-    if [ $? -ne 0 ] || [ ! -s "$TEMP_DIR/${ACCESSION}.gb" ]; then
-        echo "❌ Error: Failed to download GenBank file for $ACCESSION"
-        rm -rf "$TEMP_DIR"
-        exit 1
-    fi
-    
-    echo "GenBank file downloaded successfully"
-    
-    # Add virus to configuration
-    echo "Adding virus to configuration database..."
-    $MAMBA_CMD python3 "${PIPELINE_BASE}/viral_pipeline/utils/add_virus_to_config.py" \
-        "$TEMP_DIR/${ACCESSION}.gb" \
-        --config "$KNOWN_VIRUSES_FILE"
-    
-    if [ $? -eq 0 ]; then
-        echo "✅ Successfully added $ACCESSION to virus configuration!"
-        
-        # Verify it has proper gene annotation (not just polyprotein)
-        GENE_COUNT=$($MAMBA_CMD python3 -c "
-import json
-with open('$KNOWN_VIRUSES_FILE', 'r') as f:
-    data = json.load(f)
-    if '$ACCESSION' in data:
-        print(len(data['$ACCESSION'].get('gene_coords', {})))
-    else:
-        print(0)
-")
-        
-        if [ "$GENE_COUNT" -gt 1 ]; then
-            echo "✅ Found $GENE_COUNT genes in annotation"
-        else
-            echo "⚠️  Warning: Only found $GENE_COUNT gene(s). Manual configuration may be needed."
-            echo "   The GenBank file may use polyprotein annotation."
-            echo "   Consensus generation will use polyprotein fallback."
-        fi
-    else
-        echo "⚠️  Failed to add virus to configuration. Continuing anyway..."
-    fi
-    
-    # Clean up
-    rm -rf "$TEMP_DIR"
-else
-    echo "Step 2: Skipped (virus already configured)"
-fi
-
-# Step 3: Run the main pipeline
-echo ""
-echo "Step 3: Running viral assembly pipeline..."
+echo "Running viral assembly pipeline..."
 echo "========================================="
 
-# Run the consolidated pipeline
 bash "${PIPELINE_BASE}/run_pipeline_htcf_consolidated.sh" "$R1" "$R2" "$ACCESSION" "$THREADS" $LARGE_FILES_FLAG
 
 PIPELINE_EXIT_CODE=$?
@@ -176,12 +103,6 @@ if [ $PIPELINE_EXIT_CODE -eq 0 ]; then
     echo "========================================="
     echo "✅ Pipeline completed successfully!"
     echo "========================================="
-    
-    # Copy known_viruses.json to results directory for reference
-    if [ -f "$KNOWN_VIRUSES_FILE" ]; then
-        cp "$KNOWN_VIRUSES_FILE" "./cleaned_seqs/variants/"
-        echo "Virus configuration copied to: ./cleaned_seqs/variants/known_viruses.json"
-    fi
     
     # Create next steps file
     cat > "next_steps_${SAMPLE_NAME}.txt" << EOF

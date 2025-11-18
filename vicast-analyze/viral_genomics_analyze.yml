@@ -13,7 +13,7 @@ dependencies:
   - bcftools>=1.15           # VCF manipulation
   - lofreq>=2.1.5            # Variant calling for viral genomes
   - seqkit>=2.3.0            # FASTA/Q manipulation
-  - entrez-direct>=16.2      # NCBI E-utilities (efetch, esearch)
+  # entrez-direct NOT needed - consolidated pipeline handles GenBank downloads
   
   # =============================================================================
   # Quality Control and Preprocessing
