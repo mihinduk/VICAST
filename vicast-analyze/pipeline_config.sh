@@ -6,8 +6,19 @@
 # =============================================================================
 # CONDA/MAMBA ENVIRONMENT
 # =============================================================================
-# Conda run command for running tools in the viral_genomics environment
-# Must source anaconda3 first, then use conda run
+# Conda run command for running tools in the viral genomics environment
+#
+# HTCF users can use the existing shared environment:
+#   MAMBA_CMD="conda run -n viral_genomics"
+#
+# OR create the dedicated viral_genomics_analyze environment:
+#   1. Run: bash setup_environment.sh
+#   2. Update this line to: MAMBA_CMD="conda run -n viral_genomics_analyze"
+#
+# For custom prefix installations:
+#   MAMBA_CMD="conda run --prefix /path/to/envs/viral_genomics_analyze"
+
+# Current configuration (using existing HTCF shared environment):
 MAMBA_CMD="conda run -n viral_genomics"
 
 # =============================================================================

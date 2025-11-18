@@ -61,21 +61,45 @@ dependencies:
 # =============================================================================
 # INSTALLATION INSTRUCTIONS
 # =============================================================================
-# 1. Install mambaforge or miniforge3 if you haven't already:
-#    wget https://github.com/conda-forge/miniforge/releases/latest/download/Mambaforge-Linux-x86_64.sh
-#    bash Mambaforge-Linux-x86_64.sh
+# ⚠️  IMPORTANT: DO NOT install in your home directory on shared servers!
+#     Conda environments are large (>2GB) and can exceed quota limits.
 #
-# 2. Create the environment from this file:
-#    mamba env create -f viral_genomics_analysis.yml
+# RECOMMENDED: Install in a shared lab space or scratch directory
+#
+# 1. Choose installation location (NOT your home directory!):
+#    OPTION A - Shared lab space (RECOMMENDED for HTCF):
+#      export CONDA_ENVS_DIRS="/ref/sahlab/software/envs:$HOME/.conda/envs"
+#
+#    OPTION B - Your scratch space (if no shared space available):
+#      export CONDA_ENVS_DIRS="/scratch/your_lab/your_username/envs:$HOME/.conda/envs"
+#
+#    OPTION C - Custom prefix (full control):
+#      # Use --prefix flag in step 2 below
+#
+# 2. Create the environment:
+#    OPTION A/B (using CONDA_ENVS_DIRS):
+#      conda env create -f viral_genomics_analyze.yml
+#
+#    OPTION C (custom location):
+#      conda env create --prefix /path/to/envs/viral_genomics_analyze -f viral_genomics_analyze.yml
 #
 # 3. Activate the environment:
-#    mamba activate viral_genomics_analysis
+#    OPTION A/B:
+#      conda activate viral_genomics_analyze
+#
+#    OPTION C:
+#      conda activate /path/to/envs/viral_genomics_analyze
 #
 # 4. Verify installation:
 #    bwa
 #    samtools --version
 #    python --version
 #    which efetch
+#
+# 5. Update pipeline_config.sh with your environment activation command:
+#    MAMBA_CMD="conda run -n viral_genomics_analyze"
+#    OR (if using --prefix):
+#    MAMBA_CMD="conda run --prefix /path/to/envs/viral_genomics_analyze"
 #
 # =============================================================================
 # NOTES
