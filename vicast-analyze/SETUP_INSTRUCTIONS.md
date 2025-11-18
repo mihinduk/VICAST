@@ -1,60 +1,112 @@
-# Pipeline Simplification Instructions
+# VICAST-Analyze Setup Instructions
 
-## Files Created
+## Quick Start
 
-1. **pipeline_config.template.sh** - Template configuration file with all paths
-2. **viral_genomics_analyze.yml** - Conda environment specification
-
-## Setup Steps
-
-### 1. Create the Conda Environment
+### Option 1: Automated Setup (Recommended)
 
 ```bash
-# Navigate to where you saved the YAML file
-cd /path/to/your/pipeline
+# Clone the repository
+git clone https://github.com/mihinduk/VICAST.git
+cd VICAST/vicast-analyze
+
+# Activate conda (HTCF users)
+source /ref/sahlab/software/anaconda3/bin/activate
+
+# Run the setup script
+bash setup_environment.sh
+```
+
+The setup script will:
+- ⚠️ Warn you about home directory space limits
+- Help you choose an appropriate installation location
+- Create the `viral_genomics_analyze` environment
+- Tell you how to update `pipeline_config.sh`
+
+### Option 2: Manual Setup
+
+**⚠️ IMPORTANT: Do NOT install in your home directory on shared servers!**
+Conda environments are large (>2GB) and will exceed quota limits.
+
+#### 1. Create the Conda Environment
+
+```bash
+# Navigate to the pipeline directory
+cd /path/to/VICAST/vicast-analyze
+
+# Activate conda
+source /ref/sahlab/software/anaconda3/bin/activate
+
+# Set environment location (HTCF shared lab - RECOMMENDED)
+export CONDA_ENVS_DIRS="/ref/sahlab/software/envs:$HOME/.conda/envs"
 
 # Create the environment
-mamba env create -f viral_genomics_analyze.yml
+conda env create -f viral_genomics_analyze.yml
 
 # Activate it
-mamba activate viral_genomics_analyze
+conda activate viral_genomics_analyze
 
 # Verify installation
 bwa
 samtools --version
 python --version
-efetch -help
+which efetch
 ```
 
-### 2. Configure Your Pipeline Paths
+#### 2. Configure Your Pipeline Paths
 
 ```bash
-# Copy the template to create your config
-cp pipeline_config.template.sh pipeline_config.sh
-
-# Edit with your actual paths
-nano pipeline_config.sh  # or use your preferred editor
+# The default pipeline_config.sh uses the existing HTCF shared environment
+# If you created viral_genomics_analyze, update it:
+nano pipeline_config.sh
 ```
 
-**Update these key paths in pipeline_config.sh:**
-- `MAMBA_CMD` → Your mamba installation path
-- `SNPEFF_DIR` → Where snpEff is installed
-- `PIPELINE_BASE` → Your pipeline directory
-
-**For HTCF, your config might look like:**
+**Update MAMBA_CMD if you created the new environment:**
 ```bash
-MAMBA_CMD="/home/mihindu/miniforge3/bin/mamba run -n viral_genomics_analyze"
-SNPEFF_DIR="/home/mihindu/software/snpEff"
-PIPELINE_BASE="/scratch/sahlab/kathie/viral_genomics_pipeline_dev/viral-genomics-pipeline"
+# Change from:
+MAMBA_CMD="conda run -n viral_genomics"
+
+# To:
+MAMBA_CMD="conda run -n viral_genomics_analyze"
 ```
 
-### 3. Validate Configuration
+**Other paths to verify (usually correct by default on HTCF):**
+- `SNPEFF_DIR` → `/ref/sahlab/software/snpEff`
+- `PIPELINE_BASE` → Your pipeline directory path
 
+#### 3. Run Your First Test
+
+**Prerequisites:**
+- Activate conda in your session: `source /ref/sahlab/software/anaconda3/bin/activate`
+
+**Run the pipeline:**
 ```bash
-# Source the config and run validation
-source pipeline_config.sh
-validate_config
+cd /path/to/your/data
+
+bash /path/to/VICAST/vicast-analyze/run_pipeline_htcf_enhanced.sh \
+  sample_R1.fastq.gz \
+  sample_R2.fastq.gz \
+  NC_001477.1 \
+  4
 ```
+
+## Environment Options
+
+### For HTCF Users
+
+**Option A: Use existing shared environment** (Quick start)
+- Environment: `viral_genomics` (already installed)
+- No setup needed
+- Config already set correctly
+
+**Option B: Create dedicated environment** (Independent, systematic)
+- Environment: `viral_genomics_analyze` (you create)
+- Run `bash setup_environment.sh`
+- Update `pipeline_config.sh` with `MAMBA_CMD="conda run -n viral_genomics_analyze"`
+- Advantage: Complete independence from other pipelines
+
+### For New Systems
+
+Use `setup_environment.sh` to guide installation with space warnings.
 
 ## What Gets Removed from the Pipeline
 
