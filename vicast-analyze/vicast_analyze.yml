@@ -1,0 +1,305 @@
+name: vicast_analyze
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+
+dependencies:
+  # =============================================================================
+  # CORE BIOINFORMATICS TOOLS - ALL REQUIRED FOR VICAST-ANALYZE
+  # =============================================================================
+  # These tools are ALL mandatory for the complete vicast-analyze pipeline
+  # Based on comprehensive analysis of:
+  #   - viral_pipeline.py (main pipeline)
+  #   - viral_diagnostic.sh (diagnostic module)
+  #   - qc_with_simple_plots.py (QC reporting)
+  #
+  # Module mapping:
+  #   Module 1 (QC):          fastp, seqkit
+  #   Module 2 (Reference):   biopython (Entrez.efetch)
+  #   Module 3 (Alignment):   bwa, samtools
+  #   Module 4 (Variants):    lofreq, bcftools
+  #   Module 6 (Depth):       samtools
+  #   Module 7 (Parsing):     pandas, numpy
+  #   Module 8 (Diagnostic):  megahit, blast, fastp, bwa, samtools, seqkit
+  #   Module 9 (Consensus):   pandas, numpy, biopython
+
+  - bwa>=0.7.17              # Read alignment (Modules 3, 8)
+  - samtools>=1.15           # SAM/BAM manipulation (Modules 3, 6, 8)
+  - bcftools>=1.15           # VCF manipulation (Module 4)
+  - lofreq>=2.1.5            # Variant calling (Module 4)
+  - seqkit>=2.3.0            # FASTA/Q manipulation (Modules 1, 8)
+  - fastp>=0.23.2            # Quality trimming and filtering (Modules 1, 8)
+  - megahit>=1.2.9           # De novo assembly (Module 8 diagnostic)
+  - blast>=2.12.0            # Contamination detection (Module 8 diagnostic)
+
+  # =============================================================================
+  # PYTHON AND REQUIRED LIBRARIES
+  # =============================================================================
+  - python>=3.9
+  - pip
+
+  # Required by analysis scripts
+  - pandas>=1.5.0            # parse_snpeff_tsv.py, generate_filtered_consensus.py
+  - numpy>=1.23.0            # statistical operations in analysis scripts
+
+  # Required for GenBank downloads (viral_pipeline.py)
+  - biopython>=1.79          # Entrez.efetch replaces entrez-direct
+
+  # NOTE: qc_with_simple_plots.py uses ONLY Python standard libraries
+  #       (urllib, json, datetime, argparse, pathlib, re, os, sys)
+  #       NO visualization packages (matplotlib/seaborn) needed!
+
+# =============================================================================
+# WHAT IS NOT INCLUDED (and why)
+# =============================================================================
+# ❌ java/openjdk       - snpEff is in vicast-annotate, not vicast-analyze
+# ❌ snpEff             - annotation pipeline handles this
+# ❌ entrez-direct      - replaced with BioPython Entrez.efetch
+# ❌ matplotlib         - QC uses pure HTML/CSS, no plotting libraries needed
+# ❌ seaborn            - not required
+# ❌ plotly             - not required
+# ❌ fastqc             - nice-to-have, but fastp provides QC reports
+# ❌ seqtk              - redundant with seqkit
+#
+# Optional tools can be added later:
+#   conda install -n vicast_analyze <package_name>
+# =============================================================================
+
+# =============================================================================
+# INSTALLATION INSTRUCTIONS FOR SHARED SERVERS
+# =============================================================================
+#
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# STEP 1: Connect to server
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+#   ssh your_server
+#
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# STEP 2: Activate conda/mamba
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+# OPTION A - Use miniforge with mamba (RECOMMENDED - much faster):
+#   source /path/to/miniforge3/bin/activate
+#
+# OPTION B - Use anaconda3 with conda (slower dependency solving):
+#   source /path/to/anaconda3/bin/activate
+#
+# OPTION C - If conda available via module system:
+#   module load anaconda3
+#   OR
+#   module load miniconda3
+#
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# STEP 3: Choose installation location (MANDATORY - DO NOT SKIP!)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+# ⚠️  CRITICAL WARNING: DO NOT install to home directory on shared servers!
+# ⚠️  Conda environments are 2-3 GB and WILL EXCEED quota limits!
+#
+# You MUST choose one of these options:
+#
+# OPTION A - Shared lab/group space (RECOMMENDED for team access):
+#   export CONDA_ENVS_DIRS="/path/to/shared/envs:$HOME/.conda/envs"
+#
+# OPTION B - Personal scratch/work space (for individual use):
+#   export CONDA_ENVS_DIRS="/path/to/scratch/$USER/envs:$HOME/.conda/envs"
+#
+# OPTION C - Custom location with --prefix (see ALTERNATIVE section below)
+#
+# Check available space before proceeding:
+#   df -h /path/to/shared/envs         # Check shared space
+#   df -h /path/to/scratch/$USER       # Check personal scratch
+#   df -h $HOME                         # Check home (should NOT use!)
+#
+# Minimum required: 5 GB free space
+#
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# STEP 4: Create environment and install packages
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+# METHOD 1 - Use mamba (RECOMMENDED - 10x faster than conda):
+#   # First activate miniforge (has mamba built-in):
+#   source /path/to/miniforge3/bin/activate
+#
+#   # Then create environment with mamba:
+#   mamba env create -f vicast_analyze.yml
+#
+# METHOD 2 - Use conda (slower but more stable):
+#   # First activate anaconda3 or miniforge:
+#   source /path/to/anaconda3/bin/activate
+#
+#   # Then create environment with conda:
+#   conda env create -f vicast_analyze.yml
+#
+# METHOD 3 - Hybrid approach (create with conda, install with mamba):
+#   # Activate miniforge:
+#   source /path/to/miniforge3/bin/activate
+#
+#   # Create empty environment:
+#   conda create -n vicast_analyze python=3.9 -y
+#
+#   # Install packages with mamba (faster):
+#   mamba env update -n vicast_analyze -f vicast_analyze.yml
+#
+# Installation will take 5-15 minutes depending on method.
+#
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# STEP 5: Activate and verify installation
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+#   conda activate vicast_analyze
+#
+#   # Verify all tools installed correctly:
+#   bwa                                    # Should show usage
+#   samtools --version                     # Should show >=1.15
+#   lofreq version                         # Should show >=2.1.5
+#   megahit --version                      # Should show >=1.2.9
+#   blastn -version                        # Should show >=2.12.0
+#   python -c "from Bio import Entrez; print('BioPython OK')"
+#
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# STEP 6: Configure pipeline
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+#   # Edit pipeline_config.sh and set:
+#   MAMBA_CMD="conda run -n vicast_analyze"
+#
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ALTERNATIVE: Custom Installation Location
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+# For personal scratch space or custom paths:
+#
+# OPTION A - Personal scratch:
+#   export CONDA_ENVS_DIRS="/scratch/sahlab/$USER/envs:$HOME/.conda/envs"
+#   conda env create -f vicast_analyze.yml
+#   conda activate vicast_analyze
+#   # Configure: MAMBA_CMD="conda run -n vicast_analyze"
+#
+# OPTION B - Full custom path with --prefix:
+#   conda env create --prefix /custom/path/vicast_analyze -f vicast_analyze.yml
+#   conda activate /custom/path/vicast_analyze
+#   # Configure: MAMBA_CMD="conda run --prefix /custom/path/vicast_analyze"
+#
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# VERIFICATION
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+# After installation, verify all tools are available:
+#
+#   conda activate vicast_analyze
+#
+#   # Core alignment tools
+#   bwa                           # Should show usage
+#   samtools --version            # Should show version >=1.15
+#
+#   # Variant calling
+#   lofreq version                # Should show version >=2.1.5
+#   bcftools --version            # Should show version >=1.15
+#
+#   # Quality control and preprocessing
+#   fastp --version               # Should show version >=0.23.2
+#   seqkit version                # Should show version >=2.3.0
+#
+#   # Diagnostic tools
+#   megahit --version             # Should show version >=1.2.9
+#   blastn -version               # Should show version >=2.12.0
+#
+#   # Python environment
+#   python --version              # Should show Python >=3.9
+#   python -c "import pandas; print(f'pandas {pandas.__version__}')"
+#   python -c "import numpy; print(f'numpy {numpy.__version__}')"
+#   python -c "from Bio import Entrez; print('BioPython OK')"
+#
+# All commands should complete without errors.
+#
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# TROUBLESHOOTING
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+# Problem: "No space left on device" during installation
+# Solution: You're installing to home directory - DO NOT DO THIS
+#           Use shared lab space or scratch:
+#           export CONDA_ENVS_DIRS="/ref/sahlab/software/envs:$HOME/.conda/envs"
+#
+# Problem: "Killed" or OOM errors during environment creation
+# Solution: Environment includes ONLY necessary tools to avoid OOM
+#           If still occurring:
+#           - Create on login node, not compute node
+#           - Use mamba instead: mamba env create -f vicast_analyze.yml
+#           - Or install with --no-deps and add packages incrementally
+#
+# Problem: "conda: command not found"
+# Solution: Activate conda first on HTCF:
+#           source /ref/sahlab/software/anaconda3/bin/activate
+#
+# Problem: Environment activation fails
+# Solution: Check CONDA_ENVS_DIRS includes installation directory:
+#           export CONDA_ENVS_DIRS="/your/install/dir:$HOME/.conda/envs"
+#           conda env list  # Should show vicast_analyze
+#
+# Problem: Tool not found after activation
+# Solution: Ensure environment is activated:
+#           conda activate vicast_analyze
+#           which bwa  # Should show path in vicast_analyze environment
+#
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# UPDATING AND MAINTENANCE
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+# To update packages to latest compatible versions:
+#   conda env update -f vicast_analyze.yml --prune
+#
+# To export your environment after customization:
+#   conda env export --no-builds > my_vicast_analyze.yml
+#
+# To add optional tools:
+#   conda activate vicast_analyze
+#   conda install fastqc                    # Add FastQC for additional QC
+#   conda install matplotlib seaborn        # Add if you want custom plots
+#
+# To remove the environment:
+#   conda env remove -n vicast_analyze
+#   # OR if using --prefix:
+#   conda env remove --prefix /path/to/vicast_analyze
+#
+# To clone environment to different location:
+#   conda create --prefix /new/path --clone vicast_analyze
+#
+# =============================================================================
+# PIPELINE CONFIGURATION
+# =============================================================================
+#
+# After successful installation, update your pipeline_config.sh:
+#
+# 1. Edit pipeline_config.sh in the vicast-analyze directory
+#
+# 2. Set MAMBA_CMD based on your installation method:
+#
+#    Named environment (RECOMMENDED):
+#      MAMBA_CMD="conda run -n vicast_analyze"
+#
+#    Custom prefix:
+#      MAMBA_CMD="conda run --prefix /path/to/vicast_analyze"
+#
+# 3. Optionally set other paths:
+#      SNPEFF_DIR="/ref/sahlab/software/snpEff"  # For annotation
+#      BLAST_DB="/ref/sahlab/data/microbes_db/microbial_contaminants"  # For diagnostics
+#
+# 4. Test your configuration:
+#      bash run_pipeline_htcf_enhanced.sh --help
+#
+# =============================================================================
+# ENVIRONMENT SIZE ESTIMATE
+# =============================================================================
+#
+# Expected disk usage: ~2-3 GB
+# Recommended minimum free space: 5 GB
+#
+# Check available space before installation:
+#   df -h /ref/sahlab/software/envs
+#   df -h /scratch/sahlab/$USER
+#
+# =============================================================================
