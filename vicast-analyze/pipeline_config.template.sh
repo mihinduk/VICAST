@@ -35,16 +35,16 @@ JAVA_PATH="java"
 # PIPELINE PATHS
 # =============================================================================
 # Base directory for the viral genomics pipeline
-PIPELINE_BASE="/path/to/viral-genomics-pipeline"
+# By default, this is AUTO-DETECTED (script directory) - works for most users!
+# Uncomment and modify only if your scripts are in a non-standard location:
+# PIPELINE_BASE="/path/to/VICAST/vicast-analyze"
 
-# Example for HTCF:
-# PIPELINE_BASE="/scratch/sahlab/kathie/viral_genomics_pipeline_dev/viral-genomics-pipeline"
+# Example for HTCF if scripts are elsewhere:
+# PIPELINE_BASE="/scratch/sahlab/kathie/vicast/VICAST/VICAST/vicast-analyze"
 
-# Path to the consolidated pipeline script
-CONSOLIDATED_PIPELINE="${PIPELINE_BASE}/run_pipeline_htcf_consolidated.sh"
-
-# Path to the main viral_pipeline.py script
-VIRAL_PIPELINE_SCRIPT="${PIPELINE_BASE}/viral_pipeline.py"
+# These are auto-constructed from PIPELINE_BASE (no need to change):
+# CONSOLIDATED_PIPELINE="${PIPELINE_BASE}/run_pipeline_htcf_consolidated.sh"
+# VIRAL_PIPELINE_SCRIPT="${PIPELINE_BASE}/viral_pipeline.py"
 
 # =============================================================================
 # OPTIONAL: WORKING DIRECTORIES

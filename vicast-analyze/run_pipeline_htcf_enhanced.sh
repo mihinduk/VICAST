@@ -48,20 +48,46 @@ fi
 # Extract sample name from R1 filename
 SAMPLE_NAME=$(basename "$R1" | sed 's/_R[12]\..*//')
 
-# Get the directory where this script is located
+# Get the directory where this script is located (auto-detection)
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-# Source configuration file if it exists
+# Default PIPELINE_BASE to script directory (works for new users out-of-the-box)
+PIPELINE_BASE="${SCRIPT_DIR}"
+
+# Default MAMBA_CMD (can be overridden by config)
+MAMBA_CMD="conda run -n viral_genomics"
+
+# Source configuration file if it exists (can override defaults)
 CONFIG_FILE="${SCRIPT_DIR}/pipeline_config.sh"
 if [ -f "$CONFIG_FILE" ]; then
     echo "Loading configuration from: $CONFIG_FILE"
     source "$CONFIG_FILE"
+    # Config can override PIPELINE_BASE and MAMBA_CMD if needed
 else
-    echo "⚠️  Configuration file not found: $CONFIG_FILE"
-    echo "   Using hardcoded paths (consider creating pipeline_config.sh from template)"
-    # Fallback to hardcoded paths for backward compatibility
-    MAMBA_CMD="conda run -n viral_genomics"
-    PIPELINE_BASE="/scratch/sahlab/kathie/viral_genomics_pipeline_dev/viral-genomics-pipeline"
+    echo "ℹ️  No configuration file found, using auto-detected paths"
+    echo "   Pipeline base: $PIPELINE_BASE"
+fi
+
+# Verify critical paths exist, prompt if missing
+CONSOLIDATED_PIPELINE="${PIPELINE_BASE}/run_pipeline_htcf_consolidated.sh"
+if [ ! -f "$CONSOLIDATED_PIPELINE" ]; then
+    echo ""
+    echo "❌ Error: Consolidated pipeline not found at:"
+    echo "   $CONSOLIDATED_PIPELINE"
+    echo ""
+    read -p "Enter the full path to your VICAST/vicast-analyze directory: " USER_PIPELINE_BASE
+
+    if [ -d "$USER_PIPELINE_BASE" ] && [ -f "$USER_PIPELINE_BASE/run_pipeline_htcf_consolidated.sh" ]; then
+        PIPELINE_BASE="$USER_PIPELINE_BASE"
+        CONSOLIDATED_PIPELINE="${PIPELINE_BASE}/run_pipeline_htcf_consolidated.sh"
+        echo "✅ Found consolidated pipeline at: $CONSOLIDATED_PIPELINE"
+        echo ""
+        echo "💡 Tip: Save this path in pipeline_config.sh to avoid this prompt:"
+        echo "   PIPELINE_BASE=\"$PIPELINE_BASE\""
+    else
+        echo "❌ Error: Consolidated pipeline still not found. Exiting."
+        exit 1
+    fi
 fi
 
 # Check if conda is available
