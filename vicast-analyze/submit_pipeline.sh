@@ -184,6 +184,11 @@ echo "Started: $(date)"
 echo "========================================="
 echo ""
 
+# Activate conda environment (HTCF has no module system)
+echo "Activating conda..."
+source /ref/sahlab/software/anaconda3/bin/activate
+echo ""
+
 bash PIPELINE_SCRIPT_PLACEHOLDER \
     R1_PLACEHOLDER \
     R2_PLACEHOLDER \
