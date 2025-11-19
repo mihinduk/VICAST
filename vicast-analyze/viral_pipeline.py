@@ -1427,7 +1427,13 @@ def main():
         if not args.skip_qc:
             print_step_header(current_step, total_steps, "Clean Reads (Quality Control)")
             cleaned_files = clean_reads(cleaned_dir, args.r1, args.r2, args.threads)
-            output_files = [v for v in cleaned_files.values() if v]
+            # Extract file paths from nested dict structure
+            output_files = []
+            for file_dict in cleaned_files.values():
+                if isinstance(file_dict, dict):
+                    for filepath in file_dict.values():
+                        if filepath and isinstance(filepath, str):
+                            output_files.append(filepath)
             print_step_complete("Reads cleaned", output_files)
         else:
             logger.info(f"⊘ STEP {current_step}/{total_steps}: Clean Reads (SKIPPED)")
