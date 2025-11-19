@@ -9,7 +9,7 @@
 # Conda run command for running tools in the viral genomics environment
 #
 # HTCF users can use the existing shared environment:
-#   MAMBA_CMD="conda run -n viral_genomics"
+#   MAMBA_CMD="conda run -n vicast_analyze"
 #
 # OR create the dedicated viral_genomics_analyze environment:
 #   1. Run: bash setup_environment.sh
@@ -19,7 +19,7 @@
 #   MAMBA_CMD="conda run --prefix /path/to/envs/viral_genomics_analyze"
 
 # Current configuration (using existing HTCF shared environment):
-MAMBA_CMD="conda run -n viral_genomics"
+MAMBA_CMD="conda run -n vicast_analyze"
 
 # =============================================================================
 # SNPEFF CONFIGURATION
