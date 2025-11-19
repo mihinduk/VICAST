@@ -188,9 +188,10 @@ fi
 echo "Running the viral pipeline..."
 
 # Run the pipeline without --add-to-snpeff since we handled it above
+# Use python -u for unbuffered output to see progress in real-time
 if [ -n "$LARGE_FILES_FLAG" ]; then
     echo "Using $LARGE_FILES_FLAG for increased memory allocation"
-    $MAMBA_CMD python ${PIPELINE_DIR}/viral_pipeline.py \
+    $MAMBA_CMD python -u ${PIPELINE_DIR}/viral_pipeline.py \
         --r1 "$R1" \
         --r2 "$R2" \
         --accession "$ACCESSION" \
@@ -199,7 +200,7 @@ if [ -n "$LARGE_FILES_FLAG" ]; then
         --java-path "$JAVA_PATH" \
         --large-files
 else
-    $MAMBA_CMD python ${PIPELINE_DIR}/viral_pipeline.py \
+    $MAMBA_CMD python -u ${PIPELINE_DIR}/viral_pipeline.py \
         --r1 "$R1" \
         --r2 "$R2" \
         --accession "$ACCESSION" \
