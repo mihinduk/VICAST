@@ -188,7 +188,7 @@ def check_snpeff_database(accession: str, snpeff_jar: str, java_path: str = "jav
     """
     logger.info(f"Checking if {accession} is in snpEff database")
     
-    cmd = f"{java_path} -jar {snpeff_jar} databases | grep {accession}"
+    cmd = f"{java_path} -jar {snpeff_jar} databases 2>/dev/null | grep {accession}"
     result = run_command(cmd, shell=True, check=False)
     
     return result.returncode == 0
@@ -225,9 +225,9 @@ def check_genome_complexity(accession: str, fasta_path: str) -> bool:
             # Check for polyproteins
             "codon_start=1.*product=\".*polyprotein.*\"",
             # Check for mat_peptide features
-            "mat_peptide[ ]+[0-9]+\.\.[0-9]+",
+            r"mat_peptide[ ]+[0-9]+\.\.[0-9]+",
             # Check for CDS with gene name in product
-            "CDS[ ]+[0-9]+\.\.[0-9]+.*product=\".*protein.*\"",
+            r"CDS[ ]+[0-9]+\.\.[0-9]+.*product=\".*protein.*\"",
             # Check for multiple genes with same product
             "product=\"nonstructural polyprotein.*\".*product=\"nonstructural polyprotein",
             # Check for POLY gene
@@ -987,13 +987,13 @@ def annotate_variants(variants_dir: str, accession: str, snpeff_jar: str, java_p
         raise FileNotFoundError(f"No filtered variant VCF files found in specific_files for {variants_dir}")
     
     # Verify snpEff database has the genome
-    verify_cmd = f"{java_path} -jar {snpeff_jar} databases | grep -i {accession}"
+    verify_cmd = f"{java_path} -jar {snpeff_jar} databases 2>/dev/null | grep -i {accession}"
     verify_result = run_command(verify_cmd, shell=True, check=False)
     
     if verify_result.returncode != 0:
         logger.error(f"CRITICAL ERROR: Genome {accession} NOT FOUND in snpEff database!")
         logger.error("Available genomes:")
-        run_command(f"{java_path} -jar {snpeff_jar} databases | grep -i corona", shell=True, check=False)
+        run_command(f"{java_path} -jar {snpeff_jar} databases 2>/dev/null | grep -i corona", shell=True, check=False)
         raise RuntimeError(f"Genome {accession} not found in snpEff database. Use --add-to-snpeff to add it.")
     else:
         logger.info(f"Verified genome {accession} exists in snpEff database.")
