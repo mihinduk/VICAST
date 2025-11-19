@@ -164,7 +164,7 @@ build_snpeff_database() {
 
 # Check if snpEff database exists using mamba run
 echo "Checking snpEff database for $ACCESSION..."
-if $MAMBA_CMD java -jar "$SNPEFF_JAR" databases | grep -q "$ACCESSION"; then
+if $MAMBA_CMD java -jar "$SNPEFF_JAR" databases 2>/dev/null | grep -q "$ACCESSION"; then
     echo "snpEff database found for $ACCESSION"
     
     # Check if the database is actually built (has snpEffectPredictor.bin)
