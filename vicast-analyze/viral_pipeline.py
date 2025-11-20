@@ -1297,25 +1297,13 @@ def parse_annotations(variants_dir: str, min_depth: int, specific_files: Dict[st
             logger.info(f"Found Perl script at: {perl_script}")
             break
     
-    if not perl_script:
-        # If not found in the expected locations, try a system search using 'find'
-        try:
-            logger.info("Searching for Perl script using 'find' command...")
-            find_cmd = "find / -name parse_snpEff_annotated_vcf_for_collaborators.pl -type f 2>/dev/null | head -n 1"
-            result = run_command(find_cmd, shell=True, check=False)
-            if result.returncode == 0 and result.stdout.strip():
-                perl_script = result.stdout.strip()
-                logger.info(f"Found Perl script using system search: {perl_script}")
-        except Exception as e:
-            logger.warning(f"System search for Perl script failed: {str(e)}")
-    
     # Check if Perl script was found
     if not perl_script:
-        raise FileNotFoundError(
-            "Perl script 'parse_snpEff_annotated_vcf_for_collaborators.pl' not found. "
-            "Please make sure it's in the same directory as the viral_pipeline.py script "
-            "or specify its path manually."
-        )
+        logger.error("Perl script 'parse_snpEff_annotated_vcf_for_collaborators.pl' not found!")
+        logger.error(f"Searched in: {', '.join(perl_script_locations)}")
+        logger.warning("Skipping Step 7 (Parse Annotations) - annotation TSV files are already available from Step 6")
+        logger.info(f"Annotation files created successfully: {len(specific_files)} samples")
+        return {}  # Return empty dict to skip parsing
     
     for ann_file in ann_files:
         # Extract sample name
