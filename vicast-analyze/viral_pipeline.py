@@ -1299,11 +1299,11 @@ def parse_annotations(variants_dir: str, min_depth: int, specific_files: Dict[st
     
     # Check if Perl script was found
     if not perl_script:
-        logger.error("Perl script 'parse_snpEff_annotated_vcf_for_collaborators.pl' not found!")
-        logger.error(f"Searched in: {', '.join(perl_script_locations)}")
-        logger.warning("Skipping Step 7 (Parse Annotations) - annotation TSV files are already available from Step 6")
-        logger.info(f"Annotation files created successfully: {len(specific_files)} samples")
-        return {}  # Return empty dict to skip parsing
+        raise FileNotFoundError(
+            "Perl script 'parse_snpEff_annotated_vcf_for_collaborators.pl' not found. "
+            "Please make sure it's in the same directory as the viral_pipeline.py script "
+            "or specify its path manually."
+        )
     
     for ann_file in ann_files:
         # Extract sample name
