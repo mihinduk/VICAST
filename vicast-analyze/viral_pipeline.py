@@ -1452,7 +1452,13 @@ def main():
                 args.large_files,
                 args.extremely_large_files
             )
-            output_files = [os.path.join(cleaned_dir, "variants", v) for v in variant_files.values() if v]
+            # Extract file paths from nested dict structure
+            output_files = []
+            for file_dict in variant_files.values():
+                if isinstance(file_dict, dict):
+                    for filepath in file_dict.values():
+                        if filepath and isinstance(filepath, str) and os.path.exists(filepath):
+                            output_files.append(filepath)
             print_step_complete("Read mapping and variant calling completed", output_files)
         else:
             logger.info(f"⊘ STEP {current_step}/{total_steps}: Map Reads and Call Variants (SKIPPED)")
