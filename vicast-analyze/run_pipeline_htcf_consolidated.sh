@@ -107,7 +107,11 @@ echo "Pre-flight check: snpEff database"
 echo "========================================="
 echo "Checking if $ACCESSION is in snpEff database..."
 
-if $MAMBA_CMD java -jar "$SNPEFF_JAR" databases 2>/dev/null | grep -q "$ACCESSION"; then
+# Activate conda environment for snpEff check
+eval "$(conda shell.bash hook)"
+conda activate vicast_analyze
+
+if java -jar "$SNPEFF_JAR" databases 2>/dev/null | grep -q "$ACCESSION"; then
     echo "✓ snpEff database found for $ACCESSION in config"
 
     # Verify the database is actually built (has snpEffectPredictor.bin)
@@ -144,15 +148,18 @@ fi
 
 echo "Running the viral pipeline..."
 
+# Conda environment already activated from pre-flight check
+
 # Set PYTHONUNBUFFERED for real-time output visibility
 # This is critical for monitoring progress in SLURM jobs
 export PYTHONUNBUFFERED=1
 
-# Run the pipeline
-# Use python -u for unbuffered output (belt-and-suspenders approach)
+# Run the pipeline with unbuffered I/O
+# stdbuf forces line-buffered output, python -u disables Python buffering
+echo "Starting pipeline with real-time progress indicators..."
 if [ -n "$LARGE_FILES_FLAG" ]; then
     echo "Using $LARGE_FILES_FLAG for increased memory allocation"
-    $MAMBA_CMD python -u ${PIPELINE_DIR}/viral_pipeline.py \
+    stdbuf -oL -eL python -u ${PIPELINE_DIR}/viral_pipeline.py \
         --r1 "$R1" \
         --r2 "$R2" \
         --accession "$ACCESSION" \
@@ -161,7 +168,7 @@ if [ -n "$LARGE_FILES_FLAG" ]; then
         --java-path "$JAVA_PATH" \
         --large-files
 else
-    $MAMBA_CMD python -u ${PIPELINE_DIR}/viral_pipeline.py \
+    stdbuf -oL -eL python -u ${PIPELINE_DIR}/viral_pipeline.py \
         --r1 "$R1" \
         --r2 "$R2" \
         --accession "$ACCESSION" \
