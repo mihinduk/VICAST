@@ -1484,7 +1484,13 @@ def main():
             print_step_header(current_step, total_steps, "Annotate Variants with snpEff")
             variants_dir = os.path.join(cleaned_dir, "variants")
             annotation_files = annotate_variants(variants_dir, accession, args.snpeff_jar, args.java_path, filtered_files, args.large_files, args.extremely_large_files)
-            output_files = [os.path.join(variants_dir, v) for v in annotation_files.values() if v]
+            # Extract file paths from nested dict structure
+            output_files = []
+            for file_dict in annotation_files.values():
+                if isinstance(file_dict, dict):
+                    for filepath in file_dict.values():
+                        if filepath and isinstance(filepath, str) and os.path.exists(filepath):
+                            output_files.append(filepath)
             print_step_complete("Variant annotation completed", output_files)
 
             # Step 7: Parse annotations
