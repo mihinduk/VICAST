@@ -1,5 +1,6 @@
 #!/bin/bash
-# Consolidated viral pipeline for HTCF with automatic snpEff database building
+# Consolidated viral pipeline for HTCF
+# Requires snpEff database to be pre-configured via VICAST-annotate
 
 # Check arguments
 if [ $# -lt 3 ]; then
@@ -15,9 +16,11 @@ if [ $# -lt 3 ]; then
     echo "  Create pipeline_config.sh from pipeline_config.template.sh to customize paths"
     echo ""
     echo "This script will:"
-    echo "  1. Check if snpEff database exists for the accession"
-    echo "  2. Build the database if needed (viral-friendly settings)"
-    echo "  3. Run the complete viral genomics pipeline"
+    echo "  1. Verify snpEff database exists for the accession (must be pre-configured)"
+    echo "  2. Run the complete viral genomics pipeline"
+    echo ""
+    echo "Note: Use VICAST-annotate to add new genomes to snpEff database:"
+    echo "  python3 vicast_annotate.py <accession>"
     exit 1
 fi
 
@@ -93,102 +96,60 @@ echo "  Threads: $THREADS"
 echo "  Memory mode: $(if [ "$LARGE_FILES_FLAG" == "--extremely-large-files" ]; then echo "extreme (256GB)"; elif [ "$LARGE_FILES_FLAG" == "--large-files" ]; then echo "large (64GB)"; else echo "standard (32GB)"; fi)"
 echo "  Working directory: $(pwd)"
 
-# Function to build snpEff database
-build_snpeff_database() {
-    local acc=$1
-    echo "Building snpEff database for $acc..."
-    
-    # Create database directory
-    mkdir -p "$SNPEFF_DIR/data/$acc"
-    
-    # Download GenBank file to variants folder (for collaborators)
-    mkdir -p ./cleaned_seqs/variants
-    if [ ! -f "./cleaned_seqs/variants/$acc.gb" ]; then
-        echo "Downloading GenBank file for $acc..."
-        $MAMBA_CMD efetch -db nucleotide -id "$acc" -format gb > "./cleaned_seqs/variants/$acc.gb"
-        if [ $? -ne 0 ] || [ ! -s "./cleaned_seqs/variants/$acc.gb" ]; then
-            echo "Error: Failed to download GenBank file for $acc"
-            return 1
-        fi
-        echo "GenBank file downloaded successfully ($(wc -l < "./cleaned_seqs/variants/$acc.gb") lines)"
-    fi
-    
-    # Copy GenBank file to snpEff database directory
-    cp "./cleaned_seqs/variants/$acc.gb" "$SNPEFF_DIR/data/$acc/genes.gbk"
-    
-    # Download FASTA file if not exists
-    if [ ! -f "$SNPEFF_DIR/data/$acc/sequences.fa" ]; then
-        echo "Downloading FASTA file for $acc..."
-        $MAMBA_CMD efetch -db nucleotide -id "$acc" -format fasta > "$SNPEFF_DIR/data/$acc/sequences.fa"
-        if [ $? -ne 0 ] || [ ! -s "$SNPEFF_DIR/data/$acc/sequences.fa" ]; then
-            echo "Error: Failed to download FASTA file for $acc"
-            return 1
-        fi
-        echo "FASTA file downloaded successfully"
-    fi
-    
-    # Add to snpEff config BEFORE building - proper syntax
-    if ! grep -q "$acc.genome" "$SNPEFF_DIR/snpEff.config"; then
-        echo "Adding $acc to snpEff configuration..."
-        echo "" >> "$SNPEFF_DIR/snpEff.config"
-        echo "# $acc" >> "$SNPEFF_DIR/snpEff.config"
-        echo "$acc.genome : $acc" >> "$SNPEFF_DIR/snpEff.config"
-    fi
-    
-    # Verify config was updated
-    echo "Verifying config file contains $acc..."
-    if grep -q "$acc.genome" "$SNPEFF_DIR/snpEff.config"; then
-        echo "Config file updated successfully"
-    else
-        echo "Error: Failed to update config file"
-        return 1
-    fi
-    
-    # Build database with viral-friendly settings using mamba run
-    echo "Building snpEff database with viral-friendly settings..."
-    cd "$SNPEFF_DIR"
-    $MAMBA_CMD java -jar snpEff.jar build -v -noCheckProtein -noCheckCds -noLog "$acc"
-    local build_result=$?
-    
-    # Return to original directory
-    cd - > /dev/null
-    
-    if [ $build_result -eq 0 ]; then
-        echo "Successfully built snpEff database for $acc"
-        return 0
-    else
-        echo "Error: Failed to build snpEff database for $acc"
-        return 1
-    fi
-}
+# =============================================================================
+# PRE-FLIGHT CHECK: Verify snpEff database exists
+# =============================================================================
+# This pipeline requires snpEff database to be pre-configured via VICAST-annotate
+# Database building is intentionally NOT done here to maintain separation of concerns
 
-# Check if snpEff database exists using mamba run
-echo "Checking snpEff database for $ACCESSION..."
+echo "========================================="
+echo "Pre-flight check: snpEff database"
+echo "========================================="
+echo "Checking if $ACCESSION is in snpEff database..."
+
 if $MAMBA_CMD java -jar "$SNPEFF_JAR" databases 2>/dev/null | grep -q "$ACCESSION"; then
-    echo "snpEff database found for $ACCESSION"
-    
-    # Check if the database is actually built (has snpEffectPredictor.bin)
-    if [ ! -f "$SNPEFF_DIR/data/$ACCESSION/snpEffectPredictor.bin" ]; then
-        echo "Database exists but not built. Building now..."
-        build_snpeff_database "$ACCESSION"
-        if [ $? -ne 0 ]; then
-            echo "Error: Failed to build snpEff database"
-            exit 1
-        fi
-    fi
-else
-    echo "snpEff database not found for $ACCESSION. Building now..."
-    build_snpeff_database "$ACCESSION"
-    if [ $? -ne 0 ]; then
-        echo "Error: Failed to build snpEff database"
+    echo "✓ snpEff database found for $ACCESSION in config"
+
+    # Verify the database is actually built (has snpEffectPredictor.bin)
+    if [ -f "$SNPEFF_DIR/data/$ACCESSION/snpEffectPredictor.bin" ]; then
+        echo "✓ Database is built and ready"
+        echo ""
+    else
+        echo ""
+        echo "❌ ERROR: Database exists in config but is not built!"
+        echo ""
+        echo "Please use VICAST-annotate to properly build the database:"
+        echo "  cd /path/to/VICAST/vicast-annotate"
+        echo "  python3 vicast_annotate.py $ACCESSION"
+        echo ""
         exit 1
     fi
+else
+    echo ""
+    echo "❌ ERROR: Genome $ACCESSION not found in snpEff database!"
+    echo ""
+    echo "This pipeline requires the snpEff database to be set up first."
+    echo "Please use VICAST-annotate to add this genome:"
+    echo ""
+    echo "  cd /path/to/VICAST/vicast-annotate"
+    echo "  python3 vicast_annotate.py $ACCESSION"
+    echo ""
+    echo "This will:"
+    echo "  - Download the reference genome and GenBank annotation"
+    echo "  - Add the genome to snpEff configuration"
+    echo "  - Build the snpEff database with viral-friendly settings"
+    echo ""
+    exit 1
 fi
 
 echo "Running the viral pipeline..."
 
-# Run the pipeline without --add-to-snpeff since we handled it above
-# Use python -u for unbuffered output to see progress in real-time
+# Set PYTHONUNBUFFERED for real-time output visibility
+# This is critical for monitoring progress in SLURM jobs
+export PYTHONUNBUFFERED=1
+
+# Run the pipeline
+# Use python -u for unbuffered output (belt-and-suspenders approach)
 if [ -n "$LARGE_FILES_FLAG" ]; then
     echo "Using $LARGE_FILES_FLAG for increased memory allocation"
     $MAMBA_CMD python -u ${PIPELINE_DIR}/viral_pipeline.py \
