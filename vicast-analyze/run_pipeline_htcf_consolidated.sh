@@ -164,7 +164,7 @@ build_snpeff_database() {
 
 # Check if snpEff database exists using mamba run
 echo "Checking snpEff database for $ACCESSION..."
-if $MAMBA_CMD java -jar "$SNPEFF_JAR" databases | grep -q "$ACCESSION"; then
+if $MAMBA_CMD java -jar "$SNPEFF_JAR" databases 2>/dev/null | grep -q "$ACCESSION"; then
     echo "snpEff database found for $ACCESSION"
     
     # Check if the database is actually built (has snpEffectPredictor.bin)
@@ -188,9 +188,10 @@ fi
 echo "Running the viral pipeline..."
 
 # Run the pipeline without --add-to-snpeff since we handled it above
+# Use python -u for unbuffered output to see progress in real-time
 if [ -n "$LARGE_FILES_FLAG" ]; then
     echo "Using $LARGE_FILES_FLAG for increased memory allocation"
-    $MAMBA_CMD python ${PIPELINE_DIR}/viral_pipeline.py \
+    $MAMBA_CMD python -u ${PIPELINE_DIR}/viral_pipeline.py \
         --r1 "$R1" \
         --r2 "$R2" \
         --accession "$ACCESSION" \
@@ -199,7 +200,7 @@ if [ -n "$LARGE_FILES_FLAG" ]; then
         --java-path "$JAVA_PATH" \
         --large-files
 else
-    $MAMBA_CMD python ${PIPELINE_DIR}/viral_pipeline.py \
+    $MAMBA_CMD python -u ${PIPELINE_DIR}/viral_pipeline.py \
         --r1 "$R1" \
         --r2 "$R2" \
         --accession "$ACCESSION" \

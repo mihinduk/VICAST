@@ -16,6 +16,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from datetime import datetime
 from pathlib import Path
 from typing import List, Optional, Dict, Union, Any, Tuple
 import glob  # Added for glob file pattern support
@@ -33,6 +34,28 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)]
 )
 logger = logging.getLogger(__name__)
+
+# Progress tracking helpers
+def print_step_header(step_num: int, total_steps: int, step_name: str) -> None:
+    """Print a formatted step header with progress indicator."""
+    separator = "=" * 70
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    logger.info(separator)
+    logger.info(f"⏳ STEP {step_num}/{total_steps}: {step_name}")
+    logger.info(f"Started at: {timestamp}")
+    logger.info(separator)
+
+def print_step_complete(step_name: str, output_files: Optional[List[str]] = None) -> None:
+    """Print a completion message with output files if provided."""
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    logger.info(f"✓ COMPLETE: {step_name}")
+    logger.info(f"Finished at: {timestamp}")
+    if output_files:
+        logger.info("Output files:")
+        for f in output_files:
+            if os.path.exists(f):
+                logger.info(f"  → {f}")
+    logger.info("")
 
 def parse_args() -> argparse.Namespace:
     """Parse command line arguments."""
@@ -188,7 +211,7 @@ def check_snpeff_database(accession: str, snpeff_jar: str, java_path: str = "jav
     """
     logger.info(f"Checking if {accession} is in snpEff database")
     
-    cmd = f"{java_path} -jar {snpeff_jar} databases | grep {accession}"
+    cmd = f"{java_path} -jar {snpeff_jar} databases 2>/dev/null | grep {accession}"
     result = run_command(cmd, shell=True, check=False)
     
     return result.returncode == 0
@@ -225,9 +248,9 @@ def check_genome_complexity(accession: str, fasta_path: str) -> bool:
             # Check for polyproteins
             "codon_start=1.*product=\".*polyprotein.*\"",
             # Check for mat_peptide features
-            "mat_peptide[ ]+[0-9]+\.\.[0-9]+",
+            r"mat_peptide[ ]+[0-9]+\.\.[0-9]+",
             # Check for CDS with gene name in product
-            "CDS[ ]+[0-9]+\.\.[0-9]+.*product=\".*protein.*\"",
+            r"CDS[ ]+[0-9]+\.\.[0-9]+.*product=\".*protein.*\"",
             # Check for multiple genes with same product
             "product=\"nonstructural polyprotein.*\".*product=\"nonstructural polyprotein",
             # Check for POLY gene
@@ -987,13 +1010,13 @@ def annotate_variants(variants_dir: str, accession: str, snpeff_jar: str, java_p
         raise FileNotFoundError(f"No filtered variant VCF files found in specific_files for {variants_dir}")
     
     # Verify snpEff database has the genome
-    verify_cmd = f"{java_path} -jar {snpeff_jar} databases | grep -i {accession}"
+    verify_cmd = f"{java_path} -jar {snpeff_jar} databases 2>/dev/null | grep -i {accession}"
     verify_result = run_command(verify_cmd, shell=True, check=False)
     
     if verify_result.returncode != 0:
         logger.error(f"CRITICAL ERROR: Genome {accession} NOT FOUND in snpEff database!")
         logger.error("Available genomes:")
-        run_command(f"{java_path} -jar {snpeff_jar} databases | grep -i corona", shell=True, check=False)
+        run_command(f"{java_path} -jar {snpeff_jar} databases 2>/dev/null | grep -i corona", shell=True, check=False)
         raise RuntimeError(f"Genome {accession} not found in snpEff database. Use --add-to-snpeff to add it.")
     else:
         logger.info(f"Verified genome {accession} exists in snpEff database.")
@@ -1317,20 +1340,36 @@ def parse_annotations(variants_dir: str, min_depth: int, specific_files: Dict[st
 def main():
     """Main function to run the pipeline."""
     args = parse_args()
-    
+
     # Create output directory structure
     output_dir = args.outdir
     cleaned_dir = os.path.join(output_dir, "cleaned_seqs")
-    
+
     os.makedirs(output_dir, exist_ok=True)
     os.makedirs(cleaned_dir, exist_ok=True)
-    
+
     # Create temp directory
     temp_dir = os.path.join(output_dir, "tmp")
     os.makedirs(temp_dir, exist_ok=True)
-    
+
+    # Calculate total steps
+    total_steps = 7
+    current_step = 0
+
+    # Print pipeline header
+    logger.info("")
+    logger.info("=" * 70)
+    logger.info("VICAST-ANALYZE: Viral Genomics Analysis Pipeline")
+    logger.info(f"Version: {__version__}")
+    logger.info(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    logger.info("=" * 70)
+    logger.info("")
+
     try:
         # Step 1: Prepare reference genome
+        current_step += 1
+        print_step_header(current_step, total_steps, "Prepare Reference Genome")
+
         reference_path = None
         if args.reference:
             reference_path = args.reference
@@ -1339,7 +1378,7 @@ def main():
             # Download reference genome if needed
             if not args.skip_download:
                 reference_path = download_reference_genome(
-                    args.accession, 
+                    args.accession,
                     cleaned_dir,
                     args.force_download
                 )
@@ -1350,14 +1389,17 @@ def main():
                     raise FileNotFoundError(f"Reference genome not found: {reference_path}")
         else:
             raise ValueError("Either --accession or --reference must be provided")
+
+        print_step_complete("Reference genome prepared", [reference_path] if reference_path else None)
         
         # Check if reference genome is in snpEff database
         accession = args.accession
         if not accession and reference_path:
             # Try to extract accession from reference file name
             accession = os.path.basename(reference_path).split('.')[0]
-        
+
         if accession:
+            logger.info("Checking snpEff database...")
             in_database = check_snpeff_database(accession, args.snpeff_jar, args.java_path)
             if not in_database:
                 logger.warning(f"Genome {accession} not found in snpEff database")
@@ -1368,41 +1410,97 @@ def main():
                         logger.error(f"Failed to add {accession} to snpEff database. Annotation will likely fail.")
                 else:
                     logger.warning("Use --add-to-snpeff to attempt adding the genome to snpEff")
-        
+
         # Step 2: Calculate read statistics
+        current_step += 1
         if not args.skip_stats:
+            print_step_header(current_step, total_steps, "Calculate Read Statistics")
             stats_file = os.path.join(output_dir, "input_stats.txt")
             calculate_read_stats(args.r1, stats_file, args.threads, args.r2)
+            print_step_complete("Read statistics calculated", [stats_file])
+        else:
+            logger.info(f"⊘ STEP {current_step}/{total_steps}: Calculate Read Statistics (SKIPPED)")
+            logger.info("")
         
         # Step 3: Clean reads
+        current_step += 1
         if not args.skip_qc:
+            print_step_header(current_step, total_steps, "Clean Reads (Quality Control)")
             cleaned_files = clean_reads(cleaned_dir, args.r1, args.r2, args.threads)
-        
+            # Extract file paths from nested dict structure
+            output_files = []
+            for file_dict in cleaned_files.values():
+                if isinstance(file_dict, dict):
+                    for filepath in file_dict.values():
+                        if filepath and isinstance(filepath, str):
+                            output_files.append(filepath)
+            print_step_complete("Reads cleaned", output_files)
+        else:
+            logger.info(f"⊘ STEP {current_step}/{total_steps}: Clean Reads (SKIPPED)")
+            logger.info("")
+            cleaned_files = {}
+
         # Step 4: Map reads and call variants
+        current_step += 1
         if not args.skip_mapping:
+            print_step_header(current_step, total_steps, "Map Reads and Call Variants")
             variant_files = map_and_call_variants(
-                reference_path, 
-                cleaned_dir, 
+                reference_path,
+                cleaned_dir,
                 args.threads,
                 cleaned_files,  # Pass the specific cleaned files
                 args.large_files,
                 args.extremely_large_files
             )
-        
+            output_files = [os.path.join(cleaned_dir, "variants", v) for v in variant_files.values() if v]
+            print_step_complete("Read mapping and variant calling completed", output_files)
+        else:
+            logger.info(f"⊘ STEP {current_step}/{total_steps}: Map Reads and Call Variants (SKIPPED)")
+            logger.info("")
+            variant_files = {}
+
         # Step 5: Filter variants
+        current_step += 1
         if not args.skip_variants:
+            print_step_header(current_step, total_steps, "Filter Variants")
             variants_dir = os.path.join(cleaned_dir, "variants")
             filtered_files = filter_variants(variants_dir, variant_files)
-        
+            output_files = [os.path.join(variants_dir, v) for v in filtered_files.values() if v]
+            print_step_complete("Variant filtering completed", output_files)
+        else:
+            logger.info(f"⊘ STEP {current_step}/{total_steps}: Filter Variants (SKIPPED)")
+            logger.info("")
+            filtered_files = {}
+
         # Step 6: Annotate variants
+        current_step += 1
         if not args.skip_annotation and accession:
+            print_step_header(current_step, total_steps, "Annotate Variants with snpEff")
             variants_dir = os.path.join(cleaned_dir, "variants")
             annotation_files = annotate_variants(variants_dir, accession, args.snpeff_jar, args.java_path, filtered_files, args.large_files, args.extremely_large_files)
-            
+            output_files = [os.path.join(variants_dir, v) for v in annotation_files.values() if v]
+            print_step_complete("Variant annotation completed", output_files)
+
             # Step 7: Parse annotations
+            current_step += 1
+            print_step_header(current_step, total_steps, "Parse Annotations")
             parsed_files = parse_annotations(variants_dir, args.min_depth, annotation_files)
-        
-        logger.info("Pipeline completed successfully")
+            output_files = [v for v in parsed_files.values() if v and os.path.exists(v)]
+            print_step_complete("Annotation parsing completed", output_files)
+        else:
+            logger.info(f"⊘ STEP {current_step}/{total_steps}: Annotate Variants (SKIPPED)")
+            logger.info("")
+            current_step += 1
+            logger.info(f"⊘ STEP {current_step}/{total_steps}: Parse Annotations (SKIPPED)")
+            logger.info("")
+
+        # Pipeline completion summary
+        logger.info("")
+        logger.info("=" * 70)
+        logger.info("✓ PIPELINE COMPLETED SUCCESSFULLY")
+        logger.info(f"Finished: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        logger.info("=" * 70)
+        logger.info("")
         
     except Exception as e:
         logger.error(f"Pipeline failed: {str(e)}", exc_info=True)
