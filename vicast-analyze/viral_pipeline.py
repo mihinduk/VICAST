@@ -1457,7 +1457,11 @@ def main():
         # Step 5: Generate Depth File (QC)
         current_step += 1
         print_step_header(current_step, total_steps, "Generate Depth File (QC)")
-        
+
+        # Extract sample name from R1 filename
+        r1_base = os.path.basename(args.r1)
+        sample_name = re.sub(r'(_R1)?(_001)?\.fastq\.gz$', '', r1_base)
+
         # Create results directory
         results_dir = os.path.join(os.getcwd(), f"{sample_name}_results")
         os.makedirs(results_dir, exist_ok=True)
