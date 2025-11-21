@@ -1341,7 +1341,7 @@ def main():
     os.makedirs(temp_dir, exist_ok=True)
 
     # Calculate total steps
-    total_steps = 7
+    total_steps = 9
     current_step = 0
 
     # Print pipeline header
@@ -1453,7 +1453,79 @@ def main():
             logger.info("")
             variant_files = {}
 
-        # Step 5: Filter variants
+
+        # Step 5: Generate Depth File (QC)
+        current_step += 1
+        print_step_header(current_step, total_steps, "Generate Depth File (QC)")
+        
+        # Create results directory
+        results_dir = os.path.join(os.getcwd(), f"{sample_name}_results")
+        os.makedirs(results_dir, exist_ok=True)
+        
+        # Generate depth file from final BAM
+        depth_file = os.path.join(results_dir, f"{sample_name}_depth.txt")
+        logger.info(f"Generating per-position depth file: {depth_file}")
+        
+        # Get final BAM file from variant_files
+        final_bam = None
+        for sample, file_dict in variant_files.items():
+            if isinstance(file_dict, dict) and 'final_bam' in file_dict:
+                final_bam = file_dict['final_bam']
+                break
+        
+        if final_bam and os.path.exists(final_bam):
+            # Write header
+            with open(depth_file, 'w') as f:
+                f.write("chrom\tposition\tdepth\n")
+            
+            # Run samtools depth
+            depth_cmd = f"samtools depth {final_bam} >> {depth_file}"
+            run_command(depth_cmd, shell=True)
+            logger.info(f"Depth file created: {depth_file}")
+            print_step_complete("Depth file generation completed", [depth_file])
+        else:
+            logger.warning("No final BAM file found, skipping depth file generation")
+            logger.info("")
+
+        # Step 6: Run Diagnostic Report (QC)
+        current_step += 1
+        print_step_header(current_step, total_steps, "Generate Diagnostic Report (QC)")
+        
+        # Get script directory for diagnostic script
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        diagnostic_script = os.path.join(script_dir, "viral_diagnostic.sh")
+        
+        if os.path.exists(diagnostic_script):
+            logger.info("Running comprehensive viral diagnostic analysis...")
+            logger.info("This includes: mapping stats, de novo assembly, viral BLAST")
+            
+            diagnostic_cmd = f"bash {diagnostic_script} {args.r1} {args.r2} {accession} {sample_name} {args.threads}"
+            if args.extremely_large_files:
+                diagnostic_cmd += " --extremely-large-files"
+            
+            try:
+                run_command(diagnostic_cmd, shell=True)
+                
+                # List diagnostic outputs
+                diagnostic_dir = f"./diagnostic_{sample_name}"
+                diagnostic_outputs = [
+                    os.path.join(diagnostic_dir, f"{sample_name}_diagnostic_report.txt"),
+                    os.path.join(diagnostic_dir, f"diagnostic_{sample_name}_presentation_ready_report.html"),
+                    os.path.join(diagnostic_dir, f"{sample_name}_top_hits.tsv"),
+                    os.path.join(diagnostic_dir, f"{sample_name}_viral_blast.tsv")
+                ]
+                
+                existing_outputs = [f for f in diagnostic_outputs if os.path.exists(f)]
+                print_step_complete("Diagnostic report generation completed", existing_outputs)
+            except Exception as e:
+                logger.warning(f"Diagnostic report failed: {str(e)}")
+                logger.info("Pipeline will continue despite diagnostic failure")
+                logger.info("")
+        else:
+            logger.warning(f"Diagnostic script not found at: {diagnostic_script}")
+            logger.info("Skipping diagnostic report generation")
+            logger.info("")
+        # Step 7: Filter variants
         current_step += 1
         if not args.skip_variants:
             print_step_header(current_step, total_steps, "Filter Variants")
@@ -1466,7 +1538,7 @@ def main():
             logger.info("")
             filtered_files = {}
 
-        # Step 6: Annotate variants
+        # Step 8: Annotate variants
         current_step += 1
         if not args.skip_annotation and accession:
             print_step_header(current_step, total_steps, "Annotate Variants with snpEff")
@@ -1481,7 +1553,7 @@ def main():
                             output_files.append(filepath)
             print_step_complete("Variant annotation completed", output_files)
 
-            # Step 7: Parse annotations
+            # Step 9: Parse annotations
             current_step += 1
             print_step_header(current_step, total_steps, "Parse Annotations")
             parsed_files = parse_annotations(variants_dir, args.min_depth, annotation_files)
