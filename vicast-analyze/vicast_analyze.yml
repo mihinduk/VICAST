@@ -19,6 +19,7 @@ dependencies:
   #   Module 2 (Reference):   biopython (Entrez.efetch)
   #   Module 3 (Alignment):   bwa, samtools
   #   Module 4 (Variants):    lofreq, bcftools
+  #   Module 5 (Annotation):  openjdk (to run external snpEff JAR)
   #   Module 6 (Depth):       samtools
   #   Module 7 (Parsing):     pandas, numpy
   #   Module 8 (Diagnostic):  megahit, blast, fastp, bwa, samtools, seqkit
@@ -32,6 +33,7 @@ dependencies:
   - fastp>=0.23.2            # Quality trimming and filtering (Modules 1, 8)
   - megahit>=1.2.9           # De novo assembly (Module 8 diagnostic)
   - blast>=2.12.0            # Contamination detection (Module 8 diagnostic)
+  - openjdk>=11               # Required for snpEff annotation (Module 5)
 
   # =============================================================================
   # PYTHON AND REQUIRED LIBRARIES
@@ -53,14 +55,18 @@ dependencies:
 # =============================================================================
 # WHAT IS NOT INCLUDED (and why)
 # =============================================================================
-# ❌ java/openjdk       - snpEff is in vicast-annotate, not vicast-analyze
-# ❌ snpEff             - annotation pipeline handles this
-# ❌ entrez-direct      - replaced with BioPython Entrez.efetch
-# ❌ matplotlib         - QC uses pure HTML/CSS, no plotting libraries needed
-# ❌ seaborn            - not required
-# ❌ plotly             - not required
-# ❌ fastqc             - nice-to-have, but fastp provides QC reports
-# ❌ seqtk              - redundant with seqkit
+# ❌ snpEff package      - Use external snpEff installation (openjdk included to run it)
+# ❌ entrez-direct       - replaced with BioPython Entrez.efetch
+# ❌ matplotlib          - QC uses pure HTML/CSS, no plotting libraries needed
+# ❌ seaborn             - not required
+# ❌ plotly              - not required
+# ❌ fastqc              - nice-to-have, but fastp provides QC reports
+# ❌ seqtk               - redundant with seqkit
+#
+# ARCHITECTURE NOTE:
+# - vicast-annotate: Builds snpEff databases (one-time setup per virus)
+# - vicast-analyze: USES snpEff to annotate variants (every analysis run)
+#   This is why openjdk IS included - to run the external snpEff JAR file.
 #
 # Optional tools can be added later:
 #   conda install -n vicast_analyze <package_name>
