@@ -117,14 +117,17 @@ export PYTHONUNBUFFERED=1
 echo "Running annotation workflow (Steps 7-9)..."
 echo ""
 
-# Strategy: Re-run full pipeline but skip expensive steps
-# Steps 1-3 will run quickly (cached/minimal work)
-# Step 4 will be skipped (--skip-mapping)
-# We need to reconstruct variant files...
+# NOTE: Current implementation re-runs all 9 steps to populate internal state.
+# However, Steps 1-4 are fast when files already exist (reads from cache).
+# Steps 5-6 (depth file, diagnostics) will regenerate quickly.
+# Steps 7-9 (filter, annotate, parse) are the new expensive operations.
+#
+# This pragmatic approach allows user QC review before expensive annotation,
+# which is the main goal. Future enhancement: add true resume-from-VCF mode.
 
-# WORKAROUND: Since viral_pipeline.py doesn't support resuming from VCF files,
-# we'll re-run steps 1-4 but they should be fast due to caching
-# Only mapping might be slow, but we can't avoid it without code changes
+echo "Note: Re-validating Steps 1-6 (most use cached files)..."
+echo "Running Steps 7-9 (annotation - the expensive part)..."
+echo ""
 
 if [ -n "$LARGE_FILES_FLAG" ]; then
     stdbuf -oL -eL python -u ${PIPELINE_DIR}/viral_pipeline.py \
