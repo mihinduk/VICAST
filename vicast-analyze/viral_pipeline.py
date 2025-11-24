@@ -1184,26 +1184,34 @@ def annotate_variants(variants_dir: str, accession: str, snpeff_jar: str, java_p
             tmp_info = os.path.join(variants_dir, f"{sample_name}.snpEFF.ann.tmp")
             
             try:
-                # Extract annotations - handle with more robust error checking
+                # Use more robust shell commands with explicit error handling
+                # Extract annotations using simpler, more reliable commands
                 extract_cmd = (
+                    f"set -o pipefail; "
                     f"grep -v '^##' {ann_vcf} | "
-                    f"tail -n+2 | "
+                    f"tail -n +2 | "
                     f"cut -f8 | "
                     f"sed 's/|/\\t/g' | "
-                    f"cut -f1-16 | "
+                    f"awk '{{if (NF >= 16) print $1\"\\t\"$2\"\\t\"$3\"\\t\"$4\"\\t\"$5\"\\t\"$6\"\\t\"$7\"\\t\"$8\"\\t\"$9\"\\t\"$10\"\\t\"$11\"\\t\"$12\"\\t\"$13\"\\t\"$14\"\\t\"$15\"\\t\"$16; else print $0}}' | "
                     f"sed '1i INFO\\tEFFECT\\tPUTATIVE_IMPACT\\tGENE_NAME\\tGENE_ID\\tFEATURE_TYPE\\tFEATURE_ID\\tTRANSCRIPT_TYPE\\tEXON_INTRON_RANK\\tHGVSc\\tHGVSp\\tcDNA_POSITION_AND_LENGTH\\tCDS_POSITION_AND_LENGTH\\tPROTEIN_POSITION_AND_LENGTH\\tDISTANCE_TO_FEATURE\\tERROR' > {tmp_info}"
                 )
-                run_command(extract_cmd, shell=True, check=False)
-                
-                # Extract base VCF information
-                base_cmd = f"grep -v '^##' {ann_vcf} | cut -f1-7 > {tmp_base}"
-                run_command(base_cmd, shell=True, check=False)
-                
+                result = run_command(extract_cmd, shell=True, check=False)
+
+                # Extract base VCF information with error handling
+                base_cmd = f"set -o pipefail; grep -v '^##' {ann_vcf} | cut -f1-7 > {tmp_base}"
+                base_result = run_command(base_cmd, shell=True, check=False)
+
                 # Check if both files exist and are not empty
-                if os.path.exists(tmp_base) and os.path.exists(tmp_info) and os.path.getsize(tmp_base) > 0 and os.path.getsize(tmp_info) > 0:
-                    # Combine into final TSV
-                    combine_cmd = f"paste {tmp_base} {tmp_info} > {ann_tsv}"
-                    run_command(combine_cmd, shell=True, check=False)
+                if (os.path.exists(tmp_base) and os.path.exists(tmp_info) and
+                    os.path.getsize(tmp_base) > 0 and os.path.getsize(tmp_info) > 0):
+                    # Combine into final TSV with error handling
+                    combine_cmd = f"set -o pipefail; paste {tmp_base} {tmp_info} > {ann_tsv}"
+                    combine_result = run_command(combine_cmd, shell=True, check=False)
+
+                    # Verify the final file was created successfully
+                    if not os.path.exists(ann_tsv) or os.path.getsize(ann_tsv) == 0:
+                        raise Exception("Final TSV file was not created or is empty")
+
                 else:
                     logger.warning(f"Temporary files missing or empty. Creating basic TSV file.")
                     header = "CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tEFFECT\tPUTATIVE_IMPACT\tGENE_NAME\tGENE_ID\tFEATURE_TYPE\tFEATURE_ID\tTRANSCRIPT_TYPE\tEXON_INTRON_RANK\tHGVSc\tHGVSp\tcDNA_POSITION_AND_LENGTH\tCDS_POSITION_AND_LENGTH\tPROTEIN_POSITION_AND_LENGTH\tDISTANCE_TO_FEATURE\tERROR"
