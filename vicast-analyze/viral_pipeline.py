@@ -84,6 +84,7 @@ def parse_args() -> argparse.Namespace:
     pipeline_group.add_argument("--skip-mapping", action="store_true", help="Skip read mapping step")
     pipeline_group.add_argument("--skip-variants", action="store_true", help="Skip variant calling step")
     pipeline_group.add_argument("--skip-annotation", action="store_true", help="Skip variant annotation step")
+    pipeline_group.add_argument("--resume-from-vcf", action="store_true", help="Resume from existing VCF files (skip Steps 1-6, run only annotation Steps 7-9)")
     pipeline_group.add_argument("--create-genbank", action="store_true", help="Create GenBank file from FASTA using BLAST annotation")
     
     # Output options
@@ -1325,6 +1326,97 @@ def parse_annotations(variants_dir: str, min_depth: int, specific_files: Dict[st
     logger.info(f"Annotation parsing completed for {len(parsed_files)} samples")
     return parsed_files
 
+def discover_existing_vcf_files(output_dir: str) -> Dict[str, Dict[str, str]]:
+    """
+    Discover existing VCF files from a previous QC run to enable resumption.
+
+    This function scans the cleaned_seqs/variants directory for VCF files
+    and populates a variant_files dictionary structure compatible with
+    the filter_variants() function.
+
+    Args:
+        output_dir: Base output directory (default is current directory)
+
+    Returns:
+        Dictionary mapping sample names to file paths, format:
+        {
+            'sample_name': {
+                'vars': '/path/to/sample_vars.vcf',
+                'final_bam': '/path/to/sample.lofreq.final.bam',
+                'final_bai': '/path/to/sample.lofreq.final.bam.bai'
+            }
+        }
+
+    Raises:
+        FileNotFoundError: If no VCF files are found
+    """
+    logger.info("Discovering existing VCF files from previous QC run...")
+
+    # Define expected directory structure
+    cleaned_dir = os.path.join(output_dir, "cleaned_seqs")
+    variants_dir = os.path.join(cleaned_dir, "variants")
+    mapping_dir = os.path.join(cleaned_dir, "mapping")
+
+    # Check if variants directory exists
+    if not os.path.exists(variants_dir):
+        raise FileNotFoundError(
+            f"Variants directory not found: {variants_dir}\n"
+            "Please run the QC workflow first (Steps 1-6) using:\n"
+            "  ./run_vicast_analyze_qc_only.sh <R1> <R2> <accession>"
+        )
+
+    # Find all VCF files in variants directory
+    vcf_files = glob.glob(os.path.join(variants_dir, "*_vars.vcf"))
+
+    if not vcf_files:
+        raise FileNotFoundError(
+            f"No VCF files (*_vars.vcf) found in {variants_dir}\n"
+            "Please run the QC workflow first (Steps 1-6) using:\n"
+            "  ./run_vicast_analyze_qc_only.sh <R1> <R2> <accession>"
+        )
+
+    logger.info(f"Found {len(vcf_files)} VCF file(s) from previous run")
+
+    # Build variant_files dictionary
+    result_files = {}
+
+    for vcf_path in vcf_files:
+        # Extract sample name from VCF filename
+        vcf_filename = os.path.basename(vcf_path)
+        sample_name = vcf_filename.replace('_vars.vcf', '')
+
+        # Look for corresponding BAM files in mapping directory
+        final_bam = os.path.join(mapping_dir, f"{sample_name}.lofreq.final.bam")
+        final_bai = os.path.join(mapping_dir, f"{sample_name}.lofreq.final.bam.bai")
+
+        # Check if BAM files exist (needed for depth calculation)
+        if not os.path.exists(final_bam):
+            logger.warning(
+                f"BAM file not found for sample {sample_name}: {final_bam}\n"
+                "Depth file generation may fail for this sample."
+            )
+
+        if not os.path.exists(final_bai):
+            logger.warning(
+                f"BAM index not found for sample {sample_name}: {final_bai}\n"
+                "You may need to regenerate it with: samtools index {final_bam}"
+            )
+
+        # Populate result structure (matching map_and_call_variants output)
+        result_files[sample_name] = {
+            'vars': vcf_path,
+            'final_bam': final_bam if os.path.exists(final_bam) else None,
+            'final_bai': final_bai if os.path.exists(final_bai) else None
+        }
+
+        logger.info(f"  → Discovered sample: {sample_name}")
+        logger.info(f"      VCF: {vcf_path}")
+        if os.path.exists(final_bam):
+            logger.info(f"      BAM: {final_bam}")
+
+    logger.info(f"Successfully discovered {len(result_files)} sample(s) for resume")
+    return result_files
+
 def main():
     """Main function to run the pipeline."""
     args = parse_args()
@@ -1354,181 +1446,214 @@ def main():
     logger.info("")
 
     try:
-        # Step 1: Prepare reference genome
-        current_step += 1
-        print_step_header(current_step, total_steps, "Prepare Reference Genome")
+        # Check for resume mode
+        if args.resume_from_vcf:
+            logger.info("=" * 70)
+            logger.info("RESUME MODE: Skipping Steps 1-6 (QC workflow)")
+            logger.info("Running Steps 7-9 only (Annotation workflow)")
+            logger.info("=" * 70)
+            logger.info("")
 
-        reference_path = None
-        if args.reference:
-            reference_path = args.reference
-            logger.info(f"Using provided reference genome: {reference_path}")
-        elif args.accession:
-            # Download reference genome if needed
-            if not args.skip_download:
-                reference_path = download_reference_genome(
-                    args.accession,
-                    cleaned_dir,
-                    args.force_download
-                )
-            else:
-                # Use existing reference
-                reference_path = os.path.join(cleaned_dir, f"{args.accession}.fasta")
-                if not os.path.exists(reference_path):
-                    raise FileNotFoundError(f"Reference genome not found: {reference_path}")
-        else:
-            raise ValueError("Either --accession or --reference must be provided")
+            # Discover existing VCF files from previous QC run
+            variant_files = discover_existing_vcf_files(output_dir)
 
-        print_step_complete("Reference genome prepared", [reference_path] if reference_path else None)
-        
-        # Check if reference genome is in snpEff database
-        accession = args.accession
-        if not accession and reference_path:
-            # Try to extract accession from reference file name
-            accession = os.path.basename(reference_path).split('.')[0]
+            # Get accession for annotation
+            accession = args.accession
+            if not accession:
+                raise ValueError("--accession is required when using --resume-from-vcf")
 
-        if accession:
-            logger.info("Checking snpEff database...")
-            in_database = check_snpeff_database(accession, args.snpeff_jar, args.java_path)
-            if not in_database:
-                logger.warning(f"Genome {accession} not found in snpEff database")
-                if args.add_to_snpeff:
-                    logger.info(f"Attempting to add {accession} to snpEff database")
-                    success = add_genome_to_snpeff(accession, reference_path, args.snpeff_jar, args.java_path)
-                    if not success:
-                        logger.error(f"Failed to add {accession} to snpEff database. Annotation will likely fail.")
+            # Extract sample name from R1 filename (for consistency with full pipeline)
+            r1_base = os.path.basename(args.r1)
+            sample_name = re.sub(r'(_R1)?(_001)?\.fastq\.gz$', '', r1_base)
+
+            # Mark Steps 1-6 as skipped
+            for step_num in range(1, 7):
+                current_step += 1
+                logger.info(f"⊘ STEP {current_step}/{total_steps}: (SKIPPED - Resume Mode)")
+
+            logger.info("")
+            logger.info("Proceeding directly to annotation workflow (Steps 7-9)...")
+            logger.info("")
+
+        # Normal workflow: Run Steps 1-6
+        elif not args.resume_from_vcf:
+            # Step 1: Prepare reference genome
+            current_step += 1
+            print_step_header(current_step, total_steps, "Prepare Reference Genome")
+
+            reference_path = None
+            if args.reference:
+                reference_path = args.reference
+                logger.info(f"Using provided reference genome: {reference_path}")
+            elif args.accession:
+                # Download reference genome if needed
+                if not args.skip_download:
+                    reference_path = download_reference_genome(
+                        args.accession,
+                        cleaned_dir,
+                        args.force_download
+                    )
                 else:
-                    logger.warning("Use --add-to-snpeff to attempt adding the genome to snpEff")
+                    # Use existing reference
+                    reference_path = os.path.join(cleaned_dir, f"{args.accession}.fasta")
+                    if not os.path.exists(reference_path):
+                        raise FileNotFoundError(f"Reference genome not found: {reference_path}")
+            else:
+                raise ValueError("Either --accession or --reference must be provided")
 
-        # Step 2: Calculate read statistics
-        current_step += 1
-        if not args.skip_stats:
-            print_step_header(current_step, total_steps, "Calculate Read Statistics")
-            stats_file = os.path.join(output_dir, "input_stats.txt")
-            calculate_read_stats(args.r1, stats_file, args.threads, args.r2)
-            print_step_complete("Read statistics calculated", [stats_file])
-        else:
-            logger.info(f"⊘ STEP {current_step}/{total_steps}: Calculate Read Statistics (SKIPPED)")
-            logger.info("")
-        
-        # Step 3: Clean reads
-        current_step += 1
-        if not args.skip_qc:
-            print_step_header(current_step, total_steps, "Clean Reads (Quality Control)")
-            cleaned_files = clean_reads(cleaned_dir, args.r1, args.r2, args.threads)
-            # Extract file paths from nested dict structure
-            output_files = []
-            for file_dict in cleaned_files.values():
-                if isinstance(file_dict, dict):
-                    for filepath in file_dict.values():
-                        if filepath and isinstance(filepath, str):
-                            output_files.append(filepath)
-            print_step_complete("Reads cleaned", output_files)
-        else:
-            logger.info(f"⊘ STEP {current_step}/{total_steps}: Clean Reads (SKIPPED)")
-            logger.info("")
-            cleaned_files = {}
+            print_step_complete("Reference genome prepared", [reference_path] if reference_path else None)
 
-        # Step 4: Map reads and call variants
-        current_step += 1
-        if not args.skip_mapping:
-            print_step_header(current_step, total_steps, "Map Reads and Call Variants")
-            variant_files = map_and_call_variants(
-                reference_path,
-                cleaned_dir,
-                args.threads,
-                cleaned_files,  # Pass the specific cleaned files
-                args.large_files,
-                args.extremely_large_files
-            )
-            # Extract file paths from nested dict structure
-            output_files = []
-            for file_dict in variant_files.values():
-                if isinstance(file_dict, dict):
-                    for filepath in file_dict.values():
-                        if filepath and isinstance(filepath, str) and os.path.exists(filepath):
-                            output_files.append(filepath)
-            print_step_complete("Read mapping and variant calling completed", output_files)
-        else:
-            logger.info(f"⊘ STEP {current_step}/{total_steps}: Map Reads and Call Variants (SKIPPED)")
-            logger.info("")
-            variant_files = {}
+            # Check if reference genome is in snpEff database
+            accession = args.accession
+            if not accession and reference_path:
+                # Try to extract accession from reference file name
+                accession = os.path.basename(reference_path).split('.')[0]
 
+            if accession:
+                logger.info("Checking snpEff database...")
+                in_database = check_snpeff_database(accession, args.snpeff_jar, args.java_path)
+                if not in_database:
+                    logger.warning(f"Genome {accession} not found in snpEff database")
+                    if args.add_to_snpeff:
+                        logger.info(f"Attempting to add {accession} to snpEff database")
+                        success = add_genome_to_snpeff(accession, reference_path, args.snpeff_jar, args.java_path)
+                        if not success:
+                            logger.error(f"Failed to add {accession} to snpEff database. Annotation will likely fail.")
+                    else:
+                        logger.warning("Use --add-to-snpeff to attempt adding the genome to snpEff")
 
-        # Step 5: Generate Depth File (QC)
-        current_step += 1
-        print_step_header(current_step, total_steps, "Generate Depth File (QC)")
-
-        # Extract sample name from R1 filename
-        r1_base = os.path.basename(args.r1)
-        sample_name = re.sub(r'(_R1)?(_001)?\.fastq\.gz$', '', r1_base)
-
-        # Create results directory
-        results_dir = os.path.join(os.getcwd(), f"{sample_name}_results")
-        os.makedirs(results_dir, exist_ok=True)
-        
-        # Generate depth file from final BAM
-        depth_file = os.path.join(results_dir, f"{sample_name}_depth.txt")
-        logger.info(f"Generating per-position depth file: {depth_file}")
-        
-        # Get final BAM file from variant_files
-        final_bam = None
-        for sample, file_dict in variant_files.items():
-            if isinstance(file_dict, dict) and 'final_bam' in file_dict:
-                final_bam = file_dict['final_bam']
-                break
-        
-        if final_bam and os.path.exists(final_bam):
-            # Write header
-            with open(depth_file, 'w') as f:
-                f.write("chrom\tposition\tdepth\n")
-            
-            # Run samtools depth
-            depth_cmd = f"samtools depth {final_bam} >> {depth_file}"
-            run_command(depth_cmd, shell=True)
-            logger.info(f"Depth file created: {depth_file}")
-            print_step_complete("Depth file generation completed", [depth_file])
-        else:
-            logger.warning("No final BAM file found, skipping depth file generation")
-            logger.info("")
-
-        # Step 6: Run Diagnostic Report (QC)
-        current_step += 1
-        print_step_header(current_step, total_steps, "Generate Diagnostic Report (QC)")
-        
-        # Get script directory for diagnostic script
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        diagnostic_script = os.path.join(script_dir, "viral_diagnostic.sh")
-        
-        if os.path.exists(diagnostic_script):
-            logger.info("Running comprehensive viral diagnostic analysis...")
-            logger.info("This includes: mapping stats, de novo assembly, viral BLAST")
-            
-            diagnostic_cmd = f"bash {diagnostic_script} {args.r1} {args.r2} {accession} {sample_name} {args.threads}"
-            if args.extremely_large_files:
-                diagnostic_cmd += " --extremely-large-files"
-            
-            try:
-                run_command(diagnostic_cmd, shell=True)
-                
-                # List diagnostic outputs
-                diagnostic_dir = f"./diagnostic_{sample_name}"
-                diagnostic_outputs = [
-                    os.path.join(diagnostic_dir, f"{sample_name}_diagnostic_report.txt"),
-                    os.path.join(diagnostic_dir, f"diagnostic_{sample_name}_presentation_ready_report.html"),
-                    os.path.join(diagnostic_dir, f"{sample_name}_top_hits.tsv"),
-                    os.path.join(diagnostic_dir, f"{sample_name}_viral_blast.tsv")
-                ]
-                
-                existing_outputs = [f for f in diagnostic_outputs if os.path.exists(f)]
-                print_step_complete("Diagnostic report generation completed", existing_outputs)
-            except Exception as e:
-                logger.warning(f"Diagnostic report failed: {str(e)}")
-                logger.info("Pipeline will continue despite diagnostic failure")
+            # Step 2: Calculate read statistics
+            current_step += 1
+            if not args.skip_stats:
+                print_step_header(current_step, total_steps, "Calculate Read Statistics")
+                stats_file = os.path.join(output_dir, "input_stats.txt")
+                calculate_read_stats(args.r1, stats_file, args.threads, args.r2)
+                print_step_complete("Read statistics calculated", [stats_file])
+            else:
+                logger.info(f"⊘ STEP {current_step}/{total_steps}: Calculate Read Statistics (SKIPPED)")
                 logger.info("")
-        else:
-            logger.warning(f"Diagnostic script not found at: {diagnostic_script}")
-            logger.info("Skipping diagnostic report generation")
-            logger.info("")
+
+            # Step 3: Clean reads
+            current_step += 1
+            if not args.skip_qc:
+                print_step_header(current_step, total_steps, "Clean Reads (Quality Control)")
+                cleaned_files = clean_reads(cleaned_dir, args.r1, args.r2, args.threads)
+                # Extract file paths from nested dict structure
+                output_files = []
+                for file_dict in cleaned_files.values():
+                    if isinstance(file_dict, dict):
+                        for filepath in file_dict.values():
+                            if filepath and isinstance(filepath, str):
+                                output_files.append(filepath)
+                print_step_complete("Reads cleaned", output_files)
+            else:
+                logger.info(f"⊘ STEP {current_step}/{total_steps}: Clean Reads (SKIPPED)")
+                logger.info("")
+                cleaned_files = {}
+
+            # Step 4: Map reads and call variants
+            current_step += 1
+            if not args.skip_mapping:
+                print_step_header(current_step, total_steps, "Map Reads and Call Variants")
+                variant_files = map_and_call_variants(
+                    reference_path,
+                    cleaned_dir,
+                    args.threads,
+                    cleaned_files,  # Pass the specific cleaned files
+                    args.large_files,
+                    args.extremely_large_files
+                )
+                # Extract file paths from nested dict structure
+                output_files = []
+                for file_dict in variant_files.values():
+                    if isinstance(file_dict, dict):
+                        for filepath in file_dict.values():
+                            if filepath and isinstance(filepath, str) and os.path.exists(filepath):
+                                output_files.append(filepath)
+                print_step_complete("Read mapping and variant calling completed", output_files)
+            else:
+                logger.info(f"⊘ STEP {current_step}/{total_steps}: Map Reads and Call Variants (SKIPPED)")
+                logger.info("")
+                variant_files = {}
+
+            # Step 5: Generate Depth File (QC) - only in normal mode
+            current_step += 1
+            print_step_header(current_step, total_steps, "Generate Depth File (QC)")
+
+            # Extract sample name from R1 filename
+            r1_base = os.path.basename(args.r1)
+            sample_name = re.sub(r'(_R1)?(_001)?\.fastq\.gz$', '', r1_base)
+
+            # Create results directory
+            results_dir = os.path.join(os.getcwd(), f"{sample_name}_results")
+            os.makedirs(results_dir, exist_ok=True)
+
+            # Generate depth file from final BAM
+            depth_file = os.path.join(results_dir, f"{sample_name}_depth.txt")
+            logger.info(f"Generating per-position depth file: {depth_file}")
+
+            # Get final BAM file from variant_files
+            final_bam = None
+            for sample, file_dict in variant_files.items():
+                if isinstance(file_dict, dict) and 'final_bam' in file_dict:
+                    final_bam = file_dict['final_bam']
+                    break
+
+            if final_bam and os.path.exists(final_bam):
+                # Write header
+                with open(depth_file, 'w') as f:
+                    f.write("chrom\tposition\tdepth\n")
+
+                # Run samtools depth
+                depth_cmd = f"samtools depth {final_bam} >> {depth_file}"
+                run_command(depth_cmd, shell=True)
+                logger.info(f"Depth file created: {depth_file}")
+                print_step_complete("Depth file generation completed", [depth_file])
+            else:
+                logger.warning("No final BAM file found, skipping depth file generation")
+                logger.info("")
+
+            # Step 6: Run Diagnostic Report (QC) - only in normal mode
+            current_step += 1
+            print_step_header(current_step, total_steps, "Generate Diagnostic Report (QC)")
+
+            # Get script directory for diagnostic script
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            diagnostic_script = os.path.join(script_dir, "viral_diagnostic.sh")
+
+            if os.path.exists(diagnostic_script):
+                logger.info("Running comprehensive viral diagnostic analysis...")
+                logger.info("This includes: mapping stats, de novo assembly, viral BLAST")
+
+                diagnostic_cmd = f"bash {diagnostic_script} {args.r1} {args.r2} {accession} {sample_name} {args.threads}"
+                if args.extremely_large_files:
+                    diagnostic_cmd += " --extremely-large-files"
+
+                try:
+                    run_command(diagnostic_cmd, shell=True)
+
+                    # List diagnostic outputs
+                    diagnostic_dir = f"./diagnostic_{sample_name}"
+                    diagnostic_outputs = [
+                        os.path.join(diagnostic_dir, f"{sample_name}_diagnostic_report.txt"),
+                        os.path.join(diagnostic_dir, f"diagnostic_{sample_name}_presentation_ready_report.html"),
+                        os.path.join(diagnostic_dir, f"{sample_name}_top_hits.tsv"),
+                        os.path.join(diagnostic_dir, f"{sample_name}_viral_blast.tsv")
+                    ]
+
+                    existing_outputs = [f for f in diagnostic_outputs if os.path.exists(f)]
+                    print_step_complete("Diagnostic report generation completed", existing_outputs)
+                except Exception as e:
+                    logger.warning(f"Diagnostic report failed: {str(e)}")
+                    logger.info("Pipeline will continue despite diagnostic failure")
+                    logger.info("")
+            else:
+                logger.warning(f"Diagnostic script not found at: {diagnostic_script}")
+                logger.info("Skipping diagnostic report generation")
+                logger.info("")
+
+
+        # Steps 7-9: Annotation workflow (runs in both normal and resume modes)
         # Step 7: Filter variants
         current_step += 1
         if not args.skip_variants:

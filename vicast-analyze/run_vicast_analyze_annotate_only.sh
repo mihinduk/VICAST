@@ -2,6 +2,7 @@
 # VICAST-Analyze: Annotation Workflow Only (Steps 7-9)
 # Runs: variant filtering, snpEff annotation, and parsing
 # REQUIRES: QC workflow must be run first
+# NEW: Uses --resume-from-vcf for true efficiency - no work is duplicated!
 
 # Check arguments
 if [ $# -lt 3 ]; then
@@ -11,7 +12,9 @@ if [ $# -lt 3 ]; then
     echo "PREREQUISITES:"
     echo "  Run QC workflow first: ./run_vicast_analyze_qc_only.sh <R1> <R2> <accession>"
     echo ""
-    echo "This script runs annotation workflow (Steps 7-9):"
+    echo "This script runs annotation workflow (Steps 7-9) EFFICIENTLY:"
+    echo "  ✓ Discovers existing VCF files from previous QC run (--resume-from-vcf)"
+    echo "  ✓ Skips Steps 1-6 completely - no duplication of work!"
     echo "  7. Filter variants"
     echo "  8. Annotate variants with snpEff"
     echo "  9. Parse annotations"
@@ -114,19 +117,16 @@ conda activate vicast_analyze
 # Set PYTHONUNBUFFERED for real-time output
 export PYTHONUNBUFFERED=1
 
-echo "Running annotation workflow (Steps 7-9)..."
+echo "Running annotation workflow (Steps 7-9) ONLY..."
 echo ""
 
-# NOTE: Current implementation re-runs all 9 steps to populate internal state.
-# However, Steps 1-4 are fast when files already exist (reads from cache).
-# Steps 5-6 (depth file, diagnostics) will regenerate quickly.
-# Steps 7-9 (filter, annotate, parse) are the new expensive operations.
-#
-# This pragmatic approach allows user QC review before expensive annotation,
-# which is the main goal. Future enhancement: add true resume-from-VCF mode.
+# NEW: Using --resume-from-vcf flag to skip Steps 1-6 completely
+# This discovers existing VCF files from previous QC run and jumps straight to annotation.
+# No more re-running or re-validating - true efficiency!
 
-echo "Note: Re-validating Steps 1-6 (most use cached files)..."
-echo "Running Steps 7-9 (annotation - the expensive part)..."
+echo "✓ Using new --resume-from-vcf mode for maximum efficiency"
+echo "✓ Discovering existing VCF files from previous QC run..."
+echo "✓ Running Steps 7-9 only (filter, annotate, parse)..."
 echo ""
 
 if [ -n "$LARGE_FILES_FLAG" ]; then
@@ -137,6 +137,7 @@ if [ -n "$LARGE_FILES_FLAG" ]; then
         --threads $THREADS \
         --snpeff-jar "$SNPEFF_JAR" \
         --java-path "$JAVA_PATH" \
+        --resume-from-vcf \
         $LARGE_FILES_FLAG
 else
     stdbuf -oL -eL python -u ${PIPELINE_DIR}/viral_pipeline.py \
@@ -145,7 +146,8 @@ else
         --accession "$ACCESSION" \
         --threads $THREADS \
         --snpeff-jar "$SNPEFF_JAR" \
-        --java-path "$JAVA_PATH"
+        --java-path "$JAVA_PATH" \
+        --resume-from-vcf
 fi
 
 PIPELINE_EXIT_CODE=$?
