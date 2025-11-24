@@ -159,7 +159,12 @@ if [ $PIPELINE_EXIT_CODE -eq 0 ]; then
     echo "============================================="
     echo ""
     echo "OUTPUT FILES:"
-    find ./cleaned_seqs/variants -name "*${SAMPLE_NAME}*.snpEFF.ann.tsv" -o -name "*${SAMPLE_NAME}*_200.tsv" 2>/dev/null
+    echo "  Annotation files:"
+    find ./cleaned_seqs/variants -name "*${SAMPLE_NAME}*.snpEFF.ann.tsv" 2>/dev/null | sed 's/^/    /'
+    echo "  Parsed files (min depth 200):"
+    find ./cleaned_seqs/variants -name "*${SAMPLE_NAME}*_200.tsv" 2>/dev/null | sed 's/^/    /'
+    echo "  Summary files:"
+    find ./cleaned_seqs/variants -name "*${SAMPLE_NAME}*summary*" 2>/dev/null | sed 's/^/    /'
     echo ""
     echo "Pipeline completed successfully!"
     echo "============================================="
