@@ -1326,19 +1326,20 @@ def parse_annotations(variants_dir: str, min_depth: int, specific_files: Dict[st
     logger.info(f"Annotation parsing completed for {len(parsed_files)} samples")
     return parsed_files
 
-def discover_existing_vcf_files(output_dir: str) -> Dict[str, Dict[str, str]]:
+def discover_existing_vcf_files(output_dir: str, r1_filename: str) -> Dict[str, Dict[str, str]]:
     """
-    Discover existing VCF files from a previous QC run to enable resumption.
+    Discover existing VCF files for a specific sample from a previous QC run.
 
-    This function scans the cleaned_seqs/variants directory for VCF files
-    and populates a variant_files dictionary structure compatible with
-    the filter_variants() function.
+    This function finds VCF files for the sample specified by the R1 filename,
+    matching the behavior of the normal workflow which processes only the
+    specified sample.
 
     Args:
         output_dir: Base output directory (default is current directory)
+        r1_filename: R1 FASTQ filename to determine which sample to process
 
     Returns:
-        Dictionary mapping sample names to file paths, format:
+        Dictionary mapping sample name to file paths, format:
         {
             'sample_name': {
                 'vars': '/path/to/sample_vars.vcf',
@@ -1348,9 +1349,15 @@ def discover_existing_vcf_files(output_dir: str) -> Dict[str, Dict[str, str]]:
         }
 
     Raises:
-        FileNotFoundError: If no VCF files are found
+        FileNotFoundError: If the specified sample's VCF file is not found
     """
     logger.info("Discovering existing VCF files from previous QC run...")
+
+    # Extract sample name from R1 filename (same logic as main pipeline)
+    r1_base = os.path.basename(r1_filename)
+    sample_name = re.sub(r'(_R1)?(_001)?\.fastq\.gz$', '', r1_base)
+
+    logger.info(f"Looking for VCF files for sample: {sample_name}")
 
     # Define expected directory structure
     cleaned_dir = os.path.join(output_dir, "cleaned_seqs")
@@ -1362,59 +1369,53 @@ def discover_existing_vcf_files(output_dir: str) -> Dict[str, Dict[str, str]]:
         raise FileNotFoundError(
             f"Variants directory not found: {variants_dir}\n"
             "Please run the QC workflow first (Steps 1-6) using:\n"
-            "  ./run_vicast_analyze_qc_only.sh <R1> <R2> <accession>"
+            f"  ./run_vicast_analyze_qc_only.sh {r1_filename} <R2> <accession>"
         )
 
-    # Find all VCF files in variants directory
-    vcf_files = glob.glob(os.path.join(variants_dir, "*_vars.vcf"))
+    # Look for VCF file for this specific sample
+    vcf_file = os.path.join(variants_dir, f"{sample_name}_vars.vcf")
 
-    if not vcf_files:
+    if not os.path.exists(vcf_file):
         raise FileNotFoundError(
-            f"No VCF files (*_vars.vcf) found in {variants_dir}\n"
+            f"VCF file not found for sample '{sample_name}': {vcf_file}\n"
             "Please run the QC workflow first (Steps 1-6) using:\n"
-            "  ./run_vicast_analyze_qc_only.sh <R1> <R2> <accession>"
+            f"  ./run_vicast_analyze_qc_only.sh {r1_filename} <R2> <accession>"
         )
 
-    logger.info(f"Found {len(vcf_files)} VCF file(s) from previous run")
+    logger.info(f"Found VCF file for sample: {sample_name}")
 
-    # Build variant_files dictionary
-    result_files = {}
+    # Look for corresponding BAM files in mapping directory
+    final_bam = os.path.join(mapping_dir, f"{sample_name}.lofreq.final.bam")
+    final_bai = os.path.join(mapping_dir, f"{sample_name}.lofreq.final.bam.bai")
 
-    for vcf_path in vcf_files:
-        # Extract sample name from VCF filename
-        vcf_filename = os.path.basename(vcf_path)
-        sample_name = vcf_filename.replace('_vars.vcf', '')
+    # Check if BAM files exist (needed for depth calculation)
+    if not os.path.exists(final_bam):
+        logger.warning(
+            f"BAM file not found for sample {sample_name}: {final_bam}\n"
+            "Depth file generation may fail for this sample."
+        )
 
-        # Look for corresponding BAM files in mapping directory
-        final_bam = os.path.join(mapping_dir, f"{sample_name}.lofreq.final.bam")
-        final_bai = os.path.join(mapping_dir, f"{sample_name}.lofreq.final.bam.bai")
+    if not os.path.exists(final_bai):
+        logger.warning(
+            f"BAM index not found for sample {sample_name}: {final_bai}\n"
+            f"You may need to regenerate it with: samtools index {final_bam}"
+        )
 
-        # Check if BAM files exist (needed for depth calculation)
-        if not os.path.exists(final_bam):
-            logger.warning(
-                f"BAM file not found for sample {sample_name}: {final_bam}\n"
-                "Depth file generation may fail for this sample."
-            )
-
-        if not os.path.exists(final_bai):
-            logger.warning(
-                f"BAM index not found for sample {sample_name}: {final_bai}\n"
-                "You may need to regenerate it with: samtools index {final_bam}"
-            )
-
-        # Populate result structure (matching map_and_call_variants output)
-        result_files[sample_name] = {
-            'vars': vcf_path,
+    # Build result structure (matching map_and_call_variants output)
+    result_files = {
+        sample_name: {
+            'vars': vcf_file,
             'final_bam': final_bam if os.path.exists(final_bam) else None,
             'final_bai': final_bai if os.path.exists(final_bai) else None
         }
+    }
 
-        logger.info(f"  → Discovered sample: {sample_name}")
-        logger.info(f"      VCF: {vcf_path}")
-        if os.path.exists(final_bam):
-            logger.info(f"      BAM: {final_bam}")
+    logger.info(f"  → Discovered sample: {sample_name}")
+    logger.info(f"      VCF: {vcf_file}")
+    if os.path.exists(final_bam):
+        logger.info(f"      BAM: {final_bam}")
 
-    logger.info(f"Successfully discovered {len(result_files)} sample(s) for resume")
+    logger.info(f"Successfully discovered sample '{sample_name}' for resume")
     return result_files
 
 def main():
@@ -1455,7 +1456,7 @@ def main():
             logger.info("")
 
             # Discover existing VCF files from previous QC run
-            variant_files = discover_existing_vcf_files(output_dir)
+            variant_files = discover_existing_vcf_files(output_dir, args.r1)
 
             # Get accession for annotation
             accession = args.accession

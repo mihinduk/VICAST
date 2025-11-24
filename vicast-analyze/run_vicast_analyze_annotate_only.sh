@@ -160,11 +160,17 @@ if [ $PIPELINE_EXIT_CODE -eq 0 ]; then
     echo ""
     echo "OUTPUT FILES:"
     echo "  Annotation files:"
-    find ./cleaned_seqs/variants -name "*${SAMPLE_NAME}*.snpEFF.ann.tsv" 2>/dev/null | sed 's/^/    /'
+    find ./cleaned_seqs/variants -name "*${SAMPLE_NAME}*.snpEFF.ann.tsv" 2>/dev/null | head -5 | sed 's/^/    /'
     echo "  Parsed files (min depth 200):"
-    find ./cleaned_seqs/variants -name "*${SAMPLE_NAME}*_200.tsv" 2>/dev/null | sed 's/^/    /'
+    find ./cleaned_seqs/variants -name "*${SAMPLE_NAME}*_200.tsv" 2>/dev/null | head -5 | sed 's/^/    /'
     echo "  Summary files:"
-    find ./cleaned_seqs/variants -name "*${SAMPLE_NAME}*summary*" 2>/dev/null | sed 's/^/    /'
+    find ./cleaned_seqs/variants -name "*${SAMPLE_NAME}*summary*" 2>/dev/null | head -5 | sed 's/^/    /'
+
+    # Show all annotation files if sample name match fails
+    if [ -z "$(find ./cleaned_seqs/variants -name "*${SAMPLE_NAME}*.snpEFF.ann.tsv" 2>/dev/null)" ]; then
+        echo "  All recent annotation files:"
+        find ./cleaned_seqs/variants -name "*.snpEFF.ann.tsv" -newer ${0} 2>/dev/null | head -5 | sed 's/^/    /'
+    fi
     echo ""
     echo "Pipeline completed successfully!"
     echo "============================================="
