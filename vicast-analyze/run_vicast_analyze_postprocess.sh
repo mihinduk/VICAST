@@ -3,45 +3,94 @@
 # Runs: Parse mutations + Generate haplotype consensus
 # REQUIRES: Annotation workflow must be run first (run_vicast_analyze_annotate_only.sh)
 
-# Check arguments
-if [ $# -lt 2 ]; then
-    echo "Usage: $0 <sample_name> <accession> [quality] [depth] [freq_parse] [freq_consensus]"
+# Default parameter values
+SAMPLE_NAME=""
+ACCESSION=""
+QUALITY=1000
+DEPTH=200
+FREQ_PARSE=0.01
+FREQ_CONSENSUS=0.50
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --sample)
+            SAMPLE_NAME="$2"
+            shift 2
+            ;;
+        --accession)
+            ACCESSION="$2"
+            shift 2
+            ;;
+        --quality)
+            QUALITY="$2"
+            shift 2
+            ;;
+        --depth)
+            DEPTH="$2"
+            shift 2
+            ;;
+        --freq-parse)
+            FREQ_PARSE="$2"
+            shift 2
+            ;;
+        --freq-consensus)
+            FREQ_CONSENSUS="$2"
+            shift 2
+            ;;
+        -h|--help)
+            echo "Usage: $0 --sample <sample_name> --accession <accession> [options]"
+            echo ""
+            echo "Required arguments:"
+            echo "  --sample <name>         Sample name (must match .snpEFF.ann.tsv filename)"
+            echo "  --accession <accession> Virus accession number (e.g., AY532665.1)"
+            echo ""
+            echo "Optional arguments:"
+            echo "  --quality <int>         Minimum quality score (default: 1000)"
+            echo "  --depth <int>           Minimum coverage depth (default: 200)"
+            echo "  --freq-parse <float>    Min allele frequency for parsing (default: 0.01)"
+            echo "  --freq-consensus <float> Min allele frequency for consensus (default: 0.50)"
+            echo ""
+            echo "Examples:"
+            echo "  # Use defaults (quality=1000, depth=200, freq_parse=0.01, freq_consensus=0.50)"
+            echo "  $0 --sample WNV_sample --accession AY532665.1"
+            echo ""
+            echo "  # Custom quality and depth"
+            echo "  $0 --sample WNV_sample --accession AY532665.1 --quality 500 --depth 100"
+            echo ""
+            echo "  # Detect rare quasispecies (0.5% frequency)"
+            echo "  $0 --sample WNV_sample --accession AY532665.1 --freq-parse 0.005"
+            echo ""
+            echo "  # Very strict filtering"
+            echo "  $0 --sample WNV_sample --accession AY532665.1 --quality 5000 --depth 500 --freq-parse 0.05 --freq-consensus 0.80"
+            echo ""
+            echo "  # Lower quality sample - relaxed thresholds"
+            echo "  $0 --sample WNV_sample --accession AY532665.1 --quality 100 --depth 50 --freq-parse 0.02"
+            echo ""
+            echo "This script runs post-processing (Chunk 3):"
+            echo "  1. Parse & filter mutations (parse_snpeff_tsv.py)"
+            echo "  2. Generate realistic haplotypes & consensus (generate_realistic_haplotype_consensus.py)"
+            echo ""
+            echo "PREREQUISITES:"
+            echo "  Run annotation workflow first: ./run_vicast_analyze_annotate_only.sh <R1> <R2> <accession>"
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+    esac
+done
+
+# Check required arguments
+if [ -z "$SAMPLE_NAME" ] || [ -z "$ACCESSION" ]; then
+    echo "❌ Error: Missing required arguments"
     echo ""
-    echo "Example: $0 WNV_sample AY532665.1"
-    echo "Example: $0 WNV_sample AY532665.1 1000 200 0.01 0.50"
-    echo ""
-    echo "This script runs post-processing (Chunk 3):"
-    echo "  1. Parse & filter mutations (parse_snpeff_tsv.py)"
-    echo "  2. Generate realistic haplotypes & consensus (generate_realistic_haplotype_consensus.py)"
-    echo ""
-    echo "Parameters (all optional, will use defaults if not specified):"
-    echo "  quality       : Minimum quality score (default: 1000)"
-    echo "  depth         : Minimum coverage depth (default: 200)"
-    echo "  freq_parse    : Min allele frequency for parsing (default: 0.01 = 1%)"
-    echo "  freq_consensus: Min allele frequency for consensus (default: 0.50 = 50%)"
-    echo ""
-    echo "PREREQUISITES:"
-    echo "  Run annotation workflow first: ./run_vicast_analyze_annotate_only.sh <R1> <R2> <accession>"
-    echo ""
-    echo "Advanced usage:"
-    echo "  # High quality sample - detect rare quasispecies"
-    echo "  $0 sample AY532665.1 1000 200 0.01 0.50"
-    echo ""
-    echo "  # Lower quality sample - relaxed thresholds"
-    echo "  $0 sample AY532665.1 100 50 0.02 0.50"
-    echo ""
-    echo "  # Very strict - high confidence only"
-    echo "  $0 sample AY532665.1 5000 500 0.05 0.80"
+    echo "Usage: $0 --sample <sample_name> --accession <accession> [options]"
+    echo "Use --help for full usage information"
     exit 1
 fi
-
-# Parse arguments
-SAMPLE_NAME=$1
-ACCESSION=$2
-QUALITY=${3:-1000}
-DEPTH=${4:-200}
-FREQ_PARSE=${5:-0.01}
-FREQ_CONSENSUS=${6:-0.50}
 
 # Source configuration file if it exists
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
