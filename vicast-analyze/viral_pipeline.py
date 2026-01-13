@@ -654,31 +654,46 @@ def clean_reads(output_dir: str, r1_pattern: str, r2_pattern: str, threads: int 
     for r1_file in r1_files:
         # Extract sample name from the filename
         r1_basename = os.path.basename(r1_file)
-        
-        # Match the sample name part before _R1 or _R1_001
+
+        # Match the sample name part before _R1/_R1_001 (Illumina) or _1 (SRA)
+        # Try Illumina pattern first (_R1 or _R1_001)
         match = re.search(r'(.+?)_R1(?:_001)?\.fastq\.gz$', r1_basename)
+        r1_suffix = '_R1'
+        r2_suffix = '_R2'
+
+        # If no match, try SRA pattern (_1 or _2)
+        if not match:
+            match = re.search(r'(.+?)_1\.fastq\.gz$', r1_basename)
+            if match:
+                r1_suffix = '_1'
+                r2_suffix = '_2'
+
         if not match:
             logger.warning(f"Skipping file with unusual naming pattern: {r1_file}")
+            logger.warning(f"  Expected patterns: *_R1.fastq.gz, *_R1_001.fastq.gz (Illumina), or *_1.fastq.gz (SRA)")
             continue
-            
+
         sample_name = match.group(1)
-        
+
         # Find matching R2 file - handle both patterns and paths
         r1_dir = os.path.dirname(r1_file)
-        r2_basename = r1_basename.replace('_R1', '_R2')
+        r2_basename = r1_basename.replace(r1_suffix, r2_suffix)
         r2_file = os.path.join(r1_dir, r2_basename)
-        
+
         # If exact file doesn't exist and r2_pattern contains wildcards
         if not os.path.exists(r2_file) and '*' in r2_pattern:
             # Try to find a matching R2 file using the glob pattern
             r2_candidates = glob.glob(r2_pattern)
             for candidate in r2_candidates:
-                if os.path.basename(candidate).startswith(sample_name) and '_R2' in candidate:
+                candidate_basename = os.path.basename(candidate)
+                # Check for matching sample name and R2 suffix
+                if candidate_basename.startswith(sample_name) and r2_suffix in candidate_basename:
                     r2_file = candidate
                     break
-        
+
         if not os.path.exists(r2_file):
             logger.warning(f"No matching R2 file found for {r1_file}")
+            logger.warning(f"  Expected R2 file: {r2_file}")
             continue
         
         logger.info(f"Processing sample: {sample_name}")
