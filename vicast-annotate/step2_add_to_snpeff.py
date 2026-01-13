@@ -324,13 +324,31 @@ def add_genome_to_snpeff(genome_id, fasta_file, gff_file, snpeff_data_dir=None, 
     
     # Determine snpEff home and data directory
     snpeff_home = os.environ.get('SNPEFF_HOME')
+    java_home = os.environ.get('JAVA_HOME')
+
+    # Pre-flight environment check
+    if not snpeff_home:
+        print("\n" + "="*60)
+        print("ERROR: SnpEff environment not loaded")
+        print("="*60)
+        print("\nThe SNPEFF_HOME environment variable is not set.")
+        print("Please load the SnpEff environment before running this script:")
+        print("\n  export SCRATCH_DIR=/path/to/your/scratch")
+        print("  source /ref/sahlab/software/snpeff_configs/snpeff_current.sh")
+        print("\nThen run this script again.")
+        print("="*60)
+        return False
+
+    if not java_home:
+        print("\n" + "="*60)
+        print("WARNING: JAVA_HOME not set")
+        print("="*60)
+        print("\nJAVA_HOME is not set. Attempting to use system Java...")
+        print("If the build fails, please load the SnpEff environment:")
+        print("  source /ref/sahlab/software/snpeff_configs/snpeff_current.sh")
+        print("="*60 + "\n")
 
     if not snpeff_data_dir:
-        if not snpeff_home:
-            print("ERROR: SNPEFF_HOME not set. Please source the snpEff configuration:")
-            print("  export SCRATCH_DIR=/path/to/your/scratch")
-            print("  source /ref/sahlab/software/snpeff_configs/snpeff_current.sh")
-            return False
         snpeff_data_dir = os.path.join(snpeff_home, 'data')
     else:
         # If data_dir provided, derive snpeff_home from it
@@ -453,9 +471,23 @@ def add_genome_to_snpeff(genome_id, fasta_file, gff_file, snpeff_data_dir=None, 
             
     except Exception as e:
         print(f"\n[ERROR] Error running snpEff: {e}")
-        print("\nMake sure snpEff environment is loaded:")
-        print("  export SCRATCH_DIR=/path/to/your/scratch")
-        print("  source /ref/sahlab/software/snpeff_configs/snpeff_current.sh")
+
+        # Provide specific guidance based on error type
+        error_str = str(e).lower()
+        if "no such file" in error_str or "command not found" in error_str:
+            print("\n" + "="*60)
+            print("ENVIRONMENT ERROR: snpEff command not found")
+            print("="*60)
+            print("\nThe snpEff environment is not properly loaded.")
+            print("Please ensure you have sourced the snpEff configuration:")
+            print("\n  export SCRATCH_DIR=/path/to/your/scratch")
+            print("  source /ref/sahlab/software/snpeff_configs/snpeff_current.sh")
+            print("\nThen run this script again.")
+            print("="*60)
+        else:
+            print("\nMake sure snpEff environment is loaded:")
+            print("  export SCRATCH_DIR=/path/to/your/scratch")
+            print("  source /ref/sahlab/software/snpeff_configs/snpeff_current.sh")
         return False
 
 def main():
