@@ -65,14 +65,16 @@ sleep 2
 source /ref/sahlab/software/anaconda3/bin/activate base
 eval "$(conda shell.bash hook)"
 
-# Check if viral_genomics tools are available via anaconda3 conda
-if conda run -n viral_genomics which bwa >/dev/null 2>&1; then
-    echo "Using anaconda3 conda for viral_genomics environment"
-    GENOMICS_CMD="conda run -n viral_genomics"
+# Check if vicast_analyze tools are available via anaconda3 conda
+# NOTE: vicast_analyze has the bioinformatics tools (bwa, samtools, megahit)
+#       viral_genomics has only Python packages (biopython, pandas, etc.)
+if conda run -n vicast_analyze which bwa >/dev/null 2>&1; then
+    echo "Using anaconda3 conda for vicast_analyze environment"
+    GENOMICS_CMD="conda run -n vicast_analyze"
 else
-    echo "Using miniforge3 mamba for viral_genomics environment (anaconda3 doesn't have tools)"
+    echo "Using miniforge3 mamba for vicast_analyze environment (anaconda3 doesn't have tools)"
     export MAMBA_NO_BANNER=1
-    GENOMICS_CMD="/home/mihindu/miniforge3/bin/mamba run -n viral_genomics"
+    GENOMICS_CMD="/home/mihindu/miniforge3/bin/mamba run -n vicast_analyze"
 fi
 
 # Initialize base filenames for consistent use throughout script
