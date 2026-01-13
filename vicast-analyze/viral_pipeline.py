@@ -1377,8 +1377,9 @@ def discover_existing_vcf_files(output_dir: str, r1_filename: str) -> Dict[str, 
     logger.info("Discovering existing VCF files from previous QC run...")
 
     # Extract sample name from R1 filename (same logic as main pipeline)
+    # Support both Illumina (_R1) and SRA (_1) naming conventions
     r1_base = os.path.basename(r1_filename)
-    sample_name = re.sub(r'(_R1)?(_001)?\.fastq\.gz$', '', r1_base)
+    sample_name = re.sub(r'(_R?[12])?(_001)?\.fastq\.gz$', '', r1_base)
 
     logger.info(f"Looking for VCF files for sample: {sample_name}")
 
@@ -1487,8 +1488,9 @@ def main():
                 raise ValueError("--accession is required when using --resume-from-vcf")
 
             # Extract sample name from R1 filename (for consistency with full pipeline)
+            # Support both Illumina (_R1) and SRA (_1) naming conventions
             r1_base = os.path.basename(args.r1)
-            sample_name = re.sub(r'(_R1)?(_001)?\.fastq\.gz$', '', r1_base)
+            sample_name = re.sub(r'(_R?[12])?(_001)?\.fastq\.gz$', '', r1_base)
 
             # Mark Steps 1-6 as skipped
             for step_num in range(1, 7):
@@ -1605,8 +1607,9 @@ def main():
             print_step_header(current_step, total_steps, "Generate Depth File (QC)")
 
             # Extract sample name from R1 filename
+            # Support both Illumina (_R1) and SRA (_1) naming conventions
             r1_base = os.path.basename(args.r1)
-            sample_name = re.sub(r'(_R1)?(_001)?\.fastq\.gz$', '', r1_base)
+            sample_name = re.sub(r'(_R?[12])?(_001)?\.fastq\.gz$', '', r1_base)
 
             # Create results directory
             results_dir = os.path.join(os.getcwd(), f"{sample_name}_results")

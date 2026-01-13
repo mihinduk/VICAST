@@ -54,6 +54,11 @@ else
     JAVA_PATH="java"
 fi
 
+# Initialize conda (required for SLURM jobs)
+if [ -f "/ref/sahlab/software/anaconda3/bin/activate" ]; then
+    source /ref/sahlab/software/anaconda3/bin/activate
+fi
+
 # Check if conda is available
 if ! command -v conda &> /dev/null; then
     echo "❌ Error: conda not found in PATH"
