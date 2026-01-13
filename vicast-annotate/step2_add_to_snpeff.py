@@ -414,9 +414,41 @@ def add_genome_to_snpeff(genome_id, fasta_file, gff_file, snpeff_data_dir=None, 
         else:
             print(f"\n[ERROR] Error building database:")
             print(result.stderr)
-            if "OutOfMemoryError" in result.stderr:
+
+            # Check for specific error types and provide targeted recommendations
+            stderr_lower = result.stderr.lower()
+
+            if "outofmemoryerror" in stderr_lower:
                 print("\nTip: Try increasing memory allocation:")
                 print("  export _JAVA_OPTIONS='-Xmx4g'")
+
+            # Check for validation errors (START/STOP codon issues, CDS comparison failures)
+            if any(keyword in result.stderr for keyword in [
+                "START codon errors",
+                "STOP codon warnings",
+                "CDS sequences comparison failed",
+                "Database check failed",
+                "Protein check",
+                "codon"
+            ]):
+                print("\n" + "="*60)
+                print("VALIDATION ERROR DETECTED")
+                print("="*60)
+                print("\nThis error typically occurs with:")
+                print("  - Polyprotein genomes (mat_peptide features)")
+                print("  - Genomes with non-standard START/STOP codons")
+                print("  - CDS features that don't have proper codon boundaries")
+                print("\n💡 RECOMMENDED SOLUTION:")
+                print("  Rerun with --no-validate flag to skip CDS/protein validation:")
+                print(f"  python3 step2_add_to_snpeff.py {genome_id} <tsv_file> --no-validate")
+                if update:
+                    print(f"  python3 step2_add_to_snpeff.py {genome_id} <tsv_file> --update --no-validate")
+                print("\nThe --no-validate flag is safe for viral genomes where:")
+                print("  - Proteins are cleaved from polyproteins")
+                print("  - Individual CDS features don't have START/STOP codons")
+                print("  - Annotations come from mature peptide (mat_peptide) features")
+                print("="*60)
+
             return False
             
     except Exception as e:
