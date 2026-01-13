@@ -105,15 +105,15 @@ CLEANED_R2="../cleaned_seqs/${R2_BASE}.qc.fastq.gz"
 
 if [ -f "$CLEANED_R1" ] && [ -f "$CLEANED_R2" ]; then
     echo "  Using cleaned reads: $CLEANED_R1 and $CLEANED_R2"
-    $GENOMICS_CMD bwa mem -t "$THREADS" "${ACCESSION}.fasta" "$CLEANED_R1" "$CLEANED_R2" | \
-        $GENOMICS_CMD samtools view -@ "$THREADS" -bS - | \
-        $GENOMICS_CMD samtools sort -@ "$THREADS" -o "${SAMPLE_NAME}_quick.bam" -
+    $GENOMICS_CMD bash -c "bwa mem -t $THREADS ${ACCESSION}.fasta $CLEANED_R1 $CLEANED_R2 | \
+        samtools view -@ $THREADS -bS - | \
+        samtools sort -@ $THREADS -o ${SAMPLE_NAME}_quick.bam -"
 else
     echo "  Warning: Cleaned reads not found, using original reads"
     echo "  Looking for: $CLEANED_R1 and $CLEANED_R2"
-    $GENOMICS_CMD bwa mem -t "$THREADS" "${ACCESSION}.fasta" "../$R1" "../$R2" | \
-        $GENOMICS_CMD samtools view -@ "$THREADS" -bS - | \
-        $GENOMICS_CMD samtools sort -@ "$THREADS" -o "${SAMPLE_NAME}_quick.bam" -
+    $GENOMICS_CMD bash -c "bwa mem -t $THREADS ${ACCESSION}.fasta ../$R1 ../$R2 | \
+        samtools view -@ $THREADS -bS - | \
+        samtools sort -@ $THREADS -o ${SAMPLE_NAME}_quick.bam -"
 fi
 
 $GENOMICS_CMD samtools index "${SAMPLE_NAME}_quick.bam"
@@ -245,7 +245,7 @@ fi
 eval "$(conda shell.bash hook)"
 conda activate viral_assembly
 # Build MEGAHIT command with conditional extreme memory settings
-MEGAHIT_CMD="megahit -1 \"${R1_BASE}.qc.fastq.gz\" -2 \"${R2_BASE}.qc.fastq.gz\" -o \"assembly_${SAMPLE_NAME}\" --presets meta-sensitive --min-contig-len 500 -t \"$THREADS\""
+MEGAHIT_CMD="megahit -1 \"${SAMPLE_NAME}_R1.qc.fastq.gz\" -2 \"${SAMPLE_NAME}_R2.qc.fastq.gz\" -o \"assembly_${SAMPLE_NAME}\" --presets meta-sensitive --min-contig-len 500 -t \"$THREADS\""
 
 if [ -n "$EXTREME_MEMORY_FLAG" ]; then
     echo "Adding extreme memory settings for MEGAHIT..."
