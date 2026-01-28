@@ -136,18 +136,15 @@ if [ $PIPELINE_EXIT_CODE -eq 0 ]; then
 
 ## Pipeline already completed:#   - QC and trimming (fastp)#   - Alignment to reference (BWA)#   - Variant calling (LoFreq)#   - Variant annotation (SnpEff)#   - Depth file generation (output: ${SAMPLE_NAME}_results/${SAMPLE_NAME}_depth.txt)## Optional post-processing steps:
 
-# Module 3: Parse mutations
+# 1. Parse mutations for filtering
 ${MAMBA_CMD} \\
   python3 ${PIPELINE_BASE}/viral_pipeline/visualization/parse_snpeff_tsv.py \\
   "cleaned_seqs/variants/${SAMPLE_NAME}.snpEFF.ann.tsv" \\
   "${SAMPLE_NAME}_results/${SAMPLE_NAME}_filtered_mutations.tsv" \\
   --quality 1000 --depth 200 --freq 0.01
 
-# Modules 4 & 5 (visualization) removed - focus on data generation
-# Visualization broke with new genomes due to hardcoded assumptions
-# Use generated TSV files for custom visualization as needed
 
-# Module 7: Diagnostic Report (Optional)
+# 2. Diagnostic Report (Optional)
 sbatch ${PIPELINE_BASE}/viral_pipeline/analysis/submit_viral_diagnostic.sh \\
   "${R1}" \\
   "${R2}" \\
@@ -155,7 +152,7 @@ sbatch ${PIPELINE_BASE}/viral_pipeline/analysis/submit_viral_diagnostic.sh \\
   diagnostic_${SAMPLE_NAME} \\
   4
 
-# Module 8: Generate consensus
+# 3. Generate consensus
 ${MAMBA_CMD} \\
   python3 ${PIPELINE_BASE}/viral_pipeline/utils/generate_filtered_consensus.py \\
   --vcf ${SAMPLE_NAME}_results/${SAMPLE_NAME}_filtered_mutations.tsv \\
