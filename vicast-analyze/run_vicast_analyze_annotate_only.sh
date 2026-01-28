@@ -92,7 +92,7 @@ echo ""
 
 # Verify QC workflow outputs exist
 echo "Verifying QC workflow outputs..."
-SAMPLE_NAME=$(basename "$R1" | sed 's/_R1\\.fastq\\.gz$//' | sed 's/_R1\\.qc\\.fastq\\.gz$//')
+SAMPLE_NAME=$(basename "$R1" | sed -E "s/_R?[12](_[0-9]+)?..*$//")
 
 if [ ! -d "./cleaned_seqs/variants" ]; then
     echo ""

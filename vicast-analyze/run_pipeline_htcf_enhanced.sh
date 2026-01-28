@@ -46,7 +46,7 @@ if [ $# -eq 5 ] && [ "$5" == "--large-files" ]; then
 fi
 
 # Extract sample name from R1 filename
-SAMPLE_NAME=$(basename "$R1" | sed 's/_R[12]\..*//')
+SAMPLE_NAME=$(basename "$R1" | sed -E "s/_R?[12](_[0-9]+)?..*$//")
 
 # Get the directory where this script is located (auto-detection)
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"

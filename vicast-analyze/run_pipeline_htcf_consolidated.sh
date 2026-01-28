@@ -185,7 +185,7 @@ if [ $PIPELINE_EXIT_CODE -eq 0 ]; then
     echo ""
     
     # Extract sample name from R1 filename to only show files for current sample
-    SAMPLE_NAME=$(basename "$R1" | sed 's/_R1\.fastq\.gz$//' | sed 's/_R1\.qc\.fastq\.gz$//')
+    SAMPLE_NAME=$(basename "$R1" | sed -E "s/_R?[12](_[0-9]+)?..*$//")
     
     echo "Output files:"
     find ./cleaned_seqs/variants -name "*${SAMPLE_NAME}*.tsv" -o -name "*${SAMPLE_NAME}*.vcf" 2>/dev/null | sort

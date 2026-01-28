@@ -106,7 +106,7 @@ if [ ! -f "$PIPELINE_SCRIPT" ]; then
 fi
 
 # Extract sample name
-SAMPLE_NAME=$(basename "$R1" | sed 's/_R[12]\..*//')
+SAMPLE_NAME=$(basename "$R1" | sed -E "s/_R?[12](_[0-9]+)?..*$//")
 
 # Ask user for mode if not specified
 if [ -z "$MODE" ]; then
