@@ -78,8 +78,11 @@ else
 fi
 
 # Initialize base filenames for consistent use throughout script
-R1_BASE=$(basename "$R1" .fastq.gz)
-R2_BASE=$(basename "$R2" .fastq.gz)
+# Extract sample name (strip _1/_2 or _R1/_R2 suffix) - same pattern as wrapper scripts
+SAMPLE_BASE=$(basename "$R1" | sed -E "s/_R?[12](_[0-9]+)?..*$//")
+# Construct base filenames with _R1/_R2 suffix to match QC output files
+R1_BASE="${SAMPLE_BASE}_R1"
+R2_BASE="${SAMPLE_BASE}_R2"
 echo "Base filenames: $R1_BASE and $R2_BASE"
 
 # Step 1: Quick mapping check
