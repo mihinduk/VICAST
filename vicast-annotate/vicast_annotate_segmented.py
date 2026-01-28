@@ -717,6 +717,15 @@ After successful completion:
         print("\nNote: VCF CHROM field must match segment names in FASTA")
         if segment_names:
             print(f"  Expected CHROM values: {', '.join(segment_names)}")
+        print("\n" + "-"*60)
+        print("NEXT STEPS: Run complete variant calling pipeline")
+        print("-"*60)
+        print("\nTo analyze sequencing data with this database:")
+        print("  cd /path/to/VICAST/vicast-analyze")
+        print(f"  bash submit_pipeline.sh --slurm R1.fastq.gz R2.fastq.gz {args.genome_id} <threads>")
+        print("\nOr for non-SLURM environments:")
+        print(f"  python3 viral_pipeline.py R1.fastq.gz R2.fastq.gz {args.genome_id}")
+        print("\nSee vicast-analyze/README.md for full documentation")
         print("\n" + "="*60)
     else:
         print("\nFailed to add genome to SnpEff")
