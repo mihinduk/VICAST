@@ -371,6 +371,11 @@ After running this script:
     print("   - Check gene names and products")
     print("   - Add missing annotations")
     print("   - Remove unwanted features")
+    print("")
+    print("   Valid actions:")
+    print("     KEEP   - Keep this feature exactly as-is")
+    print("     MODIFY - Keep but allow modifications")
+    print("     DELETE - Remove this feature")
     print("   - Correct any errors")
     
     print(f"\n2. SAVE your edited file (keep it as TSV format)")
