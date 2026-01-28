@@ -134,11 +134,7 @@ if [ $PIPELINE_EXIT_CODE -eq 0 ]; then
     cat > "next_steps_${SAMPLE_NAME}.txt" << EOF
 # Next steps for ${SAMPLE_NAME} (${ACCESSION})
 
-# Module 2: Generate depth file
-${MAMBA_CMD} bash -c '
-  mkdir -p ${SAMPLE_NAME}_results &&
-  echo -e "chrom\\tposition\\tdepth" > ${SAMPLE_NAME}_results/${SAMPLE_NAME}_depth.txt &&
-  samtools depth cleaned_seqs/mapping/${SAMPLE_NAME}.lofreq.final.bam >> ${SAMPLE_NAME}_results/${SAMPLE_NAME}_depth.txt'
+## Pipeline already completed:#   - QC and trimming (fastp)#   - Alignment to reference (BWA)#   - Variant calling (LoFreq)#   - Variant annotation (SnpEff)#   - Depth file generation (output: ${SAMPLE_NAME}_results/${SAMPLE_NAME}_depth.txt)## Optional post-processing steps:
 
 # Module 3: Parse mutations
 ${MAMBA_CMD} \\
