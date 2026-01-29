@@ -131,7 +131,7 @@ def generate_individual_variant_proteins(ref_seq, mutations_df, virus_config, su
     if not gene_coords:
         print("No gene coordinates found - generating single polyprotein consensus")
         consensus_seq = apply_mutations_single_sequence(ref_seq, mutations_df)
-        protein = viral_translate(consensus_seq, coordinates=None, stop_at_stop_codon=True)
+        protein = viral_translate(consensus_seq, coordinates=None, stop_at_stop_codon=False)
         return {('Polyprotein', protein, tuple()): {
             'sequence': protein,
             'allele_ids': [''],

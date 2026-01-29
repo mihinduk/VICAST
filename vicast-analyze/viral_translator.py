@@ -91,7 +91,7 @@ def extract_sequence_from_coordinates(dna_sequence, coordinates):
 
 def viral_translate(dna_sequence, coordinates=None, stop_at_stop_codon=False):
     """
-    Custom translator for viral genes - no start codon detection\!
+    Custom translator for viral genes - no start codon detection!
     
     Args:
         dna_sequence: DNA sequence string
