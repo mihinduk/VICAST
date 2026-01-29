@@ -66,6 +66,9 @@ def filter_vcf(vcf_file, quality_cutoff, depth_cutoff, freq_cutoff):
 def find_gene_for_position(pos, gene_coords):
     """Find which gene contains a given position"""
     for gene, (start, end) in gene_coords.items():
+        # Skip UTRs - not translated
+        if "UTR" in gene:
+            continue
         if start <= pos <= end:
             return gene, start, end
     return None, None, None
@@ -155,6 +158,9 @@ def generate_individual_variant_proteins(ref_seq, mutations_df, virus_config, su
     
     # For each gene, create proteins
     for gene, (start, end) in gene_coords.items():
+        # Skip UTRs - they are not translated
+        if "UTR" in gene:
+            continue
         if gene in gene_mutations:
             # This gene has mutations - create separate proteins for each mutation
             gene_muts = gene_mutations[gene]
