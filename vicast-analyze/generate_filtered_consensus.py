@@ -340,7 +340,7 @@ def main():
         description=f"Consensus with {len(mutations_df)} mutations (Q>={args.quality}, D>={args.depth}, F>={args.freq})"
     )
     
-    consensus_file = f"{args.output_prefix}_consensus.fasta"
+    consensus_file = f"{args.output_prefix}.fasta"
     SeqIO.write([consensus_record], consensus_file, "fasta")
     print(f"Wrote consensus genome to: {consensus_file}")
     
