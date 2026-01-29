@@ -186,41 +186,42 @@ def generate_individual_variant_proteins(ref_seq, mutations_df, virus_config, su
         if gene in gene_mutations and has_nonsynonymous:
             # This gene has mutations - create separate proteins for each mutation
             gene_muts = gene_mutations[gene]
+
+            # Apply ALL consensus mutations to create ONE protein
+            # Create variant sequence with ALL mutations for this gene
+            gene_muts_df = pd.DataFrame(gene_muts)
+            variant_seq = apply_mutations_single_sequence(ref_seq, gene_muts_df)
+            
+            # Extract gene sequence and translate
+            gene_seq = variant_seq[start-1:end]
+            protein = viral_translate(gene_seq, coordinates=None, stop_at_stop_codon=False)
+            
+            # Collect ALL non-synonymous mutations for this protein
+            all_mutations = []
+            all_mutation_ids = []
+            max_freq = 0
             
             for mut in gene_muts:
-                # Create consensus with just this one mutation
-                single_mut_df = pd.DataFrame([mut])
-                variant_seq = apply_mutations_single_sequence(ref_seq, single_mut_df)
-                
-                # Extract gene sequence and translate
-                gene_seq = variant_seq[start-1:end]
-                protein = viral_translate(gene_seq, coordinates=None, stop_at_stop_codon=False)
-                
-                # Parse amino acid change
-                ref_aa, aa_pos, alt_aa = parse_aa_change(mut.get('HGVSp', ''))
-                if ref_aa and alt_aa:
+                ref_aa, aa_pos, alt_aa = parse_aa_change(mut.get("HGVSp", ""))
+                if ref_aa and alt_aa and ref_aa != alt_aa:  # Only non-synonymous
                     aa_change = f"{ref_aa}{aa_pos}{alt_aa}"
-                    
                     mutation_id = f"{mut['POS']}{mut['REF']}>{mut['ALT']}"
-                    # Track mutation summary (includes synonymous for report)
-                    if ref_aa == alt_aa:
-                        continue
-                    
-                    # Create unique key for this protein variant
-                    key = (gene, protein, (aa_change,))
-                    
-                    if key not in all_proteins:
-                        all_proteins[key] = {
-                            'sequence': protein,
-                            'allele_ids': [mutation_id],
-                            'mutations': [aa_change],
-                            'freq': mut.get('Allele_Frequency', 0),
-                            'effect': mut.get('EFFECT', 'unknown'),
-                            'gene': gene
-                        }
-                    else:
-                        # This should not happen with individual mutations, but handle it
-                        all_proteins[key]['allele_ids'].append(mutation_id)
+                    all_mutations.append(aa_change)
+                    all_mutation_ids.append(mutation_id)
+                    if mut.get("Allele_Frequency", 0) > max_freq:
+                        max_freq = mut.get("Allele_Frequency", 0)
+            
+            # Create ONE protein with ALL mutations
+            if all_mutations:
+                key = (gene, protein, tuple(all_mutations))
+                all_proteins[key] = {
+                    'sequence': protein,
+                    'allele_ids': all_mutation_ids,
+                    'mutations': all_mutations,
+                    'freq': max_freq,  # Use highest frequency
+                    'effect': 'missense_variant',
+                    'gene': gene
+                }
         else:
             # This gene has no mutations - use reference sequence
             gene_seq = full_consensus[start-1:end]  # Use full consensus in case mutations affect overlapping regions
@@ -390,10 +391,13 @@ def main():
             desc = f"{gene} protein"
         
         # Add nucleotide change info if available
-        if protein_data['allele_ids'] and protein_data['allele_ids'][0]:
-            nuc_change = protein_data['allele_ids'][0]
-            if nuc_change != '':
-                desc += f" (from {nuc_change})"
+        if protein_data['allele_ids'] and any(protein_data['allele_ids']):
+            nuc_changes = [nuc for nuc in protein_data['allele_ids'] if nuc]
+            if nuc_changes:
+                if len(nuc_changes) == 1:
+                    desc += f" (from {nuc_changes[0]})"
+                else:
+                    desc += f" (from {', '.join(nuc_changes)})"
         
         # Add allele frequency if available
         if 'freq' in protein_data and protein_data['freq'] > 0:
