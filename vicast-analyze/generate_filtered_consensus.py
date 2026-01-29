@@ -188,12 +188,52 @@ def generate_individual_variant_proteins(ref_seq, mutations_df, virus_config, su
             gene_muts = gene_mutations[gene]
 
             # Apply ALL consensus mutations to create ONE protein
-            # Create variant sequence with ALL mutations for this gene
-            gene_muts_df = pd.DataFrame(gene_muts)
-            variant_seq = apply_mutations_single_sequence(ref_seq, gene_muts_df)
+            # CRITICAL: Extract gene from reference FIRST, then apply mutations
+            # This avoids coordinate shift issues from upstream indels
+            ref_gene_seq = ref_seq[start-1:end]
             
-            # Extract gene sequence and translate
-            gene_seq = variant_seq[start-1:end]
+            # Filter mutations to only those within this gene's coordinates
+            gene_specific_muts = [mut for mut in gene_muts if start <= int(mut['POS']) <= end]
+            
+            if gene_specific_muts:
+                # Adjust mutation positions to be relative to gene start (0-indexed)
+                gene_muts_df = pd.DataFrame(gene_specific_muts)
+                gene_muts_df['POS_ADJUSTED'] = gene_muts_df['POS'].astype(int) - (start - 1)
+                
+                # Apply mutations to gene sequence
+                gene_seq_list = list(ref_gene_seq)
+                for _, mut in gene_muts_df.iterrows():
+                    pos_in_gene = int(mut['POS_ADJUSTED']) - 1  # Convert to 0-indexed
+                    ref_base = mut['REF']
+                    alt_base = mut['ALT']
+                    
+                    # Handle SNPs, insertions, and deletions
+                    ref_len = len(ref_base)
+                    alt_len = len(alt_base)
+                    
+                    # Check if position is valid and ref matches
+                    if pos_in_gene < len(gene_seq_list):
+                        # For indels, we need to handle differently
+                        if ref_len == 1 and alt_len == 1:
+                            # Simple SNP
+                            if gene_seq_list[pos_in_gene] == ref_base:
+                                gene_seq_list[pos_in_gene] = alt_base
+                        elif ref_len < alt_len:
+                            # Insertion: replace ref and insert extra bases
+                            if pos_in_gene + ref_len <= len(gene_seq_list):
+                                # Replace the ref bases
+                                gene_seq_list[pos_in_gene:pos_in_gene+ref_len] = list(alt_base)
+                        elif ref_len > alt_len:
+                            # Deletion: replace ref bases with alt
+                            if pos_in_gene + ref_len <= len(gene_seq_list):
+                                gene_seq_list[pos_in_gene:pos_in_gene+ref_len] = list(alt_base)
+                
+                gene_seq = ''.join(gene_seq_list)
+            else:
+                # No mutations in this gene
+                gene_seq = ref_gene_seq
+            
+            # Translate
             protein = viral_translate(gene_seq, coordinates=None, stop_at_stop_codon=False)
             
             # Collect ALL non-synonymous mutations for this protein
@@ -223,8 +263,8 @@ def generate_individual_variant_proteins(ref_seq, mutations_df, virus_config, su
                     'gene': gene
                 }
         else:
-            # This gene has no mutations - use reference sequence
-            gene_seq = full_consensus[start-1:end]  # Use full consensus in case mutations affect overlapping regions
+            # This gene has no mutations (or only synonymous) - use reference sequence
+            gene_seq = ref_seq[start-1:end]  # Use reference (coordinates are stable)
             protein = viral_translate(gene_seq, coordinates=None, stop_at_stop_codon=False)
             
             key = (gene, protein, tuple())
