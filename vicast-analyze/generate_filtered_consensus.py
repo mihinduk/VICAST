@@ -77,33 +77,91 @@ def parse_aa_change(hgvsp):
     """Parse amino acid change from HGVSp annotation"""
     if not hgvsp or pd.isna(hgvsp):
         return None, None, None
+    if not hgvsp or pd.isna(hgvsp):
+        return None, None, None
     
-    # Handle various formats: p.Leu287Ile, p.L287I, etc
     import re
-    pattern = r'p\.([A-Za-z]+)(\d+)([A-Za-z]+)'
-    match = re.search(pattern, hgvsp)
-    if match:
-        ref_aa = match.group(1)
-        position = int(match.group(2))
-        alt_aa = match.group(3)
-        
-        # Convert 3-letter to 1-letter if needed
-        aa_3to1 = {
-            'Ala': 'A', 'Arg': 'R', 'Asn': 'N', 'Asp': 'D', 'Cys': 'C',
-            'Gln': 'Q', 'Glu': 'E', 'Gly': 'G', 'His': 'H', 'Ile': 'I',
-            'Leu': 'L', 'Lys': 'K', 'Met': 'M', 'Phe': 'F', 'Pro': 'P',
-            'Ser': 'S', 'Thr': 'T', 'Trp': 'W', 'Tyr': 'Y', 'Val': 'V',
-            'Ter': '*', 'TER': '*'
-        }
-        
-        if len(ref_aa) > 1:
-            ref_aa = aa_3to1.get(ref_aa, ref_aa)
-        if len(alt_aa) > 1:
-            alt_aa = aa_3to1.get(alt_aa, alt_aa)
-            
+    
+    # Handle insertions: p.Arg214_Asp215insGluProGlu
+    ins_pattern = r'p\.([A-Za-z]+)(\d+)_([A-Za-z]+)(\d+)ins([A-Za-z]+)'
+    ins_match = re.search(ins_pattern, hgvsp)
+    if ins_match:
+        # Return as "R214_D215insEPE" format
+        ref_aa1 = convert_aa_code(ins_match.group(1))
+        pos1 = int(ins_match.group(2))
+        ref_aa2 = convert_aa_code(ins_match.group(3))
+        pos2 = int(ins_match.group(4))
+        inserted = convert_aa_code(ins_match.group(5))
+        return f"{ref_aa1}{pos1}_{ref_aa2}{pos2}", None, f"ins{inserted}"
+    
+    # Handle deletions: p.Arg214_Asp215del or p.Arg214del
+    del_range_pattern = r'p\.([A-Za-z]+)(\d+)_([A-Za-z]+)(\d+)del'
+    del_match = re.search(del_range_pattern, hgvsp)
+    if del_match:
+        ref_aa1 = convert_aa_code(del_match.group(1))
+        pos1 = int(del_match.group(2))
+        ref_aa2 = convert_aa_code(del_match.group(3))
+        pos2 = int(del_match.group(4))
+        return f"{ref_aa1}{pos1}_{ref_aa2}{pos2}", None, "del"
+    
+    del_single_pattern = r'p\.([A-Za-z]+)(\d+)del'
+    del_single_match = re.search(del_single_pattern, hgvsp)
+    if del_single_match:
+        ref_aa = convert_aa_code(del_single_match.group(1))
+        pos = int(del_single_match.group(2))
+        return ref_aa, pos, "del"
+    
+    # Handle delins: p.Arg214_Asp215delinsXxx
+    delins_pattern = r'p\.([A-Za-z]+)(\d+)_([A-Za-z]+)(\d+)delins([A-Za-z]+)'
+    delins_match = re.search(delins_pattern, hgvsp)
+    if delins_match:
+        ref_aa1 = convert_aa_code(delins_match.group(1))
+        pos1 = int(delins_match.group(2))
+        ref_aa2 = convert_aa_code(delins_match.group(3))
+        pos2 = int(delins_match.group(4))
+        inserted = convert_aa_code(delins_match.group(5))
+        return f"{ref_aa1}{pos1}_{ref_aa2}{pos2}", None, f"delins{inserted}"
+    
+    # Handle simple substitutions: p.Leu287Ile
+    sub_pattern = r'p\.([A-Za-z]+)(\d+)([A-Za-z]+)'
+    sub_match = re.search(sub_pattern, hgvsp)
+    if sub_match:
+        ref_aa = convert_aa_code(sub_match.group(1))
+        position = int(sub_match.group(2))
+        alt_aa = convert_aa_code(sub_match.group(3))
         return ref_aa, position, alt_aa
     
     return None, None, None
+
+def convert_aa_code(aa_code):
+    """Convert 3-letter or 1-letter amino acid code to 1-letter"""
+    if len(aa_code) == 1:
+        return aa_code
+    
+    aa_3to1 = {
+        'Ala': 'A', 'Arg': 'R', 'Asn': 'N', 'Asp': 'D', 'Cys': 'C',
+        'Gln': 'Q', 'Glu': 'E', 'Gly': 'G', 'His': 'H', 'Ile': 'I',
+        'Leu': 'L', 'Lys': 'K', 'Met': 'M', 'Phe': 'F', 'Pro': 'P',
+        'Ser': 'S', 'Thr': 'T', 'Trp': 'W', 'Tyr': 'Y', 'Val': 'V',
+        'Ter': '*', 'TER': '*'
+    }
+    
+    # Handle multi-AA codes (e.g., "GluProGlu" -> "EPE")
+    result = ""
+    i = 0
+    while i < len(aa_code):
+        # Try 3-letter code
+        if i + 3 <= len(aa_code):
+            three_letter = aa_code[i:i+3]
+            if three_letter in aa_3to1:
+                result += aa_3to1[three_letter]
+                i += 3
+                continue
+        # If not found, keep as-is and move on
+        result += aa_code[i]
+        i += 1
+    
+    return result if result else aa_code
 
 def apply_mutations_single_sequence(ref_seq, mutations_df, allele_id=""):
     """Apply mutations to single reference sequence"""
@@ -166,16 +224,27 @@ def generate_individual_variant_proteins(ref_seq, mutations_df, virus_config, su
             # Check if any mutations are non-synonymous
             for mut in gene_mutations[gene]:
                 ref_aa_check, aa_pos_check, alt_aa_check = parse_aa_change(mut.get("HGVSp", ""))
-                if ref_aa_check and alt_aa_check and ref_aa_check != alt_aa_check:
-                    has_nonsynonymous = True
-                    break
+                if ref_aa_check and alt_aa_check:
+                    # Indels (ins, del, delins) are always non-synonymous
+                    if alt_aa_check.startswith('ins') or alt_aa_check.startswith('del'):
+                        has_nonsynonymous = True
+                        break
+                    # Substitutions: check if different
+                    if ref_aa_check != alt_aa_check:
+                        has_nonsynonymous = True
+                        break
 
         # Add ALL mutations to report (including synonymous)
         if gene in gene_mutations:
             for mut in gene_mutations[gene]:
                 ref_aa_all, aa_pos_all, alt_aa_all = parse_aa_change(mut.get("HGVSp", ""))
                 if ref_aa_all and alt_aa_all:
-                    aa_change_all = f"{ref_aa_all}{aa_pos_all}{alt_aa_all}"
+                    # Format AA change appropriately
+                    if aa_pos_all is not None:
+                        aa_change_all = f"{ref_aa_all}{aa_pos_all}{alt_aa_all}"
+                    else:
+                        # For insertions/deletions, ref_aa already contains position info
+                        aa_change_all = f"{ref_aa_all}{alt_aa_all}"
                     mutation_id_all = f"{mut['POS']}{mut['REF']}>{mut['ALT']}"
                     protein_mutation_summary[gene][aa_change_all].append({
                         'nucleotide': mutation_id_all,
@@ -243,8 +312,16 @@ def generate_individual_variant_proteins(ref_seq, mutations_df, virus_config, su
             
             for mut in gene_muts:
                 ref_aa, aa_pos, alt_aa = parse_aa_change(mut.get("HGVSp", ""))
-                if ref_aa and alt_aa and ref_aa != alt_aa:  # Only non-synonymous
-                    aa_change = f"{ref_aa}{aa_pos}{alt_aa}"
+                # Include non-synonymous substitutions and all indels
+                is_indel = alt_aa and (alt_aa.startswith('ins') or alt_aa.startswith('del'))
+                is_nonsynonymous_sub = ref_aa and alt_aa and ref_aa != alt_aa and not is_indel
+                if is_indel or is_nonsynonymous_sub:  # Only non-synonymous or indels
+                    # Format AA change appropriately
+                    if aa_pos is not None:
+                        aa_change = f"{ref_aa}{aa_pos}{alt_aa}"
+                    else:
+                        # For indels, ref_aa already contains position info (e.g., "R214_D215")
+                        aa_change = f"{ref_aa}{alt_aa}"
                     mutation_id = f"{mut['POS']}{mut['REF']}>{mut['ALT']}"
                     all_mutations.append(aa_change)
                     all_mutation_ids.append(mutation_id)
