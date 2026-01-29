@@ -211,8 +211,8 @@ if [ -f "$EXISTING_R1" ] && [ -f "$EXISTING_R2" ]; then
     echo "  Using: $EXISTING_R2"
     
     # Create symlinks using the same base filenames for consistency
-    ln -sf "$EXISTING_R1" "${R1_BASE}.qc.fastq.gz"
-    ln -sf "$EXISTING_R2" "${R2_BASE}.qc.fastq.gz"
+    ln -sf "$EXISTING_R1" "${SAMPLE_NAME}_R1.qc.fastq.gz"
+    ln -sf "$EXISTING_R2" "${SAMPLE_NAME}_R2.qc.fastq.gz"
     
     # Create a placeholder fastp report
     echo "Reused existing cleaned reads from main pipeline" > "${SAMPLE_NAME}_fastp_reused.txt"
