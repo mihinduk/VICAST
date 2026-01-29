@@ -683,7 +683,7 @@ After successful addition:
         print(f"  python3 viral_pipeline.py R1.fastq.gz R2.fastq.gz {args.genome_id}")
         print("\nSee vicast-analyze/README.md for full documentation")
         print("\n" + "-"*60)
-        print("OPTIONAL: Add to known_viruses.json for consensus generation")
+        print("STEP 3: Add to known_viruses.json for individual protein consensus")
         print("-"*60)
         print("\nTo enable individual protein consensus sequences:")
         print("  cd /path/to/VICAST/vicast-annotate")
