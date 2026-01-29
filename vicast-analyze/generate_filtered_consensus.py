@@ -161,7 +161,16 @@ def generate_individual_variant_proteins(ref_seq, mutations_df, virus_config, su
         # Skip UTRs - they are not translated
         if "UTR" in gene:
             continue
+        has_nonsynonymous = False
         if gene in gene_mutations:
+            # Check if any mutations are non-synonymous
+            for mut in gene_mutations[gene]:
+                ref_aa_check, aa_pos_check, alt_aa_check = parse_aa_change(mut.get("HGVSp", ""))
+                if ref_aa_check and alt_aa_check and ref_aa_check != alt_aa_check:
+                    has_nonsynonymous = True
+                    break
+        
+        if gene in gene_mutations and has_nonsynonymous:
             # This gene has mutations - create separate proteins for each mutation
             gene_muts = gene_mutations[gene]
             
@@ -178,6 +187,11 @@ def generate_individual_variant_proteins(ref_seq, mutations_df, virus_config, su
                 ref_aa, aa_pos, alt_aa = parse_aa_change(mut.get('HGVSp', ''))
                 if ref_aa and alt_aa:
                     aa_change = f"{ref_aa}{aa_pos}{alt_aa}"
+                    
+                    # Skip synonymous mutations (no protein change)
+                    if ref_aa == alt_aa:
+                        continue
+                    
                     mutation_id = f"{mut['POS']}{mut['REF']}>{mut['ALT']}"
                     
                     # Track mutation summary
@@ -195,6 +209,8 @@ def generate_individual_variant_proteins(ref_seq, mutations_df, virus_config, su
                             'sequence': protein,
                             'allele_ids': [mutation_id],
                             'mutations': [aa_change],
+                            'freq': mut.get('Allele_Frequency', 0),
+                            'effect': mut.get('EFFECT', 'unknown'),
                             'gene': gene
                         }
                     else:
@@ -373,6 +389,12 @@ def main():
             nuc_change = protein_data['allele_ids'][0]
             if nuc_change != '':
                 desc += f" (from {nuc_change})"
+        
+        # Add allele frequency if available
+        if 'freq' in protein_data and protein_data['freq'] > 0:
+            freq_pct = protein_data['freq'] * 100
+            desc += f", {freq_pct:.2f}%"
+        
         
         record = SeqRecord(
             Seq(protein_data['sequence']),
