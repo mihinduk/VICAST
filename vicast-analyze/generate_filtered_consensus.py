@@ -188,18 +188,19 @@ def generate_individual_variant_proteins(ref_seq, mutations_df, virus_config, su
                 if ref_aa and alt_aa:
                     aa_change = f"{ref_aa}{aa_pos}{alt_aa}"
                     
-                    # Skip synonymous mutations (no protein change)
-                    if ref_aa == alt_aa:
-                        continue
-                    
                     mutation_id = f"{mut['POS']}{mut['REF']}>{mut['ALT']}"
                     
-                    # Track mutation summary
+                    # Track mutation summary (includes synonymous for report)
                     protein_mutation_summary[gene][aa_change].append({
                         'nucleotide': mutation_id,
                         'effect': mut.get('EFFECT', 'unknown'),
                         'freq': mut.get('Allele_Frequency', 0)
                     })
+                    
+                    # Skip creating protein variant for synonymous mutations
+                    # (they don't change the protein sequence)
+                    if ref_aa == alt_aa:
+                        continue
                     
                     # Create unique key for this protein variant
                     key = (gene, protein, (aa_change,))
@@ -353,7 +354,7 @@ def main():
     consensus_record = SeqRecord(
         Seq(full_consensus),
         id=f"{sample_name}_filtered_consensus",
-        description=f"Consensus with {len(mutations_df)} mutations (Q>={args.quality}, D>={args.depth}, F>={args.freq})"
+        description=f"Consensus with {len(mutations_df)} mutations (Q>={args.quality}, D>={args.depth}, F>={args.freq}) | Mutations: " + ", ".join([f"{row['POS']}{row['REF']}>{row['ALT']}" for _, row in mutations_df.iterrows()])
     )
     
     consensus_file = f"{args.output_prefix}.fasta"
