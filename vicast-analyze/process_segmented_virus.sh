@@ -120,7 +120,11 @@ if [ -f "$QC_R1" ] && [ -f "$QC_R2" ]; then
     echo "Found existing cleaned reads, reusing..."
 else
     echo "Cleaning reads with fastp..."
-    fastp -i "../$R1" -I "../$R2" \
+    # Convert to absolute paths
+    R1_ABS=$(readlink -f "$R1")
+    R2_ABS=$(readlink -f "$R2")
+    
+    fastp -i "$R1_ABS" -I "$R2_ABS" \
           -o "$QC_R1" -O "$QC_R2" \
           -h "${SAMPLE_NAME}_fastp.html" \
           -j "${SAMPLE_NAME}_fastp.json" \
