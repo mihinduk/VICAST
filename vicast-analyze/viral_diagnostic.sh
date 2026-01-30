@@ -495,16 +495,100 @@ if [ -s "${SAMPLE_NAME}_top_hits.tsv" ] && [ $(wc -l < "${SAMPLE_NAME}_top_hits.
     echo "" >> "${SAMPLE_NAME}_diagnostic_report.txt"
 fi
 
-# Add viral hits summary
+# Add improved viral hits summary with coverage filtering
 if [ -s "${SAMPLE_NAME}_viral_blast.tsv" ] && [ $(tail -n +2 "${SAMPLE_NAME}_viral_blast.tsv" | wc -l) -gt 0 ]; then
-    echo "VIRAL HITS DETAIL:" >> "${SAMPLE_NAME}_diagnostic_report.txt"
+    echo "VIRAL CONTAMINATION ANALYSIS:" >> "${SAMPLE_NAME}_diagnostic_report.txt"
     echo "" >> "${SAMPLE_NAME}_diagnostic_report.txt"
     
-    # Extract unique viral organisms from BLAST results
+    # Process viral BLAST results with coverage filtering
+    # Read contig lengths and calculate query coverage for each viral hit
     tail -n +2 "${SAMPLE_NAME}_viral_blast.tsv" | \
-    awk -F'\t' '{print $13}' | \
-    sed 's/.*\[\([^]]*\)\].*/\1/' | \
-    sort | uniq -c | sort -nr | head -10 >> "${SAMPLE_NAME}_diagnostic_report.txt"
+    awk -F'\t' -v sample="${SAMPLE_NAME}" '
+    BEGIN {
+        # Read contig lengths from filtered fasta
+        while ((getline line < sample"_contigs_filtered.fa") > 0) {
+            if (line ~ /^>/) {
+                contig_id = substr(line, 2);
+                split(contig_id, id_parts, " ");
+                contig_id = id_parts[1];
+                if (match(line, /len=([0-9]+)/, len_match)) {
+                    contig_lengths[contig_id] = len_match[1];
+                }
+            }
+        }
+        close(sample"_contigs_filtered.fa");
+    }
+    {
+        # Calculate query coverage
+        query_id = $1;
+        query_start = $7;
+        query_end = $8;
+        subject_title = $13;
+        pident = $3;
+        
+        coverage_length = query_end - query_start + 1;
+        contig_length = contig_lengths[query_id];
+        
+        if (contig_length > 0) {
+            query_coverage = coverage_length * 100 / contig_length;
+            
+            # Extract virus name (simplify)
+            virus_name = subject_title;
+            gsub(/, complete.*/, "", virus_name);
+            gsub(/ complete.*/, "", virus_name);
+            gsub(/ isolate.*/, "", virus_name);
+            gsub(/ strain.*/, "", virus_name);
+            
+            # Store data by coverage category
+            entry = sprintf("%s\t%.1f%%\t%.2f%%", query_id, query_coverage, pident);
+            
+            if (query_coverage >= 80) {
+                high_conf[virus_name] = high_conf[virus_name] "    " entry "\n";
+                high_count[virus_name]++;
+            } else if (query_coverage >= 50) {
+                med_conf[virus_name] = med_conf[virus_name] "    " entry "\n";
+                med_count[virus_name]++;
+            }
+            # Contigs with <50% coverage are excluded
+        }
+    }
+    END {
+        # Report high confidence viral contaminants (>=80% coverage)
+        if (length(high_conf) > 0) {
+            print "CONFIRMED VIRAL CONTAMINANTS (≥80% query coverage):"
+            print "========================================================"
+            for (virus in high_conf) {
+                print ""
+                print virus " (" high_count[virus] " contig" (high_count[virus]>1?"s":"") "):"
+                printf "%s", high_conf[virus];
+            }
+            print ""
+        } else {
+            print "CONFIRMED VIRAL CONTAMINANTS (≥80% query coverage): None"
+            print ""
+        }
+        
+        # Report medium confidence potential viral contaminants (50-80% coverage)
+        if (length(med_conf) > 0) {
+            print "POTENTIAL VIRAL CONTAMINANTS (50-80% query coverage):"
+            print "========================================================"
+            for (virus in med_conf) {
+                print ""
+                print virus " (" med_count[virus] " contig" (med_count[virus]>1?"s":"") "):"
+                printf "%s", med_conf[virus];
+            }
+            print ""
+        } else {
+            print "POTENTIAL VIRAL CONTAMINANTS (50-80% query coverage): None"
+            print ""
+        }
+        
+        print "NOTE: Contigs with <50% query coverage are excluded from viral contamination"
+        print "      assessment, even if they show viral BLAST hits. These may represent:"
+        print "      - Partial viral sequences integrated into host genome"
+        print "      - Non-specific matches to conserved viral domains"
+        print "      - Assembly artifacts"
+    }' >> "${SAMPLE_NAME}_diagnostic_report.txt"
     
     echo "" >> "${SAMPLE_NAME}_diagnostic_report.txt"
 fi
