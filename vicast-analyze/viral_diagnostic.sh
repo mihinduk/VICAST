@@ -571,8 +571,22 @@ echo "GENERATING QC VISUALIZATION REPORT"
 echo "========================================="
 
 # Generate presentation-ready QC report
-# Find the pipeline directory (where this script is located)
-PIPELINE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Find the pipeline directory (handle SLURM path resolution)
+# SLURM copies script to /var/spool/slurmd/jobXXXX/, so we need original path
+if [ -n "$SLURM_JOB_ID" ]; then
+    # Extract original script path from SLURM job details
+    ORIGINAL_SCRIPT=$(scontrol show job $SLURM_JOB_ID | grep -oP 'Command=\K[^ ]+' || echo "")
+    if [ -n "$ORIGINAL_SCRIPT" ]; then
+        PIPELINE_DIR="$(dirname "$ORIGINAL_SCRIPT")"
+    else
+        # Fallback to bash source (works for non-SLURM execution)
+        PIPELINE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    fi
+else
+    # Not running under SLURM, use normal path
+    PIPELINE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+fi
+
 QC_SCRIPT_PATH="${PIPELINE_DIR}/qc_with_simple_plots.py"
 
 if [ -f "$QC_SCRIPT_PATH" ]; then
