@@ -1,4 +1,10 @@
 #!/bin/bash
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=32G
+#SBATCH --time=2:00:00
+#SBATCH --job-name=viral_diagnostic
+#SBATCH --output=%x_%j.out
+
 # Viral Contamination Diagnostic Module
 # Runs mapping check, assembly, and viral BLAST for sample quality assessment
 # Usage: ./viral_diagnostic.sh <R1> <R2> <accession> <sample_name> [threads]
@@ -248,7 +254,7 @@ fi
 eval "$(conda shell.bash hook)"
 conda activate viral_assembly
 # Build MEGAHIT command with conditional extreme memory settings
-MEGAHIT_CMD="megahit -1 \"${SAMPLE_NAME}_R1.qc.fastq.gz\" -2 \"${SAMPLE_NAME}_R2.qc.fastq.gz\" -o \"assembly_${SAMPLE_NAME}\" --presets meta-sensitive --min-contig-len 500 -t \"$THREADS\""
+MEGAHIT_CMD="megahit -1 \"${SAMPLE_NAME}_R1.qc.fastq.gz\" -2 \"${SAMPLE_NAME}_R2.qc.fastq.gz\" -o \"assembly_${SAMPLE_NAME}\" --presets meta-sensitive --min-contig-len 500 --memory 0.7 -t \"$THREADS\""
 
 if [ -n "$EXTREME_MEMORY_FLAG" ]; then
     echo "Adding extreme memory settings for MEGAHIT..."
