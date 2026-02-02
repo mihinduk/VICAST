@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=32G
-#SBATCH --time=6:00:00
+#SBATCH --time=12:00:00
 #SBATCH --job-name=segmented_virus
 #SBATCH --output=%x_%j.out
 
@@ -182,7 +182,7 @@ PYEOF
     samtools faidx "$REF_PATH" 2>/dev/null
     
     bwa mem -t "$THREADS" "$REF_PATH" "$QC_R1" "$QC_R2" 2>/dev/null | \
-    samtools view -@ "$THREADS" -bS - | \
+    samtools view -@ "$THREADS" -bS -f 2 -q 20 - | \
     samtools sort -@ "$THREADS" -o "${seg_name}/${seg_name}.bam" -
     
     samtools index "${seg_name}/${seg_name}.bam"
