@@ -179,6 +179,7 @@ PYEOF
     # Align to reference
     echo "  Aligning reads..."
     bwa index "$REF_PATH" 2>/dev/null
+    samtools faidx "$REF_PATH" 2>/dev/null
     
     bwa mem -t "$THREADS" "$REF_PATH" "$QC_R1" "$QC_R2" 2>/dev/null | \
     samtools view -@ "$THREADS" -bS - | \
