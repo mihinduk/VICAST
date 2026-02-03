@@ -55,7 +55,40 @@ python step2_add_to_snpeff.py NC_001477 NC_001477_no_polyprotein.tsv
 
 ---
 
-### Use Case 2: GenBank Submission
+### Use Case 2: Polyprotein Virus Analysis (Flavivirus, Picornavirus, etc.)
+
+**Scenario**: Studying adaptation in Dengue, Zika, HCV, or other polyprotein-encoding viruses.
+
+**Recommended Tool**: **VICAST**
+
+**Why**:
+- Specialized polyprotein → mature peptide annotation
+- Variants annotated at individual protein level, not "polyprotein"
+- Critical for interpreting NS3, NS5, and other functional domains
+- SnpEff reports meaningful gene-level effects
+
+**Workflow**:
+```bash
+# 1. Annotate with polyprotein skipping (default)
+python vicast_annotate.py NC_001477  # Dengue
+
+# 2. Review TSV - verify cleavage sites
+# File shows individual mature peptides:
+#   C, prM, E, NS1, NS2A, NS2B, NS3, NS4A, NS4B, NS5
+
+# 3. Build SnpEff database
+python step2_add_to_snpeff.py NC_001477 NC_001477_no_polyprotein.tsv
+
+# 4. Variant analysis - now shows meaningful annotations
+./run_vicast_analyze_full.sh reads_R1.fq reads_R2.fq NC_001477
+# Output: "p.Glu135Val in NS5" instead of "p.Glu2457Val in polyprotein"
+```
+
+**Result**: Variants mapped to functional domains (e.g., NS3 helicase, NS5 RdRp) rather than generic polyprotein positions.
+
+---
+
+### Use Case 3: GenBank Submission
 
 **Scenario**: You've sequenced a novel virus isolate and want to submit to GenBank.
 
@@ -78,7 +111,7 @@ v-annotate.pl --mdir vadr-models novel_virus.fasta output_dir
 
 ---
 
-### Use Case 3: Novel Virus Without Reference
+### Use Case 4: Novel Virus Without Reference
 
 **Scenario**: You've discovered a novel virus with no closely related sequences in databases.
 
@@ -104,7 +137,7 @@ python step2_add_to_snpeff.py novel_virus novel_virus_blastx.tsv
 
 ---
 
-### Use Case 4: High-Throughput Surveillance
+### Use Case 5: High-Throughput Surveillance
 
 **Scenario**: Processing hundreds of viral sequences for surveillance.
 
@@ -135,7 +168,7 @@ python vicast_annotate.py sample_of_interest.fasta
 
 ---
 
-### Use Case 5: Segmented Virus Analysis
+### Use Case 6: Segmented Virus Analysis
 
 **Scenario**: Analyzing influenza virus evolution across passages.
 
@@ -164,7 +197,7 @@ python vicast_annotate_segmented.py influenza_h1n1 \
 
 ---
 
-### Use Case 6: Quality Control Before Analysis
+### Use Case 7: Quality Control Before Analysis
 
 **Scenario**: Want to ensure genome assembly quality before in-depth analysis.
 
@@ -187,7 +220,7 @@ python step2_add_to_snpeff.py assembly assembly_edited.tsv
 
 ---
 
-### Use Case 7: Teaching and Training
+### Use Case 8: Teaching and Training
 
 **Scenario**: Teaching students about viral annotation.
 

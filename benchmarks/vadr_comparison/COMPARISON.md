@@ -55,9 +55,60 @@
 | Reference-based | ✓ (NCBI parsing) | ✓ (HMM models) |
 | Homology-based | ✓ (BLASTx) | ✗ |
 | Manual curation | ✓ (built-in checkpoint) | ✗ (post-hoc) |
-| Polyprotein handling | Auto-skip or keep | Model-dependent |
+| **Polyprotein handling** | **Specialized support** | Model-dependent |
 | Frameshift detection | ✓ | ✓ |
 | Overlapping genes | ✓ | ✓ |
+
+### Polyprotein Annotation (VICAST Strength)
+
+Many RNA viruses (Flaviviridae, Picornaviridae, Coronaviridae) encode polyproteins—large precursor proteins that are proteolytically cleaved into multiple mature peptides. Proper annotation of these is critical for variant effect prediction.
+
+**The Challenge**:
+- NCBI annotations often include only the polyprotein, not individual mature peptides
+- SnpEff needs individual gene annotations to predict variant effects
+- A variant in "polyprotein" is uninformative; knowing it's in "NS3 protease" is actionable
+
+**VICAST Solution**:
+
+| Feature | VICAST Approach |
+|---------|-----------------|
+| Polyprotein detection | Automatic identification by product name patterns |
+| Skip/keep option | `--skip-polyprotein` (default) or `--keep-polyprotein` |
+| Mature peptide preservation | Individual cleavage products retained |
+| Manual curation | TSV checkpoint to verify cleavage sites |
+| SnpEff integration | Each mature peptide becomes annotatable gene |
+
+**Example: Dengue Virus (NC_001477)**
+
+```
+NCBI annotation:
+  polyprotein (1-10,176) → Single CDS, uninformative for variants
+
+VICAST annotation (after curation):
+  anchored capsid protein C (1-338)
+  membrane glycoprotein precursor M (339-836)
+  envelope protein E (837-2,321)
+  nonstructural protein NS1 (2,322-3,377)
+  nonstructural protein NS2A (3,378-4,028)
+  nonstructural protein NS2B (4,029-4,419)
+  nonstructural protein NS3 (4,420-6,267)
+  nonstructural protein NS4A (6,268-6,648)
+  nonstructural protein NS4B (6,649-7,398)
+  RNA-dependent RNA polymerase NS5 (7,399-10,173)
+```
+
+**Impact on Variant Analysis**:
+
+| Annotation Type | Variant Call Example |
+|-----------------|---------------------|
+| Polyprotein only | `p.Glu2457Val in polyprotein` |
+| VICAST (mature peptides) | `p.Glu135Val in NS5 (RdRp active site)` |
+
+The VICAST approach enables:
+- Functional interpretation of variants
+- Domain-specific mutation tracking
+- Publication-ready variant tables
+- Accurate passage adaptation analysis
 
 ### Output Formats
 

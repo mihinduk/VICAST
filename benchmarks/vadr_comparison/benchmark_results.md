@@ -42,22 +42,38 @@ Compared against NCBI RefSeq annotations as ground truth:
 
 | Feature Type | VICAST | VADR |
 |--------------|--------|------|
-| Polyproteins | Configurable (skip/keep) | Model-dependent |
-| Mature peptides | ✓ | ✓ |
+| **Polyprotein → mature peptides** | **Specialized** (auto-split with curation) | Model-dependent |
+| Mature peptide boundaries | ✓ (curated cleavage sites) | ✓ (from model) |
 | Programmed frameshifts | ✓ (manual) | ✓ (automatic) |
 | Ribosomal slippage | ✓ (manual) | ✓ (automatic) |
 | Non-coding RNA | Limited | ✓ |
 | UTRs | ✓ | ✓ |
 
+### Polyprotein Handling Detail
+
+VICAST's polyprotein annotation is particularly valuable for:
+
+| Virus Family | Example | Polyprotein Size | Mature Peptides |
+|--------------|---------|------------------|-----------------|
+| Flaviviridae | Dengue, Zika, HCV | ~3,400 aa | 10-11 proteins |
+| Picornaviridae | Poliovirus, EV-D68 | ~2,200 aa | 11 proteins |
+| Coronaviridae | SARS-CoV-2 | ~7,000 aa (ORF1ab) | 16 nsps |
+
+**Why this matters for variant analysis:**
+- A variant annotated as "polyprotein p.Val2135Ala" is uninformative
+- The same variant as "NS5 RdRp p.Val123Ala" reveals functional impact
+- VICAST enables domain-level interpretation essential for passage studies
+
 ## Qualitative Comparison
 
 ### VICAST Strengths
 
-1. **Any Virus Support**: Works with any virus, not limited to model families
-2. **SnpEff Integration**: Native database building for variant analysis
-3. **Manual Curation**: Built-in checkpoint ensures annotation quality
-4. **Segmented Viruses**: Unified database for multi-segment genomes
-5. **Variant Pipeline**: Complete workflow from reads to annotated variants
+1. **Polyprotein Annotation**: Specialized handling of polyprotein cleavage into mature peptides—critical for meaningful variant effect prediction in flaviviruses, picornaviruses, and coronaviruses
+2. **Any Virus Support**: Works with any virus, not limited to model families
+3. **SnpEff Integration**: Native database building for variant analysis
+4. **Manual Curation**: Built-in checkpoint ensures annotation quality
+5. **Segmented Viruses**: Unified database for multi-segment genomes
+6. **Variant Pipeline**: Complete workflow from reads to annotated variants
 
 ### VADR Strengths
 
