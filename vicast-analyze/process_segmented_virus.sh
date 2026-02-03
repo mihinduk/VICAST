@@ -178,10 +178,10 @@ PYEOF
     
     # Align to reference
     echo "  Aligning reads..."
-    bwa index "$REF_PATH" 2>/dev/null
-    samtools faidx "$REF_PATH" 2>/dev/null
+    bwa index "$REF_PATH" 
+    samtools faidx "$REF_PATH" 
     
-    bwa mem -t "$THREADS" "$REF_PATH" "$QC_R1" "$QC_R2" 2>/dev/null | \
+    bwa mem -t "$THREADS" "$REF_PATH" "$QC_R1" "$QC_R2"  | \
     samtools view -@ "$THREADS" -bS -f 2 -q 20 - | \
     samtools sort -@ "$THREADS" -o "${seg_name}/${seg_name}.bam" -
     
@@ -202,24 +202,23 @@ PYEOF
     lofreq call-parallel --pp-threads "$THREADS" \
         -f "$REF_PATH" \
         -o "${seg_name}/${seg_name}.vcf" \
-        "${seg_name}/${seg_name}.bam" 2>/dev/null
+        "${seg_name}/${seg_name}.bam" 
     
     # Annotate with SnpEff
     echo "  Annotating variants..."
-    snpEff -noStats "${accession}" "${seg_name}/${seg_name}.vcf" \
-        > "${seg_name}/${seg_name}.ann.vcf" 2>/dev/null
+    java -jar /ref/sahlab/software/snpEff/snpEff.jar -noStats "${accession}" "${seg_name}/${seg_name}.vcf" \
+        > "${seg_name}/${seg_name}.ann.vcf" 2>&1
     
-    # Convert to TSV
-    python3 "${PIPELINE_DIR}/viral_pipeline/visualization/vcf_to_tsv_annotated.py" \
-        "${seg_name}/${seg_name}.ann.vcf" \
-        "${seg_name}/${seg_name}.ann.tsv" 2>/dev/null
+    # Convert annotated VCF to TSV
+    python3 "${PIPELINE_DIR}/fix_vcf_for_snpeff.py" "${seg_name}/${seg_name}.ann.vcf" "${seg_name}/${seg_name}.ann.vcf.safe"
+    grep -v '^#' "${seg_name}/${seg_name}.ann.vcf.safe" | awk -F'\t' 'BEGIN {OFS="\t"} {print $1,$2,$3,$4,$5,$6,$7,$8}' |         awk -F'\t' 'BEGIN {OFS="\t"; print "CHROM","POS","ID","REF","ALT","QUAL","FILTER","INFO"} {print}' > "${seg_name}/${seg_name}.ann.tsv"
     
     # Parse and filter mutations
     echo "  Filtering mutations..."
-    python3 "${PIPELINE_DIR}/viral_pipeline/visualization/parse_snpeff_tsv.py" \
+    python3 "${PIPELINE_DIR}/parse_snpeff_tsv.py" \
         "${seg_name}/${seg_name}.ann.tsv" \
         "${seg_name}/${seg_name}_filtered_mutations.tsv" \
-        --quality 1000 --depth 20 --freq 0.01 2>/dev/null
+        --quality 1000 --depth 20 --freq 0.01 
     
     # Generate consensus
     echo "  Generating consensus..."
@@ -264,7 +263,7 @@ for seg_dir in */; do
     fi
 done
 
-TOTAL_PROTEINS=$(grep -c "^>" "${VIRUS_ID}_all_proteins.fasta" 2>/dev/null || echo "0")
+TOTAL_PROTEINS=$(grep -c "^>" "${VIRUS_ID}_all_proteins.fasta"  || echo "0")
 
 # Summary report
 cat > "${VIRUS_ID}_summary_report.txt" << REPORT
@@ -287,7 +286,7 @@ for seg_dir in */; do
     
     if [ -f "${seg_dir}${seg_name}_consensus_summary_report.txt" ]; then
         mut_count=$(grep -oP "Total mutations passing filters: \K\d+" "${seg_dir}${seg_name}_consensus_summary_report.txt" || echo "0")
-        prot_count=$(grep -c "^>" "${seg_dir}${seg_name}_consensus_proteins.fasta" 2>/dev/null || echo "0")
+        prot_count=$(grep -c "^>" "${seg_dir}${seg_name}_consensus_proteins.fasta"  || echo "0")
         
         echo "✓ $seg_name: $mut_count mutations, $prot_count proteins" >> "${VIRUS_ID}_summary_report.txt"
         
