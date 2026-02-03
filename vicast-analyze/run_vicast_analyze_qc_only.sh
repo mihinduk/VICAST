@@ -1,7 +1,17 @@
 #!/bin/bash
+# =============================================================================
 # VICAST-Analyze: QC Workflow Only (Steps 1-6)
+# =============================================================================
 # Runs: mapping, variant calling, depth file, and diagnostic report
 # STOPS before annotation to allow user review
+#
+# Prerequisites:
+#   - SNPEFF_HOME or SNPEFF_JAR environment variable set
+#   - Conda environment with required tools (bwa, samtools, lofreq, fastp)
+#   - Target genome added to SnpEff database via VICAST-annotate
+# =============================================================================
+
+set -e  # Exit on error
 
 # Check arguments
 if [ $# -lt 3 ]; then
@@ -15,6 +25,12 @@ if [ $# -lt 3 ]; then
     echo "  4. Map reads and call variants"
     echo "  5. Generate depth file"
     echo "  6. Run diagnostic report"
+    echo ""
+    echo "Environment variables (set before running):"
+    echo "  SNPEFF_HOME     - Path to SnpEff installation"
+    echo "  SNPEFF_JAR      - Path to snpEff.jar (optional if SNPEFF_HOME set)"
+    echo "  JAVA_HOME       - Path to Java installation (optional)"
+    echo "  VICAST_CONDA_ENV - Conda environment name (default: vicast_analyze)"
     echo ""
     echo "After completion, review QC outputs and run annotation if satisfied:"
     echo "  ./run_vicast_analyze_annotate_only.sh <R1> <R2> <accession>"
@@ -41,32 +57,92 @@ elif [ $# -ge 5 ] && [ "$5" == "--extremely-large-files" ]; then
     LARGE_FILES_FLAG="--extremely-large-files"
 fi
 
-# Source configuration file if it exists
+# =============================================================================
+# Configuration Loading
+# =============================================================================
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-CONFIG_FILE="${SCRIPT_DIR}/pipeline_config.sh"
+VICAST_HOME="$( cd "${SCRIPT_DIR}/.." && pwd )"
 
-if [ -f "$CONFIG_FILE" ]; then
-    echo "Loading configuration from: $CONFIG_FILE"
-    source "$CONFIG_FILE"
-else
-    echo "⚠️  No configuration file found. Using hardcoded paths."
-    MAMBA_CMD="conda run -n viral_genomics"
-    SNPEFF_DIR="/ref/sahlab/software/snpEff"
-    SNPEFF_JAR="${SNPEFF_DIR}/snpEff.jar"
-    JAVA_PATH="java"
+# Source user configuration if it exists
+if [ -f "$HOME/.vicast/config.sh" ]; then
+    echo "Loading user configuration from: $HOME/.vicast/config.sh"
+    source "$HOME/.vicast/config.sh"
+elif [ -f "${VICAST_HOME}/vicast_config.template.sh" ]; then
+    echo "Loading default configuration from: ${VICAST_HOME}/vicast_config.template.sh"
+    source "${VICAST_HOME}/vicast_config.template.sh"
 fi
+
+# Source local pipeline config if it exists (for backwards compatibility)
+if [ -f "${SCRIPT_DIR}/pipeline_config.sh" ]; then
+    echo "Loading pipeline configuration from: ${SCRIPT_DIR}/pipeline_config.sh"
+    source "${SCRIPT_DIR}/pipeline_config.sh"
+fi
+
+# =============================================================================
+# Environment Detection
+# =============================================================================
+
+# Detect SnpEff paths
+if [ -z "$SNPEFF_JAR" ]; then
+    if [ -n "$SNPEFF_HOME" ]; then
+        SNPEFF_JAR="${SNPEFF_HOME}/snpEff.jar"
+        SNPEFF_DIR="${SNPEFF_HOME}"
+    else
+        echo ""
+        echo "ERROR: SnpEff not configured"
+        echo "==============================="
+        echo ""
+        echo "Please set one of the following environment variables:"
+        echo "  export SNPEFF_HOME=/path/to/snpEff"
+        echo "  export SNPEFF_JAR=/path/to/snpEff/snpEff.jar"
+        echo ""
+        echo "Or copy and configure the VICAST configuration template:"
+        echo "  mkdir -p ~/.vicast"
+        echo "  cp ${VICAST_HOME}/vicast_config.template.sh ~/.vicast/config.sh"
+        echo "  # Edit ~/.vicast/config.sh with your paths"
+        echo "  source ~/.vicast/config.sh"
+        echo ""
+        exit 1
+    fi
+else
+    SNPEFF_DIR="$(dirname "$SNPEFF_JAR")"
+fi
+
+# Set SNPEFF_DATA if not set
+if [ -z "$SNPEFF_DATA" ]; then
+    SNPEFF_DATA="${SNPEFF_DIR}/data"
+fi
+
+# Detect Java
+if [ -z "$JAVA_PATH" ]; then
+    if [ -n "$JAVA_HOME" ]; then
+        JAVA_PATH="${JAVA_HOME}/bin/java"
+    else
+        JAVA_PATH="java"
+    fi
+fi
+
+# Detect conda environment
+VICAST_CONDA_ENV="${VICAST_CONDA_ENV:-vicast_analyze}"
 
 # Check if conda is available
 if ! command -v conda &> /dev/null; then
-    echo "❌ Error: conda not found in PATH"
     echo ""
-    echo "Please activate conda first:"
-    echo "  source /ref/sahlab/software/anaconda3/bin/activate"
+    echo "ERROR: conda not found in PATH"
+    echo "=============================="
+    echo ""
+    echo "Please ensure conda is installed and available in your PATH."
+    echo "Then activate the VICAST environment before running this script."
+    echo ""
     exit 1
 fi
 
 # Set paths
 PIPELINE_DIR="$(cd "$(dirname "$0")"; pwd)"
+
+# =============================================================================
+# Validation
+# =============================================================================
 
 # Validate input files
 if [ ! -f "$R1" ]; then
@@ -79,6 +155,17 @@ if [ ! -f "$R2" ]; then
     exit 1
 fi
 
+# Validate SnpEff JAR exists
+if [ ! -f "$SNPEFF_JAR" ]; then
+    echo ""
+    echo "ERROR: SnpEff JAR not found: $SNPEFF_JAR"
+    echo "========================================"
+    echo ""
+    echo "Please verify your SNPEFF_HOME or SNPEFF_JAR environment variable."
+    echo ""
+    exit 1
+fi
+
 echo "========================================"
 echo "VICAST-ANALYZE: QC WORKFLOW (Steps 1-6)"
 echo "========================================"
@@ -87,34 +174,63 @@ echo "  R2: $R2"
 echo "  Accession: $ACCESSION"
 echo "  Threads: $THREADS"
 echo "  Memory mode: $(if [ "$LARGE_FILES_FLAG" == "--extremely-large-files" ]; then echo "extreme (256GB)"; elif [ "$LARGE_FILES_FLAG" == "--large-files" ]; then echo "large (64GB)"; else echo "standard (32GB)"; fi)"
+echo ""
+echo "Configuration:"
+echo "  SNPEFF_JAR: $SNPEFF_JAR"
+echo "  SNPEFF_DATA: $SNPEFF_DATA"
+echo "  JAVA_PATH: $JAVA_PATH"
+echo "  Conda env: $VICAST_CONDA_ENV"
 echo "========================================"
 echo ""
 
-# Pre-flight check: Verify snpEff database exists
+# =============================================================================
+# Pre-flight Checks
+# =============================================================================
+
 echo "Pre-flight check: snpEff database"
 echo "Checking if $ACCESSION is in snpEff database..."
 
+# Activate conda environment
 eval "$(conda shell.bash hook)"
-conda activate vicast_analyze
+if conda activate "$VICAST_CONDA_ENV" 2>/dev/null; then
+    echo "Activated conda environment: $VICAST_CONDA_ENV"
+else
+    echo "Warning: Could not activate conda environment '$VICAST_CONDA_ENV'"
+    echo "Attempting to continue with current environment..."
+fi
 
-if java -jar "$SNPEFF_JAR" databases 2>/dev/null | grep -q "$ACCESSION"; then
-    echo "✓ snpEff database found for $ACCESSION"
-    if [ -f "$SNPEFF_DIR/data/$ACCESSION/snpEffectPredictor.bin" ]; then
-        echo "✓ Database is built and ready"
+if "$JAVA_PATH" -jar "$SNPEFF_JAR" databases 2>/dev/null | grep -q "$ACCESSION"; then
+    echo "OK: snpEff database found for $ACCESSION"
+    if [ -f "${SNPEFF_DATA}/${ACCESSION}/snpEffectPredictor.bin" ]; then
+        echo "OK: Database is built and ready"
     else
         echo ""
-        echo "❌ ERROR: Database exists in config but is not built!"
+        echo "ERROR: Database exists in config but is not built!"
+        echo "======================================================="
+        echo ""
         echo "Please use VICAST-annotate to build the database:"
-        echo "  cd /path/to/VICAST/vicast-annotate"
-        echo "  python3 vicast_annotate.py $ACCESSION"
+        echo "  cd ${VICAST_HOME}/vicast-annotate"
+        echo "  python3 step1_parse_viral_genome.py $ACCESSION"
+        echo "  # Edit the TSV file, then:"
+        echo "  python3 step2_add_to_snpeff.py $ACCESSION ${ACCESSION}_no_polyprotein.tsv"
         exit 1
     fi
 else
     echo ""
-    echo "❌ ERROR: Genome $ACCESSION not found in snpEff database!"
-    echo "Please use VICAST-annotate to add this genome first."
+    echo "ERROR: Genome $ACCESSION not found in snpEff database!"
+    echo "========================================================"
+    echo ""
+    echo "Please use VICAST-annotate to add this genome first:"
+    echo "  cd ${VICAST_HOME}/vicast-annotate"
+    echo "  python3 step1_parse_viral_genome.py $ACCESSION"
+    echo "  # Edit the TSV file, then:"
+    echo "  python3 step2_add_to_snpeff.py $ACCESSION ${ACCESSION}_no_polyprotein.tsv"
     exit 1
 fi
+
+# =============================================================================
+# Run Pipeline
+# =============================================================================
 
 echo ""
 echo "Running QC workflow (Steps 1-6)..."
@@ -147,13 +263,17 @@ fi
 
 PIPELINE_EXIT_CODE=$?
 
+# =============================================================================
+# Results Summary
+# =============================================================================
+
 if [ $PIPELINE_EXIT_CODE -eq 0 ]; then
     # Extract sample name (match Python's logic)
     SAMPLE_NAME=$(basename "$R1" | sed -E 's/(_R1)?(_001)?\.fastq\.gz$//')
 
     echo ""
     echo "========================================"
-    echo "✓ QC WORKFLOW COMPLETED (Steps 1-6)"
+    echo "OK: QC WORKFLOW COMPLETED (Steps 1-6)"
     echo "========================================"
     echo ""
     echo "REVIEW THE FOLLOWING QC OUTPUTS:"
@@ -179,6 +299,6 @@ if [ $PIPELINE_EXIT_CODE -eq 0 ]; then
     echo "========================================"
 else
     echo ""
-    echo "❌ QC workflow failed with exit code $PIPELINE_EXIT_CODE"
+    echo "ERROR: QC workflow failed with exit code $PIPELINE_EXIT_CODE"
     exit $PIPELINE_EXIT_CODE
 fi
