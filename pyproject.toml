@@ -1,0 +1,116 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vicast"
+version = "2.2.0"
+description = "Viral Cultured-virus Annotation and SnpEff Toolkit"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Kathie A. Mihindukulasuriya"},
+    {name = "Scott A. Handley"}
+]
+maintainers = [
+    {name = "Kathie A. Mihindukulasuriya"}
+]
+keywords = [
+    "bioinformatics",
+    "virology",
+    "viral genomics",
+    "snpeff",
+    "variant calling",
+    "annotation",
+    "passage study"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
+requires-python = ">=3.9"
+dependencies = [
+    "biopython>=1.79",
+    "pandas>=1.3.0",
+    "numpy>=1.20.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+]
+docs = [
+    "sphinx>=6.0.0",
+    "sphinx-rtd-theme>=1.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/mihinduk/VICAST"
+Documentation = "https://github.com/mihinduk/VICAST#readme"
+Repository = "https://github.com/mihinduk/VICAST.git"
+Issues = "https://github.com/mihinduk/VICAST/issues"
+
+[project.scripts]
+vicast-annotate = "vicast.cli:annotate_main"
+vicast-analyze = "vicast.cli:analyze_main"
+vicast-validate = "vicast.cli:validate_main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+vicast = ["data/*.json", "data/*.yml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+
+[tool.black]
+line-length = 100
+target-version = ['py39', 'py310', 'py311']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+    | \.venv
+    | build
+    | dist
+)/
+'''
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "C4", # flake8-comprehensions
+]
+ignore = [
+    "E501",  # line too long (handled by black)
+    "B008",  # do not perform function calls in argument defaults
+]
+
+[tool.ruff.per-file-ignores]
+"__init__.py" = ["F401"]
