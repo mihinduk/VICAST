@@ -1,0 +1,22 @@
+##fileformat=VCFv4.2
+##INFO=<ID=DP,Number=1,Type=Integer,Description="Read Depth">
+##INFO=<ID=AF,Number=A,Type=Float,Description="Allele Frequency">
+##contig=<ID=NC_026431.1,length=982>
+##contig=<ID=NC_026432.1,length=863>
+##contig=<ID=NC_026433.1,length=1701>
+##contig=<ID=NC_026434.1,length=1410>
+##contig=<ID=NC_026435.1,length=2274>
+##contig=<ID=NC_026436.1,length=1497>
+##contig=<ID=NC_026437.1,length=2151>
+##contig=<ID=NC_026438.1,length=2280>
+##SnpEffVersion="4.3t (build 2017-11-24 10:18), by Pablo Cingolani"
+##SnpEffCmd="SnpEff  influenza_A_Cal09 test_variants.vcf "
+##INFO=<ID=ANN,Number=.,Type=String,Description="Functional annotations: 'Allele | Annotation | Annotation_Impact | Gene_Name | Gene_ID | Feature_Type | Feature_ID | Transcript_BioType | Rank | HGVS.c | HGVS.p | cDNA.pos / cDNA.length | CDS.pos / CDS.length | AA.pos / AA.length | Distance | ERRORS / WARNINGS / INFO' ">
+##INFO=<ID=LOF,Number=.,Type=String,Description="Predicted loss of function effects for this variant. Format: 'Gene_Name | Gene_ID | Number_of_transcripts_in_gene | Percent_of_transcripts_affected'">
+##INFO=<ID=NMD,Number=.,Type=String,Description="Predicted nonsense mediated decay effects for this variant. Format: 'Gene_Name | Gene_ID | Number_of_transcripts_in_gene | Percent_of_transcripts_affected'">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
+NC_026433.1	100	.	A	G	1000.0	PASS	DP=500;AF=0.15;ANN=G|synonymous_variant|LOW|HA|gene_HA|transcript|mRNA_HA|protein_coding|1/1|c.100A>G|p.Asp34Asp|100/1701|100/1701|34/566||WARNING_REF_DOES_NOT_MATCH_GENOME
+NC_026433.1	300	.	G	A	1500.0	PASS	DP=600;AF=0.25;ANN=A|synonymous_variant|LOW|HA|gene_HA|transcript|mRNA_HA|protein_coding|1/1|c.300G>A|p.Pro100Pro|300/1701|300/1701|100/566||WARNING_REF_DOES_NOT_MATCH_GENOME
+NC_026434.1	200	.	T	C	1200.0	PASS	DP=550;AF=0.10;ANN=C|missense_variant|MODERATE|NA|gene_NA|transcript|mRNA_NA|protein_coding|1/1|c.200T>C|p.Val67Ala|200/1410|200/1410|67/469||
+NC_026435.1	500	.	C	T	1100.0	PASS	DP=480;AF=0.08;ANN=T|synonymous_variant|LOW|PB1|gene_PB1|transcript|mRNA_PB1|protein_coding|1/1|c.500C>T|p.Leu167Leu|500/2274|500/2274|167/757||WARNING_REF_DOES_NOT_MATCH_GENOME
+NC_026438.1	1000	.	A	G	1300.0	PASS	DP=520;AF=0.12;ANN=G|missense_variant|MODERATE|PB2|gene_PB2|transcript|mRNA_PB2|protein_coding|1/1|c.1000A>G|p.Ser334Gly|1000/2280|1000/2280|334/759||

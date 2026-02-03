@@ -1,0 +1,17 @@
+##fileformat=VCFv4.2
+##INFO=<ID=DP,Number=1,Type=Integer,Description="Read Depth">
+##INFO=<ID=AF,Number=A,Type=Float,Description="Allele Frequency">
+##contig=<ID=NC_026431.1,length=982>
+##contig=<ID=NC_026432.1,length=863>
+##contig=<ID=NC_026433.1,length=1701>
+##contig=<ID=NC_026434.1,length=1410>
+##contig=<ID=NC_026435.1,length=2274>
+##contig=<ID=NC_026436.1,length=1497>
+##contig=<ID=NC_026437.1,length=2151>
+##contig=<ID=NC_026438.1,length=2280>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
+NC_026433.1	100	.	A	G	1000	PASS	DP=500;AF=0.15
+NC_026433.1	300	.	G	A	1500	PASS	DP=600;AF=0.25
+NC_026434.1	200	.	T	C	1200	PASS	DP=550;AF=0.10
+NC_026435.1	500	.	C	T	1100	PASS	DP=480;AF=0.08
+NC_026438.1	1000	.	A	G	1300	PASS	DP=520;AF=0.12

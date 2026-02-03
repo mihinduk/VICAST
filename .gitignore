@@ -91,3 +91,4 @@ data/processed/
 # VADR installation
 vadr/
 vadr-models/
+tools/snpEff/
