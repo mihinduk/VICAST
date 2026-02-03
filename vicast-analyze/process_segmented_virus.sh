@@ -187,6 +187,16 @@ PYEOF
     
     samtools index "${seg_name}/${seg_name}.bam"
     
+    # Subsample BAM if coverage is too deep (for faster variant calling)
+    DEPTH=$(samtools depth "${seg_name}/${seg_name}.bam" | awk '{sum+=$3; count++} END {if(count>0) print int(sum/count); else print 0}')
+    if [ "$DEPTH" -gt 1000 ]; then
+        echo "  Coverage is ${DEPTH}X, subsampling to ~1000X..."
+        FRAC=$(awk "BEGIN {printf \"%.4f\", 1000/$DEPTH}")
+        samtools view -@ "$THREADS" -b -s "${FRAC}" "${seg_name}/${seg_name}.bam" > "${seg_name}/${seg_name}.subsampled.bam"
+        mv "${seg_name}/${seg_name}.subsampled.bam" "${seg_name}/${seg_name}.bam"
+        samtools index "${seg_name}/${seg_name}.bam"
+    fi
+    
     # Variant calling
     echo "  Calling variants..."
     lofreq call-parallel --pp-threads "$THREADS" \
