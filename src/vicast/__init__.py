@@ -10,5 +10,14 @@ __author__ = "Kathie A. Mihindukulasuriya, Scott A. Handley"
 
 from vicast.config import Config, get_config
 from vicast.validation import validate_gff_for_snpeff, validate_vcf
+from vicast.logging import setup_logging, get_logger
 
-__all__ = ["Config", "get_config", "validate_gff_for_snpeff", "validate_vcf", "__version__"]
+__all__ = [
+    "Config",
+    "get_config",
+    "validate_gff_for_snpeff",
+    "validate_vcf",
+    "setup_logging",
+    "get_logger",
+    "__version__",
+]
