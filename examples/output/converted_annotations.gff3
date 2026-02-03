@@ -1,0 +1,10 @@
+##gff-version 3
+##sequence-region NC_EXAMPLE.1 1 1080
+NC_EXAMPLE.1	VICAST	mRNA	1	300	.	+	.	ID=NS1;gene=NS1;product=nonstructural protein 1
+NC_EXAMPLE.1	VICAST	CDS	1	300	.	+	.	ID=NS1.cds;Parent=NS1;product=nonstructural protein 1;protein_id=YP_EXAMPLE_001
+NC_EXAMPLE.1	VICAST	mRNA	301	600	.	+	.	ID=NS2;gene=NS2;product=nonstructural protein 2
+NC_EXAMPLE.1	VICAST	CDS	301	600	.	+	.	ID=NS2.cds;Parent=NS2;product=nonstructural protein 2;protein_id=YP_EXAMPLE_002
+NC_EXAMPLE.1	VICAST	mRNA	601	900	.	+	.	ID=capsid;gene=capsid;product=capsid protein
+NC_EXAMPLE.1	VICAST	CDS	601	900	.	+	.	ID=capsid.cds;Parent=capsid;product=capsid protein;protein_id=YP_EXAMPLE_003
+NC_EXAMPLE.1	VICAST	mRNA	901	1080	.	+	.	ID=envelope;gene=envelope;product=envelope protein
+NC_EXAMPLE.1	VICAST	CDS	901	1080	.	+	.	ID=envelope.cds;Parent=envelope;product=envelope protein;protein_id=YP_EXAMPLE_004

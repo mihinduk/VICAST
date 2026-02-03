@@ -9,5 +9,6 @@ __version__ = "2.2.0"
 __author__ = "Kathie A. Mihindukulasuriya, Scott A. Handley"
 
 from vicast.config import Config, get_config
+from vicast.validation import validate_gff_for_snpeff, validate_vcf
 
-__all__ = ["Config", "get_config", "__version__"]
+__all__ = ["Config", "get_config", "validate_gff_for_snpeff", "validate_vcf", "__version__"]

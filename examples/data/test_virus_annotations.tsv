@@ -1,0 +1,5 @@
+seqid	source	type	start	end	strand	gene_name	protein_id	product	action	notes
+NC_EXAMPLE.1	VICAST	CDS	1	300	+	NS1	YP_EXAMPLE_001	nonstructural protein 1	KEEP
+NC_EXAMPLE.1	VICAST	CDS	301	600	+	NS2	YP_EXAMPLE_002	nonstructural protein 2	KEEP
+NC_EXAMPLE.1	VICAST	CDS	601	900	+	capsid	YP_EXAMPLE_003	capsid protein	KEEP
+NC_EXAMPLE.1	VICAST	CDS	901	1080	+	envelope	YP_EXAMPLE_004	envelope protein	KEEP
