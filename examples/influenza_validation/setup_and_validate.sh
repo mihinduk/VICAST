@@ -4,9 +4,12 @@
 #
 # This script:
 # 1. Downloads/installs SnpEff if needed
-# 2. Builds the Influenza A database
-# 3. Runs variant annotation
-# 4. Validates the results
+# 2. Validates VCF REF bases against reference genome
+# 3. Configures SnpEff database
+# 4. Sets up database files
+# 5. Builds the Influenza A database
+# 6. Runs variant annotation
+# 7. Validates the results
 #
 # Usage:
 #   ./setup_and_validate.sh
@@ -64,8 +67,32 @@ log_info "Java: $JAVA_VERSION"
 
 cd "$SCRIPT_DIR"
 
-# Step 2: Add genome to SnpEff config if not present
-log_info "Step 2: Configuring SnpEff database..."
+# Step 2: Validate VCF REF bases against reference
+log_info "Step 2: Validating VCF REF bases..."
+
+PYTHONPATH="$VICAST_ROOT/src" python3 -c "
+from vicast.validation import validate_vcf_ref_bases
+is_valid, errors, warnings = validate_vcf_ref_bases(
+    'test_variants.vcf',
+    'influenza_A_California_2009_8segments.fasta'
+)
+if not is_valid:
+    print('VCF REF base validation FAILED:')
+    for e in errors:
+        print(f'  ERROR: {e}')
+    exit(1)
+print('VCF REF bases match reference genome')
+"
+
+if [ $? -ne 0 ]; then
+    log_error "VCF REF base validation failed. Fix the VCF before proceeding."
+    exit 1
+fi
+
+log_info "VCF validation passed"
+
+# Step 3: Add genome to SnpEff config if not present
+log_info "Step 3: Configuring SnpEff database..."
 
 if ! grep -q "influenza_A_Cal09" "$SNPEFF_DIR/snpEff.config"; then
     echo "" >> "$SNPEFF_DIR/snpEff.config"
@@ -76,8 +103,8 @@ else
     log_info "influenza_A_Cal09 already in snpEff.config"
 fi
 
-# Step 3: Set up data directory
-log_info "Step 3: Setting up database files..."
+# Step 4: Set up data directory
+log_info "Step 4: Setting up database files..."
 
 DATA_DIR="$SNPEFF_DIR/data/influenza_A_Cal09"
 mkdir -p "$DATA_DIR"
@@ -87,16 +114,16 @@ cp influenza_A_California_2009.gff3 "$DATA_DIR/genes.gff"
 
 log_info "Copied reference files to $DATA_DIR"
 
-# Step 4: Build database
-log_info "Step 4: Building SnpEff database..."
+# Step 5: Build database
+log_info "Step 5: Building SnpEff database..."
 
 java -jar "$SNPEFF_DIR/snpEff.jar" build -gff3 -v influenza_A_Cal09 2>&1 | \
     grep -E "(Chromosomes|Done|Error)" || true
 
 log_info "Database built successfully"
 
-# Step 5: Run annotation
-log_info "Step 5: Running variant annotation..."
+# Step 6: Run annotation
+log_info "Step 6: Running variant annotation..."
 
 java -jar "$SNPEFF_DIR/snpEff.jar" influenza_A_Cal09 test_variants.vcf \
     > test_variants.snpeff.vcf 2>/dev/null
@@ -104,8 +131,8 @@ java -jar "$SNPEFF_DIR/snpEff.jar" influenza_A_Cal09 test_variants.vcf \
 ANNOTATED=$(grep -v "^#" test_variants.snpeff.vcf | wc -l | tr -d ' ')
 log_info "Annotated $ANNOTATED variants"
 
-# Step 6: Validate results
-log_info "Step 6: Validating annotations..."
+# Step 7: Validate results
+log_info "Step 7: Validating annotations..."
 
 echo ""
 echo "Annotated Variants:"

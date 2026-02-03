@@ -213,6 +213,39 @@ def _parse_fasta_lengths(fasta_path: str) -> Dict[str, int]:
     return lengths
 
 
+def _parse_fasta_sequences(fasta_path: str) -> Dict[str, str]:
+    """
+    Parse FASTA file to get full sequences.
+
+    Args:
+        fasta_path: Path to FASTA file
+
+    Returns:
+        Dictionary mapping sequence IDs to sequences (uppercase)
+    """
+    sequences = {}
+    current_id = None
+    current_seq = []
+
+    with open(fasta_path, 'r') as f:
+        for line in f:
+            line = line.strip()
+            if line.startswith('>'):
+                if current_id is not None:
+                    sequences[current_id] = ''.join(current_seq).upper()
+                # Extract ID (first word after >)
+                current_id = line[1:].split()[0]
+                current_seq = []
+            else:
+                current_seq.append(line)
+
+        # Don't forget the last sequence
+        if current_id is not None:
+            sequences[current_id] = ''.join(current_seq).upper()
+
+    return sequences
+
+
 def validate_vcf(vcf_path: str) -> Tuple[bool, List[str], List[str]]:
     """
     Basic VCF file validation.
@@ -273,6 +306,153 @@ def validate_vcf(vcf_path: str) -> Tuple[bool, List[str], List[str]]:
 
     if not has_header:
         warnings.append("Missing ##fileformat header")
+
+    is_valid = len(errors) == 0
+    return is_valid, errors, warnings
+
+
+def validate_vcf_ref_bases(
+    vcf_path: str,
+    fasta_path: str,
+    max_errors: int = 100
+) -> Tuple[bool, List[str], List[str]]:
+    """
+    Validate that VCF REF bases match the reference genome.
+
+    VCF REF bases must exactly match the bases at those positions in the
+    reference FASTA. This catches common errors like using placeholder REF
+    values or coordinate mismatches.
+
+    Args:
+        vcf_path: Path to VCF file
+        fasta_path: Path to reference FASTA file
+        max_errors: Stop after this many errors (to avoid overwhelming output)
+
+    Returns:
+        Tuple of (is_valid, errors, warnings)
+        - is_valid: True if all REF bases match the reference
+        - errors: List of mismatch error messages
+        - warnings: List of warning messages (e.g., unknown chromosome)
+    """
+    errors: List[str] = []
+    warnings: List[str] = []
+
+    # Check files exist
+    if not os.path.exists(vcf_path):
+        errors.append(f"VCF file not found: {vcf_path}")
+        return False, errors, warnings
+
+    if not os.path.exists(fasta_path):
+        errors.append(f"Reference FASTA not found: {fasta_path}")
+        return False, errors, warnings
+
+    # Parse reference sequences
+    try:
+        sequences = _parse_fasta_sequences(fasta_path)
+    except Exception as e:
+        errors.append(f"Error parsing FASTA: {str(e)}")
+        return False, errors, warnings
+
+    if not sequences:
+        errors.append("No sequences found in reference FASTA")
+        return False, errors, warnings
+
+    # Track statistics
+    total_variants = 0
+    matched_variants = 0
+    unknown_chroms: Set[str] = set()
+
+    # Parse VCF and check REF bases
+    line_number = 0
+    error_count = 0
+
+    with open(vcf_path, 'r') as f:
+        for line in f:
+            line_number += 1
+            line = line.strip()
+
+            # Skip empty lines and headers
+            if not line or line.startswith('#'):
+                continue
+
+            # Parse variant line
+            parts = line.split('\t')
+            if len(parts) < 5:
+                continue
+
+            chrom = parts[0]
+            try:
+                pos = int(parts[1])
+            except ValueError:
+                continue
+
+            ref = parts[3].upper()
+            total_variants += 1
+
+            # Check if chromosome is in reference
+            if chrom not in sequences:
+                if chrom not in unknown_chroms:
+                    unknown_chroms.add(chrom)
+                    warnings.append(
+                        f"Chromosome '{chrom}' not found in reference FASTA"
+                    )
+                continue
+
+            # Get the actual reference bases
+            seq = sequences[chrom]
+            seq_len = len(seq)
+
+            # VCF is 1-based, Python is 0-based
+            start_idx = pos - 1
+            end_idx = start_idx + len(ref)
+
+            # Check bounds
+            if start_idx < 0:
+                errors.append(
+                    f"Line {line_number}: Position {pos} is invalid (< 1)"
+                )
+                error_count += 1
+                if error_count >= max_errors:
+                    warnings.append(f"Stopped after {max_errors} errors")
+                    break
+                continue
+
+            if end_idx > seq_len:
+                errors.append(
+                    f"Line {line_number}: REF extends beyond sequence end "
+                    f"(pos={pos}, ref_len={len(ref)}, seq_len={seq_len})"
+                )
+                error_count += 1
+                if error_count >= max_errors:
+                    warnings.append(f"Stopped after {max_errors} errors")
+                    break
+                continue
+
+            # Get actual bases from reference
+            actual_ref = seq[start_idx:end_idx]
+
+            # Compare
+            if ref != actual_ref:
+                errors.append(
+                    f"Line {line_number}: REF mismatch at {chrom}:{pos} - "
+                    f"VCF has '{ref}', reference has '{actual_ref}'"
+                )
+                error_count += 1
+                if error_count >= max_errors:
+                    warnings.append(f"Stopped after {max_errors} errors")
+                    break
+            else:
+                matched_variants += 1
+
+    # Summary warning if there were issues
+    if total_variants > 0 and matched_variants < total_variants:
+        checked = total_variants - len(unknown_chroms)
+        if checked > 0:
+            match_rate = (matched_variants / checked) * 100
+            if match_rate < 100:
+                warnings.append(
+                    f"REF base validation: {matched_variants}/{checked} variants matched ({match_rate:.1f}%)"
+                )
 
     is_valid = len(errors) == 0
     return is_valid, errors, warnings
