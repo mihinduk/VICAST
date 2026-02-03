@@ -204,36 +204,26 @@ PYEOF
         -o "${seg_name}/${seg_name}.vcf" \
         "${seg_name}/${seg_name}.bam" 
     
-    # Annotate with SnpEff
+    
+    # Rename chromosome in VCF to match SnpEff database
+    sed "s/^${accession}/${seg_name}/" "${seg_name}/${seg_name}.vcf" > "${seg_name}/${seg_name}_renamed.vcf"
+    
+    # Annotate with SnpEff (using influenza_pr8 database, not individual accessions)
     echo "  Annotating variants..."
-    java -jar /ref/sahlab/software/snpEff/snpEff.jar -noStats "${accession}" "${seg_name}/${seg_name}.vcf" \
+    java -jar /ref/sahlab/software/snpEff/snpEff.jar -noStats ${VIRUS_ID} "${seg_name}/${seg_name}_renamed.vcf" \
         > "${seg_name}/${seg_name}.ann.vcf" 2>&1
     
-    # Convert annotated VCF to TSV
-    python3 "${PIPELINE_DIR}/fix_vcf_for_snpeff.py" "${seg_name}/${seg_name}.ann.vcf" "${seg_name}/${seg_name}.ann.vcf.safe"
-    grep -v '^#' "${seg_name}/${seg_name}.ann.vcf.safe" | awk -F'\t' 'BEGIN {OFS="\t"} {print $1,$2,$3,$4,$5,$6,$7,$8}' |         awk -F'\t' 'BEGIN {OFS="\t"; print "CHROM","POS","ID","REF","ALT","QUAL","FILTER","INFO"} {print}' > "${seg_name}/${seg_name}.ann.tsv"
-    
-    # Parse and filter mutations
-    echo "  Filtering mutations..."
-    python3 "${PIPELINE_DIR}/parse_snpeff_tsv.py" \
-        "${seg_name}/${seg_name}.ann.tsv" \
-        "${seg_name}/${seg_name}_filtered_mutations.tsv" \
-        --quality 1000 --depth 20 --freq 0.01 
-    
-    # Generate consensus
+    # Generate consensus directly from annotated VCF
     echo "  Generating consensus..."
-    python3 "${PIPELINE_DIR}/generate_filtered_consensus.py" \
-        --vcf "${seg_name}/${seg_name}_filtered_mutations.tsv" \
-        --reference "$REF_PATH" \
-        --accession "${accession}" \
-        --quality 1000 --depth 20 --freq 0.50 \
-        --output-prefix "${seg_name}/${seg_name}_consensus" 2>&1 | grep -E "(✅|⚠️|mutations|proteins)"
+    python3 "${PIPELINE_DIR}/generate_consensus_from_vcf.py" \
+        "${seg_name}/${seg_name}.ann.vcf" \
+        "$REF_PATH" \
+        "${seg_name}/${seg_name}_consensus"
     
     if [ -f "${seg_name}/${seg_name}_consensus.fasta" ]; then
         echo "  ✓ Consensus generated"
     else
         echo "  ✗ Consensus generation failed"
-        FAILED_SEGMENTS+=("$seg_name")
     fi
     
 done < /tmp/segments_${VIRUS_ID}.txt
