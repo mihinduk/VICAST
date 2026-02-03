@@ -1,0 +1,12 @@
+##fileformat=VCFv4.2
+##INFO=<ID=DP,Number=1,Type=Integer,Description="Read Depth">
+##INFO=<ID=AF,Number=A,Type=Float,Description="Allele Frequency">
+##INFO=<ID=NOTE,Number=1,Type=String,Description="Variant Note">
+##contig=<ID=NC_045512.2,length=29903>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
+NC_045512.2	23403	.	A	G	2000	PASS	DP=1000;AF=0.95;NOTE=Spike_D614G
+NC_045512.2	23063	.	A	T	1800	PASS	DP=800;AF=0.85;NOTE=Spike_N501Y
+NC_045512.2	23012	.	G	A	1500	PASS	DP=700;AF=0.30;NOTE=Spike_E484K
+NC_045512.2	28881	.	G	A	1700	PASS	DP=900;AF=0.90;NOTE=N_R203K_first_pos
+NC_045512.2	10500	.	G	A	1200	PASS	DP=600;AF=0.15;NOTE=nsp5_3CLpro_region
+NC_045512.2	15000	.	T	C	1300	PASS	DP=650;AF=0.20;NOTE=nsp12_RdRp_region

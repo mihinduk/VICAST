@@ -68,8 +68,13 @@ The `publication-prep` branch contains all completed work above and is ready for
   - End-to-end setup script: `examples/influenza_validation/setup_and_validate.sh`
   - 16 validation tests in `tests/test_validation.py`
 
+- [x] **SARS-CoV-2 polyprotein validation** - Demonstrates polyprotein handling
+  - Complete reference genome with ORF1ab polyprotein annotation
+  - 16 mature peptides (nsp1-16) in GFF3
+  - Test VCF with clinically significant mutations (D614G, N501Y, E484K)
+  - End-to-end setup script: `examples/sars_cov2_validation/setup_and_validate.sh`
+
 - [ ] **Additional validation datasets** - Expand test coverage:
-  - SARS-CoV-2 passage study
   - Polyprotein virus (HCV or Picornavirus)
 
 - [ ] **Integration tests** - End-to-end tests with real sequencing data
