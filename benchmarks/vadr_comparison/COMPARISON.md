@@ -297,6 +297,149 @@ snpeff influenza_h1n1_2009 all_variants.vcf > annotated.vcf
 - Compare mutation rates between segments
 - Single workflow for entire genome
 
+### Viral Quasispecies & Haplotype Reconstruction (VICAST Unique)
+
+Viral populations exist as quasispecies—mixtures of related variants. VICAST includes specialized tools for reconstructing and analyzing these populations.
+
+**Module**: `generate_realistic_haplotype_consensus.py`
+
+**The Challenge**:
+- Viral samples contain multiple co-existing variants
+- Standard consensus masks population diversity
+- Need to track which mutations co-occur on same genome
+- Must distinguish true haplotypes from sequencing artifacts
+
+**VICAST Haplotype Reconstruction**:
+
+```
+VCF/TSV Mutations
+    │
+    ▼
+┌─────────────────────────┐
+│  Frequency Grouping     │
+│  - High (≥80%): Major   │
+│  - Med (40-80%): Minor  │
+│  - Low (<40%): Rare     │
+└─────────────────────────┘
+    │
+    ▼
+┌─────────────────────────┐
+│  Realistic Co-occurrence│
+│  - Models which mutations│
+│    appear together      │
+│  - Avoids impossible    │
+│    combinations         │
+└─────────────────────────┘
+    │
+    ▼
+┌─────────────────────────┐
+│  Haplotype Generation   │
+│  - Wild-type sequence   │
+│  - Major haplotype(s)   │
+│  - Minor variants       │
+│  - Frequency estimates  │
+└─────────────────────────┘
+    │
+    ▼
+Output: FASTA + frequency table
+```
+
+**Example Output**:
+```
+>Haplotype_1 (frequency: 65.2%)
+ATGGCTAGC...  # Wild-type + high-freq mutations
+
+>Haplotype_2 (frequency: 23.8%)
+ATGGCAAGC...  # Contains NS5 p.Val123Ala
+
+>Haplotype_3 (frequency: 11.0%)
+ATGGTTAGC...  # Contains E p.Gly200Arg
+```
+
+**Why This Matters for Passage Studies**:
+- Track emergence of adaptive mutations
+- Identify competing viral lineages
+- Monitor selection dynamics over passages
+- Detect potential escape variants
+
+### Multi-Allelic Consensus with Complex Indel Support (VICAST Unique)
+
+**Module**: `generate_filtered_consensus.py`
+
+VICAST handles complex mutations that standard tools struggle with:
+
+| Mutation Type | Example | VICAST Handling |
+|---------------|---------|-----------------|
+| Insertion | `p.Arg214_Asp215insGluProGlu` | ✓ Parses position + inserted sequence |
+| Deletion | `p.Leu100_Gly105del` | ✓ Multi-codon deletion support |
+| Delins | `p.Ala50_Arg52delinsGlyTrp` | ✓ Combined deletion + insertion |
+| Multi-allelic | 2+ variants at same position | ✓ Generates separate sequences |
+
+**Comparison**:
+| Feature | VICAST | Standard Tools |
+|---------|--------|----------------|
+| Simple SNPs | ✓ | ✓ |
+| Complex indels | ✓ | Often fails |
+| Multi-allelic sites | ✓ Separate sequences | Single consensus |
+| Protein impact | ✓ Full AA tracking | Limited |
+
+### Annotation Gap Detection & Repair (VICAST Unique)
+
+**Module**: `viral_gap_qc.py`
+
+Before using a reference genome for annotation transfer, VICAST checks for missing genes:
+
+**Gap Severity Classification**:
+| Severity | Gap Size | Action |
+|----------|----------|--------|
+| MINOR | <100 bp | Usually intergenic |
+| MODERATE | 100-300 bp | May be missing small ORF |
+| SEVERE | 300bp-1kb | Likely missing gene |
+| CRITICAL | >1kb | Multiple genes missing |
+
+**Multi-Method Repair**:
+1. **GETORF**: Find ORFs in gap regions (min 75 aa)
+2. **HMMSCAN**: Domain search across all 6 frames
+3. **BLAST**: Query NR for expected proteins
+4. **Synteny**: Compare gene order with related viruses
+
+### Viral-Specific Translation Engine (VICAST Unique)
+
+**Module**: `viral_translator.py`
+
+Standard translation tools fail on viral genomes due to:
+- Polyprotein cleavage (no stop codons between mature peptides)
+- Spliced genes (discontinuous coordinates)
+- Programmed frameshifts
+- Non-standard start codons
+
+**VICAST Handles**:
+```
+# Spliced gene (GenBank format)
+Coordinates: 97..254,290..400
+→ Extracts both exons, joins, translates
+
+# Polyprotein segment
+Start: 1, End: 3000, No stop codon
+→ Translates without stopping at internal stops
+
+# Frameshift
+Ribosomal slippage at position 1234
+→ Tracks frame change, correct protein output
+```
+
+### Large Dataset Memory Scaling
+
+VICAST pipelines automatically scale for large files:
+
+| Flag | Java Heap | Sort Memory | Use Case |
+|------|-----------|-------------|----------|
+| (default) | 8GB | 4GB | Standard samples |
+| `--large-files` | 32GB | 8GB | Deep sequencing |
+| `--extremely-large-files` | 64GB | 32GB | Ultra-deep/metagenomics |
+
+This prevents out-of-memory failures on production datasets.
+
 ### Output Formats
 
 | Format | VICAST | VADR |

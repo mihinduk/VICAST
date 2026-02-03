@@ -45,11 +45,15 @@ Compared against NCBI RefSeq annotations as ground truth:
 | **Polyprotein → mature peptides** | **Specialized** (auto-split with curation) | Model-dependent |
 | **Contamination screening** | **Full pipeline** (assembly + BLAST) | ✗ Not included |
 | **Segmented virus unified DB** | **Native** (8+ segments → 1 database) | ✗ Per-segment models |
+| **Quasispecies/haplotype reconstruction** | **Built-in** (frequency-based) | ✗ Not included |
+| **Complex indel parsing** | **Full support** (ins/del/delins) | Limited |
+| **Annotation gap detection** | **Multi-method repair** | ✗ Not included |
 | Mature peptide boundaries | ✓ (curated cleavage sites) | ✓ (from model) |
 | Programmed frameshifts | ✓ (manual) | ✓ (automatic) |
 | Ribosomal slippage | ✓ (manual) | ✓ (automatic) |
 | Non-coding RNA | Limited | ✓ |
 | UTRs | ✓ | ✓ |
+| Large dataset support | ✓ (up to 64GB memory) | Standard |
 
 ### Polyprotein Handling Detail
 
@@ -73,10 +77,13 @@ VICAST's polyprotein annotation is particularly valuable for:
 1. **Polyprotein Annotation**: Specialized handling of polyprotein cleavage into mature peptides—critical for meaningful variant effect prediction in flaviviruses, picornaviruses, and coronaviruses
 2. **Contamination Screening**: Integrated diagnostic module with de novo assembly, BLAST, and multi-kingdom contamination detection (viruses, mycoplasma, bacteria, fungi)—essential for passage study QC
 3. **Segmented Virus Support**: Unified database for multi-segment genomes (Influenza 8 segments, Rotavirus 11 segments, Bunyaviruses 3 segments)—single command creates combined SnpEff database with custom segment names
-4. **Any Virus Support**: Works with any virus, not limited to model families
-5. **SnpEff Integration**: Native database building for variant analysis
-6. **Manual Curation**: Built-in checkpoint ensures annotation quality
-7. **Variant Pipeline**: Complete workflow from reads to annotated variants
+4. **Viral Quasispecies Reconstruction**: Realistic haplotype modeling with frequency-based grouping—tracks co-occurring mutations and population diversity across passages
+5. **Complex Indel Handling**: Parses insertions, deletions, and delins mutations that break standard tools—generates separate consensus sequences for multi-allelic sites
+6. **Annotation Gap Detection**: Multi-method repair (GETORF, HMMSCAN, BLAST, synteny) identifies and fixes missing genes before annotation transfer
+7. **Any Virus Support**: Works with any virus, not limited to model families
+8. **SnpEff Integration**: Native database building for variant analysis
+9. **Manual Curation**: Built-in checkpoint ensures annotation quality
+10. **Large File Support**: Memory scaling from 8GB to 64GB for ultra-deep sequencing datasets
 
 ### VADR Strengths
 
