@@ -44,6 +44,7 @@ Compared against NCBI RefSeq annotations as ground truth:
 |--------------|--------|------|
 | **Polyprotein → mature peptides** | **Specialized** (auto-split with curation) | Model-dependent |
 | **Contamination screening** | **Full pipeline** (assembly + BLAST) | ✗ Not included |
+| **Segmented virus unified DB** | **Native** (8+ segments → 1 database) | ✗ Per-segment models |
 | Mature peptide boundaries | ✓ (curated cleavage sites) | ✓ (from model) |
 | Programmed frameshifts | ✓ (manual) | ✓ (automatic) |
 | Ribosomal slippage | ✓ (manual) | ✓ (automatic) |
@@ -71,10 +72,10 @@ VICAST's polyprotein annotation is particularly valuable for:
 
 1. **Polyprotein Annotation**: Specialized handling of polyprotein cleavage into mature peptides—critical for meaningful variant effect prediction in flaviviruses, picornaviruses, and coronaviruses
 2. **Contamination Screening**: Integrated diagnostic module with de novo assembly, BLAST, and multi-kingdom contamination detection (viruses, mycoplasma, bacteria, fungi)—essential for passage study QC
-3. **Any Virus Support**: Works with any virus, not limited to model families
-4. **SnpEff Integration**: Native database building for variant analysis
-5. **Manual Curation**: Built-in checkpoint ensures annotation quality
-6. **Segmented Viruses**: Unified database for multi-segment genomes
+3. **Segmented Virus Support**: Unified database for multi-segment genomes (Influenza 8 segments, Rotavirus 11 segments, Bunyaviruses 3 segments)—single command creates combined SnpEff database with custom segment names
+4. **Any Virus Support**: Works with any virus, not limited to model families
+5. **SnpEff Integration**: Native database building for variant analysis
+6. **Manual Curation**: Built-in checkpoint ensures annotation quality
 7. **Variant Pipeline**: Complete workflow from reads to annotated variants
 
 ### VADR Strengths

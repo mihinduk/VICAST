@@ -168,32 +168,61 @@ python vicast_annotate.py sample_of_interest.fasta
 
 ---
 
-### Use Case 6: Segmented Virus Analysis
+### Use Case 6: Segmented Virus Analysis (Influenza, Rotavirus, etc.)
 
-**Scenario**: Analyzing influenza virus evolution across passages.
+**Scenario**: Analyzing influenza virus evolution across passages with 8 genome segments.
 
 **Recommended Tool**: **VICAST**
 
 **Why**:
-- Native segmented virus support
-- Unified database for all segments
-- Variant calling across all segments
-- Manual curation for reassortant analysis
+- **One command** creates unified database for all 8 segments
+- Custom segment naming (PB2, PB1, PA, HA, NP, NA, M, NS)
+- Single TSV for curating all segment annotations together
+- Variant calling reports segment-specific mutations
+- Cross-segment comparison in one analysis
 
-**Workflow**:
+**The Problem with Standard Tools**:
 ```bash
-# 1. Create combined database
+# Without VICAST: Run 8 separate annotations
+python annotate.py CY121680  # PB2
+python annotate.py CY121681  # PB1
+python annotate.py CY121682  # PA
+# ... 5 more times
+# Then manually combine databases...
+```
+
+**VICAST Solution**:
+```bash
+# 1. One command creates unified database for all 8 segments
 python vicast_annotate_segmented.py influenza_h1n1 \
     --segments CY121680,CY121681,CY121682,CY121683,CY121684,CY121685,CY121686,CY121687 \
     --names PB2,PB1,PA,HA,NP,NA,M,NS
 
-# 2. Run analysis for each passage
+# Output:
+#   ✓ Downloaded 8 segments
+#   ✓ Combined sequences → influenza_h1n1.fasta (8 chromosomes)
+#   ✓ Combined annotations → influenza_h1n1.gff (all genes)
+#   ✓ Built SnpEff database: influenza_h1n1
+
+# 2. Run analysis for each passage - all segments analyzed together
 ./run_vicast_analyze_full.sh p0_R1.fq p0_R2.fq influenza_h1n1
 ./run_vicast_analyze_full.sh p5_R1.fq p5_R2.fq influenza_h1n1
 ./run_vicast_analyze_full.sh p10_R1.fq p10_R2.fq influenza_h1n1
 
-# 3. Compare variants across passages
+# 3. Results show segment-specific variants:
+#    PB2:A135G  p.Glu45Val in PB2 (polymerase)
+#    HA:C501T   p.Ser167Phe in HA (receptor binding)
+#    NA:G890A   p.Arg297Lys in NA (active site)
 ```
+
+**Supported Segmented Viruses**:
+
+| Virus | Segments | Example Names |
+|-------|----------|---------------|
+| Influenza A/B | 8 | PB2, PB1, PA, HA, NP, NA, M, NS |
+| Rotavirus | 11 | VP1-4, VP6-7, NSP1-5 |
+| Bunyaviruses | 3 | L, M, S |
+| Arenaviruses | 2 | L, S |
 
 ---
 
@@ -308,10 +337,10 @@ python step1_blastx_annotate.py novel.fasta  # Show homology search
 | Passage study | VICAST | Optional: VADR for QC |
 | **Polyprotein viruses** (Flavi-, Picorna-, Corona-) | **VICAST** | No |
 | **Contamination screening** | **VICAST** | No (VADR lacks this) |
+| **Segmented viruses** (Influenza, Rotavirus) | **VICAST** | No (unified DB) |
 | GenBank submission | VADR | No |
 | Novel virus | VICAST (Pathway 3) | No |
 | Surveillance | VADR | VICAST for select samples |
-| Segmented viruses | VICAST | Optional: VADR for QC |
 | Assembly quality control | VADR | VICAST for analysis |
 | Teaching | VICAST | VADR for comparison |
 | Quick annotation | VICAST (Pathway 1-2) | No |

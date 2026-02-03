@@ -202,6 +202,101 @@ CONTAMINATION SUMMARY:
 | Sample identity verification | ✓ Mapping % check | ✗ |
 | HTML diagnostic reports | ✓ Presentation-ready | ✗ |
 
+### Segmented Virus Handling (VICAST Strength)
+
+Many important viruses have segmented genomes requiring special handling:
+
+| Virus | Segments | Segment Names |
+|-------|----------|---------------|
+| Influenza A/B | 8 | PB2, PB1, PA, HA, NP, NA, M, NS |
+| Rotavirus | 11 | VP1-4, VP6-7, NSP1-5 |
+| Bunyaviruses | 3 | L, M, S |
+| Reoviruses | 10-12 | Various |
+
+**The Challenge**:
+- Each segment has its own accession number
+- Standard tools require running annotation 8+ times
+- Variant calling produces separate results per segment
+- Managing multiple databases is error-prone
+- VCF chromosome names must match database
+
+**VICAST Solution** (`vicast_annotate_segmented.py`):
+
+```
+Segment Accessions (8 for Influenza)
+    │
+    ▼
+┌─────────────────────────┐
+│  Download All Segments  │
+│  - GenBank + FASTA      │
+│  - Parallel retrieval   │
+└─────────────────────────┘
+    │
+    ▼
+┌─────────────────────────┐
+│  Combine Sequences      │
+│  - Multi-FASTA          │
+│  - Custom segment names │
+│  (PB2, PB1, PA, HA...)  │
+└─────────────────────────┘
+    │
+    ▼
+┌─────────────────────────┐
+│  Combine Annotations    │
+│  - Single GFF3          │
+│  - All segments merged  │
+│  - Polyprotein handling │
+└─────────────────────────┘
+    │
+    ▼
+┌─────────────────────────┐
+│  Manual Curation        │
+│  - TSV with all segments│
+│  - Review all at once   │
+└─────────────────────────┘
+    │
+    ▼
+┌─────────────────────────┐
+│  Unified SnpEff DB      │
+│  - Single database      │
+│  - All segments indexed │
+│  - One annotation cmd   │
+└─────────────────────────┘
+```
+
+**Example: Influenza A (H1N1)**
+
+```bash
+# One command creates unified database for all 8 segments
+python vicast_annotate_segmented.py influenza_h1n1_2009 \
+    --segments CY121680,CY121681,CY121682,CY121683,CY121684,CY121685,CY121686,CY121687 \
+    --names PB2,PB1,PA,HA,NP,NA,M,NS
+
+# Result: Single SnpEff database "influenza_h1n1_2009"
+# VCF can use segment names as chromosomes:
+#   PB2  100  .  A  G  ...
+#   HA   500  .  C  T  ...
+
+# One annotation command for all segments
+snpeff influenza_h1n1_2009 all_variants.vcf > annotated.vcf
+```
+
+**Comparison with VADR**:
+
+| Feature | VICAST | VADR |
+|---------|--------|------|
+| Unified database | ✓ All segments in one DB | ✗ Per-segment models |
+| Custom segment naming | ✓ PB2, HA, etc. | Model-dependent |
+| Combined curation | ✓ Single TSV for all | ✗ Separate outputs |
+| Single annotation cmd | ✓ One snpeff call | ✗ Multiple runs |
+| Cross-segment analysis | ✓ Native support | Manual combination |
+
+**Benefits for Passage Studies**:
+- Track variants across all segments simultaneously
+- Identify reassortment events
+- Compare mutation rates between segments
+- Single workflow for entire genome
+
 ### Output Formats
 
 | Format | VICAST | VADR |
