@@ -110,6 +110,98 @@ The VICAST approach enables:
 - Publication-ready variant tables
 - Accurate passage adaptation analysis
 
+### Contamination Screening (VICAST Unique Feature)
+
+VICAST includes a comprehensive contamination screening module (`viral_diagnostic.sh`) that VADR does not provide. This is critical for passage studies where sample identity verification is essential.
+
+**The Challenge**:
+- Cell culture samples may be contaminated with other viruses
+- Mycoplasma contamination is common in cell lines
+- Sample mislabeling can lead to analyzing the wrong virus
+- Mixed infections complicate variant analysis
+
+**VICAST Contamination Screening Pipeline**:
+
+```
+Input Reads
+    │
+    ▼
+┌─────────────────────┐
+│  Mapping Check      │
+│  - BWA alignment    │
+│  - Mapping %        │
+│  - Duplication rate │
+└─────────────────────┘
+    │
+    ▼
+┌─────────────────────┐
+│  De Novo Assembly   │
+│  - MEGAHIT          │
+│  - Meta-sensitive   │
+│  - Contigs >500bp   │
+└─────────────────────┘
+    │
+    ▼
+┌─────────────────────┐
+│  BLAST Analysis     │
+│  - Local/remote nt  │
+│  - Kingdom classify │
+│  - Coverage filter  │
+└─────────────────────┘
+    │
+    ▼
+┌─────────────────────┐
+│  Diagnostic Report  │
+│  - Confirmed contam │
+│  - Recommendations  │
+│  - HTML report      │
+└─────────────────────┘
+```
+
+**Contamination Classification**:
+
+| Category | Query Coverage | Interpretation |
+|----------|---------------|----------------|
+| Confirmed | ≥80% | True contamination |
+| Potential | 50-80% | Requires investigation |
+| Excluded | <50% | Likely artifacts |
+
+**Detected Contaminant Types**:
+- **Virus**: Other viral contaminants
+- **Mycoplasma**: Common cell culture contaminant
+- **Bacteria**: Bacterial contamination
+- **Fungi**: Fungal contamination
+- **Human**: Host cell sequences
+
+**Example Output**:
+```
+CONFIRMED VIRAL CONTAMINANTS (≥80% query coverage):
+========================================================
+West Nile virus (2 contigs):
+    k141_237    95.2%    98.50%
+    k141_156    82.1%    97.20%
+
+POTENTIAL VIRAL CONTAMINANTS (50-80% query coverage):
+========================================================
+Dengue virus 2 (1 contig):
+    k141_89     67.3%    95.10%
+
+CONTAMINATION SUMMARY:
+  Virus: 3 contigs
+  Mycoplasma: 0 contigs
+  Bacteria: 1 contigs
+```
+
+**Comparison with VADR**:
+
+| Feature | VICAST | VADR |
+|---------|--------|------|
+| Contamination screening | ✓ Full pipeline | ✗ Not included |
+| De novo assembly | ✓ MEGAHIT | ✗ |
+| Multi-kingdom detection | ✓ Virus/Bacteria/Mycoplasma/Fungi | ✗ |
+| Sample identity verification | ✓ Mapping % check | ✗ |
+| HTML diagnostic reports | ✓ Presentation-ready | ✗ |
+
 ### Output Formats
 
 | Format | VICAST | VADR |

@@ -43,6 +43,7 @@ Compared against NCBI RefSeq annotations as ground truth:
 | Feature Type | VICAST | VADR |
 |--------------|--------|------|
 | **Polyprotein → mature peptides** | **Specialized** (auto-split with curation) | Model-dependent |
+| **Contamination screening** | **Full pipeline** (assembly + BLAST) | ✗ Not included |
 | Mature peptide boundaries | ✓ (curated cleavage sites) | ✓ (from model) |
 | Programmed frameshifts | ✓ (manual) | ✓ (automatic) |
 | Ribosomal slippage | ✓ (manual) | ✓ (automatic) |
@@ -69,11 +70,12 @@ VICAST's polyprotein annotation is particularly valuable for:
 ### VICAST Strengths
 
 1. **Polyprotein Annotation**: Specialized handling of polyprotein cleavage into mature peptides—critical for meaningful variant effect prediction in flaviviruses, picornaviruses, and coronaviruses
-2. **Any Virus Support**: Works with any virus, not limited to model families
-3. **SnpEff Integration**: Native database building for variant analysis
-4. **Manual Curation**: Built-in checkpoint ensures annotation quality
-5. **Segmented Viruses**: Unified database for multi-segment genomes
-6. **Variant Pipeline**: Complete workflow from reads to annotated variants
+2. **Contamination Screening**: Integrated diagnostic module with de novo assembly, BLAST, and multi-kingdom contamination detection (viruses, mycoplasma, bacteria, fungi)—essential for passage study QC
+3. **Any Virus Support**: Works with any virus, not limited to model families
+4. **SnpEff Integration**: Native database building for variant analysis
+5. **Manual Curation**: Built-in checkpoint ensures annotation quality
+6. **Segmented Viruses**: Unified database for multi-segment genomes
+7. **Variant Pipeline**: Complete workflow from reads to annotated variants
 
 ### VADR Strengths
 
