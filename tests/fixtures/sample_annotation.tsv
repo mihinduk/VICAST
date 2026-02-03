@@ -1,0 +1,5 @@
+seqid	source	type	start	end	strand	gene_name	protein_id	product	action	notes
+NC_TEST	VICAST	CDS	100	500	+	testGene1	YP_001	test protein 1	KEEP
+NC_TEST	VICAST	CDS	600	1200	+	testGene2	YP_002	test protein 2	KEEP
+NC_TEST	VICAST	CDS	1300	2000	-	testGene3	YP_003	test protein 3	KEEP
+NC_TEST	VICAST	CDS	2100	2500	+	deleteMe	YP_004	protein to delete	DELETE	marked for deletion
