@@ -61,9 +61,15 @@ The `publication-prep` branch contains all completed work above and is ready for
   - CLI script: `vicast-analyze/add_conservation_scores.py`
   - 42 unit tests in `tests/test_conservation.py`
 
-- [ ] **Real-world validation dataset** - Add additional test cases:
+- [x] **Real-world validation dataset** - Influenza A multi-segment validation
+  - Complete 8-segment Influenza A/California/07/2009 (H1N1) dataset
+  - GenBank to GFF3 converter for SnpEff database building
+  - VCF REF base validation to prevent genome mismatch errors
+  - End-to-end setup script: `examples/influenza_validation/setup_and_validate.sh`
+  - 16 validation tests in `tests/test_validation.py`
+
+- [ ] **Additional validation datasets** - Expand test coverage:
   - SARS-CoV-2 passage study
-  - Influenza multi-segment example
   - Polyprotein virus (HCV or Picornavirus)
 
 - [ ] **Integration tests** - End-to-end tests with real sequencing data
