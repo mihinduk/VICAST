@@ -54,11 +54,12 @@ The `publication-prep` branch contains all completed work above and is ready for
 ## Planned Enhancements
 
 ### Phase 1: Core Improvements (Next)
-- [ ] **MSA Conservation Module** - Leverage ColabFold MSAs for conservation scoring
-  - Parse existing MSAs from ColabFold/AlphaFold databases
-  - Calculate per-position conservation scores
-  - Annotate variants with conservation impact
-  - Integration with existing variant effect output
+- [x] **MSA Conservation Module** - Leverage ColabFold MSAs for conservation scoring
+  - Parse existing MSAs from ColabFold/AlphaFold databases (A3M, Stockholm, Clustal, FASTA)
+  - Calculate per-position conservation scores (Shannon entropy, percent identity)
+  - Annotate variants with conservation impact (7 new TSV columns)
+  - CLI script: `vicast-analyze/add_conservation_scores.py`
+  - 42 unit tests in `tests/test_conservation.py`
 
 - [ ] **Real-world validation dataset** - Add additional test cases:
   - SARS-CoV-2 passage study
