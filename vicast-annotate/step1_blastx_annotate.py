@@ -22,29 +22,59 @@ import re
 import tempfile
 import shutil
 
-# Set email for NCBI Entrez
-Entrez.email = "vicast@example.com"
+# Add src to path for vicast imports
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+
+# Import vicast configuration
+try:
+    from vicast.config import get_config
+    CONFIG_AVAILABLE = True
+except ImportError:
+    CONFIG_AVAILABLE = False
+
+# Set email for NCBI Entrez - use config if available
+if CONFIG_AVAILABLE:
+    config = get_config()
+    Entrez.email = config.ncbi_email
+else:
+    Entrez.email = os.environ.get("NCBI_EMAIL", "vicast@example.com")
 
 #=============================================================================
 # SNPEFF DATABASE FUNCTIONS
 #=============================================================================
 
 def get_snpeff_paths():
-    """Get SnpEff paths from environment variables."""
-    snpeff_jar = os.environ.get('SNPEFF_JAR')
-    snpeff_data = os.environ.get('SNPEFF_DATA')
+    """Get SnpEff paths from config module or environment variables."""
+    snpeff_jar = None
+    snpeff_data = None
+
+    # Try to get from vicast config module first
+    if CONFIG_AVAILABLE:
+        config = get_config()
+        if config.snpeff_jar:
+            snpeff_jar = str(config.snpeff_jar)
+        if config.snpeff_data:
+            snpeff_data = str(config.snpeff_data)
+
+    # Fall back to environment variables
+    if not snpeff_jar:
+        snpeff_jar = os.environ.get('SNPEFF_JAR')
+    if not snpeff_data:
+        snpeff_data = os.environ.get('SNPEFF_DATA')
 
     if not snpeff_jar or not snpeff_data:
         print("\n" + "="*60)
         print("ERROR: SnpEff environment variables not set!")
         print("="*60)
-        print("\nPlease set these variables:")
-        print("  export SNPEFF_JAR=/path/to/snpEff.jar")
-        print("  export SNPEFF_DATA=/path/to/snpEff/data")
-        print("\nOn HTCF:")
-        print("  export SNPEFF_JAR=/ref/sahlab/software/snpEff/snpEff.jar")
-        print("  export SNPEFF_DATA=/ref/sahlab/software/snpEff/data")
-        print("\nAdd to ~/.bashrc for permanent setup.")
+        print("\nPlease set these environment variables:")
+        print("  export SNPEFF_HOME=/path/to/snpEff")
+        print("  export SNPEFF_JAR=${SNPEFF_HOME}/snpEff.jar")
+        print("  export SNPEFF_DATA=${SNPEFF_HOME}/data")
+        print("\nOr configure VICAST:")
+        print("  cp vicast_config.template.sh ~/.vicast/config.sh")
+        print("  # Edit ~/.vicast/config.sh with your paths")
+        print("  source ~/.vicast/config.sh")
+        print("\nSee README.md for detailed setup instructions.")
         print("="*60)
         sys.exit(1)
 
@@ -342,7 +372,9 @@ def run_blastx(query_fasta, blast_db, evalue=0.05, max_target_seqs=100):
         return None
     except FileNotFoundError:
         print("  ✗ blastx not found. Please install BLAST+ or add to PATH:")
-        print("     export PATH=\"/ref/sahlab/software/ncbi-blast-2.10.0+/bin:$PATH\"")
+        print("     conda install -c bioconda blast")
+        print("     # Or add existing installation to PATH:")
+        print("     export PATH=\"/path/to/blast+/bin:$PATH\"")
         return None
     except Exception as e:
         print(f"  ✗ Error running BLASTx: {e}")

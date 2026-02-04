@@ -5,9 +5,38 @@ Extracts gene coordinates from SnpEff GFF file.
 """
 
 import sys
+import os
 import json
 import argparse
 from pathlib import Path
+
+# Add src to path for vicast imports
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+
+# Import vicast configuration
+try:
+    from vicast.config import get_config
+    CONFIG_AVAILABLE = True
+except ImportError:
+    CONFIG_AVAILABLE = False
+
+
+def get_default_snpeff_data():
+    """Get default SnpEff data directory from config or environment."""
+    # Try vicast config module first
+    if CONFIG_AVAILABLE:
+        config = get_config()
+        if config.snpeff_data:
+            return str(config.snpeff_data)
+
+    # Try environment variables
+    if os.environ.get('SNPEFF_DATA'):
+        return os.environ['SNPEFF_DATA']
+    if os.environ.get('SNPEFF_HOME'):
+        return os.path.join(os.environ['SNPEFF_HOME'], 'data')
+
+    # No default - require explicit specification
+    return None
 
 def parse_gff(gff_file):
     """Parse GFF file and extract gene coordinates."""
@@ -52,7 +81,7 @@ def get_genome_length(fasta_file):
                 length += len(line.strip())
     return length
 
-def add_genome_to_config(accession, name, family, snpeff_data_dir, config_file):
+def add_genome_to_config(accession, name, family, snpeff_data_dir, config_file, force=False):
     """Add genome configuration to known_viruses.json."""
     
     # Locate files in SnpEff data directory
@@ -93,10 +122,13 @@ def add_genome_to_config(accession, name, family, snpeff_data_dir, config_file):
     # Check if genome already exists
     if accession in config:
         print(f"\nWarning: {accession} already exists in config")
-        response = input("Overwrite? (y/N): ")
-        if response.lower() != 'y':
-            print("Aborted")
-            return False
+        if not force:
+            response = input("Overwrite? (y/N): ")
+            if response.lower() != 'y':
+                print("Aborted")
+                return False
+        else:
+            print("  --force specified, overwriting...")
     
     # Default colors for common viral genes
     default_colors = {
@@ -194,13 +226,25 @@ Examples:
     parser.add_argument('accession', help='Genome accession (e.g., ON109597.1)')
     parser.add_argument('name', help='Virus name (e.g., "Dengue virus")')
     parser.add_argument('family', help='Virus family (e.g., flavivirus, alphavirus)')
-    parser.add_argument('--snpeff-data', default='/ref/sahlab/software/snpEff/data',
-                       help='SnpEff data directory (default: %(default)s)')
+    parser.add_argument('--snpeff-data', default=None,
+                       help='SnpEff data directory (default: from SNPEFF_DATA or SNPEFF_HOME)')
     parser.add_argument('--config', default=None,
                        help='Config file path (default: known_viruses.json in script dir)')
-    
+    parser.add_argument('--force', '-f', action='store_true',
+                       help='Overwrite existing entry without prompting')
+
     args = parser.parse_args()
-    
+
+    # Get SnpEff data directory
+    if args.snpeff_data is None:
+        args.snpeff_data = get_default_snpeff_data()
+        if args.snpeff_data is None:
+            print("Error: SnpEff data directory not specified and could not be auto-detected.")
+            print("\nPlease either:")
+            print("  1. Set SNPEFF_DATA or SNPEFF_HOME environment variable")
+            print("  2. Use --snpeff-data option to specify the path")
+            sys.exit(1)
+
     # Default config file location
     if args.config is None:
         script_dir = Path(__file__).parent
@@ -211,7 +255,8 @@ Examples:
         args.name,
         args.family,
         args.snpeff_data,
-        args.config
+        args.config,
+        force=args.force
     )
     
     sys.exit(0 if success else 1)

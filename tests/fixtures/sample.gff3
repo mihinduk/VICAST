@@ -1,0 +1,8 @@
+##gff-version 3
+##sequence-region NC_TEST 1 10000
+NC_TEST	VICAST	mRNA	100	500	.	+	.	ID=gene1;gene=testGene1;product=test protein 1
+NC_TEST	VICAST	CDS	100	500	.	+	0	ID=gene1.cds;Parent=gene1;gene=testGene1;product=test protein 1
+NC_TEST	VICAST	mRNA	600	1200	.	+	.	ID=gene2;gene=testGene2;product=test protein 2
+NC_TEST	VICAST	CDS	600	1200	.	+	0	ID=gene2.cds;Parent=gene2;gene=testGene2;product=test protein 2
+NC_TEST	VICAST	mRNA	1300	2000	.	-	.	ID=gene3;gene=testGene3;product=test protein 3
+NC_TEST	VICAST	CDS	1300	2000	.	-	0	ID=gene3.cds;Parent=gene3;gene=testGene3;product=test protein 3
