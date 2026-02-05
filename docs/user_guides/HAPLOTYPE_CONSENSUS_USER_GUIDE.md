@@ -303,6 +303,98 @@ At frequencies below 50%, there is no statistical basis for linkage inference. T
 
 ---
 
+### Biological Differences Across Virus Types
+
+Understanding your virus type is critical for choosing appropriate parameters. Different genome types have fundamentally different mutation rates and population structures.
+
+#### Complete Comparison Table
+
+| Property | ssRNA (+/−) | dsRNA | ssDNA | dsDNA |
+|----------|-------------|-------|-------|-------|
+| **Examples** | SARS-CoV-2, dengue, influenza, HIV, poliovirus | Rotavirus, reovirus, bluetongue virus | Parvovirus, circovirus, anellovirus, AAV | Herpesvirus, poxvirus, adenovirus |
+| **Mutation rate** | High (10^-4 to 10^-6) | Intermediate (10^-5 to 10^-7) | Variable (10^-6 to 10^-9)* | Low (10^-7 to 10^-9) |
+| **Polymerase/Replication** | RdRp (no proofreading) | RdRp (some correction) | Host DNA pol OR rolling circle* | DNA pol (3' exonuclease proofreading) |
+| **Quasispecies diversity** | Large, diverse populations | Moderate diversity | Low to moderate | More homogeneous |
+| **Minority variants** | Very common (5-40%) | Moderate (5-20%) | Uncommon (1-10%) | Rare (<5%) |
+| **Population structure** | Complex quasispecies | Moderate diversity | Relatively simple | Usually clonal |
+| **Sequencing error vs real variants** | Harder to distinguish | Moderate difficulty | Moderate difficulty | Easier to distinguish |
+| **Genome stability** | Low (highly mutable) | Moderate | Moderate to high | High (very stable) |
+| **Passage adaptation** | Rapid, frequent | Moderate rate | Slower | Rare/slow |
+
+\*ssDNA mutation rate varies greatly depending on replication strategy:
+- Using host DNA polymerase (with proofreading): Low (10^-8 to 10^-9)
+- Using rolling circle replication: Higher (10^-6 to 10^-7)
+
+#### Parameter Recommendations by Virus Type
+
+| Parameter | ssRNA | dsRNA | ssDNA | dsDNA |
+|-----------|-------|-------|-------|-------|
+| **`--quality`** | 1000-5000 | 1000-2000 | 500-1000 | 500-1000 |
+| **`--depth`** | 200+ | 200+ | 200+ | 200+ |
+| **`--freq` (detection)** | 0.01-0.02 (1-2%) | 0.02-0.03 (2-3%) | 0.03-0.05 (3-5%) | 0.05-0.10 (5-10%) |
+| **`--dominant-threshold`** | 0.95 | 0.95 | 0.95 | 0.95 |
+| **`--major-threshold`** | 0.80 | 0.80-0.85 | 0.85-0.90 | 0.90 |
+| **`--minor-threshold`** | 0.50 | 0.50-0.60 | 0.60-0.70 | 0.70 |
+
+---
+
+### ⚠️ Important Warnings for Specific Virus Types
+
+#### Segmented Genomes (dsRNA and some ssRNA)
+
+**Viruses affected:** Rotavirus (11 segments), Reovirus (10 segments), Influenza (8 segments), Bunyaviruses (3 segments)
+
+**CRITICAL WARNING:**
+
+> **Linkage assumptions do NOT apply across segments!**
+>
+> A mutation in segment 1 at 95% frequency and a mutation in segment 5 at 95% frequency do NOT necessarily co-occur on the same viral particle. Reassortment can shuffle segments between viruses.
+
+**Recommendations:**
+1. Run analysis per-segment
+2. Interpret each segment independently
+3. Do NOT assume mutations across segments are linked
+4. For reassortment analysis, use specialized tools (not VICAST)
+
+**Example workflow:**
+```bash
+# Analyze each segment separately
+for segment in PB2 PB1 PA HA NP NA M NS; do
+    python generate_realistic_haplotype_consensus.py \
+        --vcf ${segment}_variants.vcf \
+        --reference ${segment}_ref.fasta \
+        --accession ${segment}_accession \
+        --output-prefix ${segment}_consensus
+done
+```
+
+---
+
+#### ssDNA Viruses (Replication Strategy Matters)
+
+**IMPORTANT:** ssDNA virus mutation rates vary dramatically based on replication mechanism.
+
+**Two Categories:**
+
+**1. Host DNA Polymerase Replication** (Low mutation rate)
+- Examples: AAV, some parvoviruses
+- Host DNA polymerase has 3' exonuclease proofreading
+- Mutation rate: ~10^-8 to 10^-9 (similar to dsDNA)
+- **Use stringent settings:** `--freq 0.05`, `--quality 500`
+
+**2. Rolling Circle Replication** (Higher mutation rate)
+- Examples: Circoviruses, some parvoviruses
+- Less fidelity, more errors
+- Mutation rate: ~10^-6 to 10^-7 (closer to dsRNA)
+- **Use intermediate settings:** `--freq 0.03`, `--quality 1000`
+
+**If unsure which mechanism your virus uses:**
+- Start with stringent settings (`--freq 0.05`)
+- Examine variant frequency distribution
+- If many variants at 2-5%, consider using intermediate settings
+
+---
+
 ### Virus-Specific Recommendations
 
 #### ssRNA Viruses (SARS-CoV-2, Dengue, Influenza, HIV)
@@ -418,6 +510,73 @@ python generate_realistic_haplotype_consensus.py \
 - Higher freq threshold (0.05) - critical to avoid errors as "variants"
 - Most variants should be high frequency (fixed mutations)
 - Expect fewer minority variants
+
+---
+
+### Quick Reference: Common Viruses
+
+Use this table for quick parameter selection for frequently studied viruses:
+
+| Virus | Type | Genome | `--freq` | `--quality` | Special Considerations |
+|-------|------|--------|----------|-------------|----------------------|
+| **SARS-CoV-2** | ssRNA+ | 30kb | 0.01 | 1000-2000 | High diversity, common quasispecies |
+| **Influenza A** | ssRNA− | 8 seg | 0.01 | 1000 | **SEGMENTED** - analyze per segment |
+| **Dengue virus** | ssRNA+ | 11kb | 0.01 | 1000-2000 | High quasispecies diversity |
+| **Zika virus** | ssRNA+ | 11kb | 0.01 | 1000 | Similar to dengue |
+| **HIV-1** | ssRNA+ (retro) | 10kb | 0.005-0.01 | 2000-5000 | Extremely high diversity |
+| **Poliovirus** | ssRNA+ | 7.5kb | 0.01 | 1000 | High quasispecies diversity |
+| **Hepatitis C** | ssRNA+ | 9.6kb | 0.01 | 1000-2000 | High quasispecies diversity |
+| **Rotavirus** | dsRNA | 11 seg | 0.02 | 1000 | **SEGMENTED** - 11 segments, analyze separately |
+| **Reovirus** | dsRNA | 10 seg | 0.02 | 1000 | **SEGMENTED** - 10 segments, analyze separately |
+| **Parvovirus** | ssDNA | 5kb | 0.05 | 500 | Host DNA pol, low diversity |
+| **AAV** | ssDNA | 4.7kb | 0.05 | 500 | Host DNA pol, very stable |
+| **Circovirus** | ssDNA | 2kb | 0.03 | 1000 | Rolling circle, moderate rate |
+| **Anellovirus** | ssDNA | 3.8kb | 0.03-0.05 | 500-1000 | Variable diversity |
+| **Herpes simplex** | dsDNA | 152kb | 0.05 | 500 | Very stable, low diversity |
+| **Varicella-zoster** | dsDNA | 125kb | 0.05 | 500 | Very stable |
+| **Cytomegalovirus** | dsDNA | 235kb | 0.05 | 500 | Very stable |
+| **Vaccinia virus** | dsDNA | 190kb | 0.05 | 500 | Poxvirus, very stable |
+| **Adenovirus** | dsDNA | 36kb | 0.05 | 500 | Very stable |
+
+**Notes:**
+- **SEGMENTED viruses:** Run analysis separately for each segment
+- **Retroviruses (HIV):** Go through DNA intermediate, use very stringent quality
+- **Circovirus:** Rolling circle replication = higher mutation rate than other ssDNA
+
+---
+
+### Future Enhancement: Virus Type Presets
+
+**Coming soon:** Automatic parameter selection based on virus type
+
+```bash
+# Instead of manually setting all parameters:
+python generate_realistic_haplotype_consensus.py \
+    --vcf variants.vcf \
+    --reference genome.fasta \
+    --virus-type ssRNA \
+    --output-prefix sample
+
+# Automatically sets:
+# --quality 1000
+# --freq 0.01
+# --dominant-threshold 0.95
+# --major-threshold 0.80
+# --minor-threshold 0.50
+```
+
+**Planned presets:**
+- `--virus-type ssRNA` (default for RNA viruses)
+- `--virus-type dsRNA` (for rotavirus, reovirus)
+- `--virus-type ssDNA` (for parvovirus, AAV)
+- `--virus-type dsDNA` (for herpes, pox, adeno)
+- `--virus-type ssRNA-segmented` (for influenza)
+- `--virus-type retrovirus` (for HIV - extra stringent)
+
+Users can still override individual parameters:
+```bash
+--virus-type ssRNA --quality 5000  # Use ssRNA preset but higher quality
+```
 
 ---
 
