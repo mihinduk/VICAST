@@ -17,7 +17,7 @@ if ! command -v conda &> /dev/null; then
     echo "  source /path/to/anaconda3/bin/activate"
     echo ""
     echo "For HTCF users:"
-    echo "  source /ref/sahlab/software/anaconda3/bin/activate"
+    echo "  source $CONDA_BASE/bin/activate (or your conda installation)"
     exit 1
 fi
 

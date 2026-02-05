@@ -49,21 +49,28 @@ if [ -f "$CONFIG_FILE" ]; then
     source "$CONFIG_FILE"
 else
     MAMBA_CMD="conda run -n viral_genomics"
-    SNPEFF_DIR="/ref/sahlab/software/snpEff"
+    SNPEFF_DIR="${SNPEFF_DIR:-/ref/sahlab/software/snpEff}"  # Use env var or default
     SNPEFF_JAR="${SNPEFF_DIR}/snpEff.jar"
     JAVA_PATH="java"
 fi
 
 # Initialize conda (required for SLURM jobs)
-if [ -f "/ref/sahlab/software/anaconda3/bin/activate" ]; then
+# Try common conda installation locations
+if [ -n "$CONDA_BASE" ] && [ -f "$CONDA_BASE/bin/activate" ]; then
+    source "$CONDA_BASE/bin/activate"
+elif [ -f "/ref/sahlab/software/anaconda3/bin/activate" ]; then
     source /ref/sahlab/software/anaconda3/bin/activate
+elif [ -f "$HOME/anaconda3/bin/activate" ]; then
+    source "$HOME/anaconda3/bin/activate"
+elif [ -f "$HOME/miniconda3/bin/activate" ]; then
+    source "$HOME/miniconda3/bin/activate"
 fi
 
 # Check if conda is available
 if ! command -v conda &> /dev/null; then
     echo "❌ Error: conda not found in PATH"
-    echo "Please activate conda first:"
-    echo "  source /ref/sahlab/software/anaconda3/bin/activate"
+    echo "Please activate conda first or set CONDA_BASE environment variable"
+    echo "Example: source /path/to/conda/bin/activate"
     exit 1
 fi
 

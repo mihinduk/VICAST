@@ -186,7 +186,7 @@ echo ""
 
 # Activate conda environment (HTCF has no module system)
 echo "Activating conda..."
-source /ref/sahlab/software/anaconda3/bin/activate
+source $CONDA_BASE/bin/activate (or your conda installation)
 echo ""
 
 bash PIPELINE_SCRIPT_PLACEHOLDER \

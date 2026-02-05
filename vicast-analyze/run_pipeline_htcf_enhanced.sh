@@ -15,7 +15,7 @@ usage() {
     echo "  --large-files : Optional flag for large file handling"
     echo ""
     echo "Prerequisites:"
-    echo "  Activate conda before running: source /ref/sahlab/software/anaconda3/bin/activate"
+    echo "  Activate conda before running: source $CONDA_BASE/bin/activate (or your conda installation)"
     echo ""
     echo "Configuration:"
     echo "  Create pipeline_config.sh from pipeline_config.template.sh to customize paths"
@@ -95,7 +95,7 @@ if ! command -v conda &> /dev/null; then
     echo "❌ Error: conda not found in PATH"
     echo ""
     echo "Please activate conda first:"
-    echo "  source /ref/sahlab/software/anaconda3/bin/activate"
+    echo "  source $CONDA_BASE/bin/activate (or your conda installation)"
     echo ""
     echo "Then re-run this script."
     exit 1

@@ -12,7 +12,7 @@ if [ "$CONDA_DEFAULT_ENV" != "vicast" ]; then
     echo "Current environment: $CONDA_DEFAULT_ENV"
     echo ""
     echo "Please activate first:"
-    echo "  source /ref/sahlab/software/anaconda3/bin/activate"
+    echo "  source $CONDA_BASE/bin/activate (or your conda installation)"
     echo "  conda activate vicast"
     exit 1
 fi
