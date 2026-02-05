@@ -2,6 +2,71 @@
 
 Complete documentation for all VICAST features and workflows.
 
+---
+
+## 🔄 VICAST Workflow Overview
+
+```mermaid
+flowchart TB
+    subgraph "VICAST-ANNOTATE: Genome Preparation"
+        A1[Reference Genome<br/>GenBank/FASTA] --> A2{Annotation<br/>Pathway}
+        A2 -->|Pathway 1| A3[Check SnpEff<br/>Already exists?]
+        A2 -->|Pathway 2| A4[Parse GenBank<br/>Standard annotation]
+        A2 -->|Pathway 3| A5[BLASTx<br/>Homology search]
+        A2 -->|Pathway 4| A6[Segmented Virus<br/>Combine segments]
+
+        A3 --> A7[Ready to use!]
+        A4 --> A8[Manual Curation<br/>QC checkpoint]
+        A5 --> A8
+        A6 --> A8
+        A8 --> A9[Build SnpEff<br/>Database]
+        A9 --> A10[(Custom Viral<br/>Database)]
+        A7 --> A10
+    end
+
+    subgraph "VICAST-ANALYZE: Variant Calling Pipeline"
+        B1[Raw Reads<br/>FASTQ] --> B2[Quality Control<br/>fastp]
+        B2 --> B3[Read Alignment<br/>bwa mem]
+        B3 --> B4[De novo Assembly<br/>MEGAHIT optional]
+        B4 --> B5[Contamination<br/>Screening BLAST]
+        B3 --> B6[Variant Calling<br/>lofreq]
+        B6 --> B7[Manual Filtering<br/>QC checkpoint]
+        B7 --> B8[SnpEff Annotation<br/>& Effect Prediction]
+        A10 -.Database input.-> B8
+        B8 --> B9[Annotated Variants<br/>VCF + TSV + Reports]
+    end
+
+    subgraph "Advanced Analysis: Population Structure"
+        C1[Variants + BAM] --> C2[Frequency-Stratified<br/>Analysis]
+        C2 --> C3[Haplotype Consensus<br/>Generation]
+        C3 --> C4{Validate<br/>Linkage?}
+        C4 -->|Yes| C5[BAM Co-Occurrence<br/>Read-level evidence]
+        C4 -->|No| C6[Dominant Consensus<br/>Alternative consensi]
+        C5 --> C7[Validated Haplotypes<br/>+ Evidence metrics]
+        C6 --> C7
+    end
+
+    B9 --> C1
+    B5 --> C8[Contamination<br/>Report]
+
+    style A8 fill:#fff4a3
+    style B7 fill:#fff4a3
+    style A10 fill:#e6b3ff
+    style C8 fill:#ffcccc
+    style C7 fill:#b3ffb3
+    style B9 fill:#b3ffb3
+```
+
+**Legend:**
+- 🔵 **Blue boxes** = Input data
+- 🟠 **Orange boxes** = Processing steps
+- 🟡 **Yellow diamonds** = Manual QC checkpoints
+- 🟣 **Purple** = Database
+- 🟢 **Green** = Final outputs
+- 🔴 **Red** = Quality control reports
+
+---
+
 ## 📚 Quick Navigation
 
 ### Getting Started
