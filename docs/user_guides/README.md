@@ -8,8 +8,8 @@ Complete documentation for all VICAST features and workflows.
 - **[Getting Started Guide](GETTING_STARTED.md)** - Installation, setup, and first analysis
 
 ### Core Workflows
-- **[Genome Annotation Guide](VICAST_ANNOTATE_GUIDE.md)** - Annotate viral genomes for SnpEff
-- **[Variant Calling Guide](VICAST_ANALYZE_GUIDE.md)** - Complete variant calling pipeline
+- **[VICAST-Annotate Guide](VICAST_ANNOTATE_GUIDE.md)** - Annotate viral genomes for SnpEff
+- **[VICAST-Analyze Guide](VICAST_ANALYZE_GUIDE.md)** - Complete variant calling pipeline
 - **[Contamination Screening Guide](CONTAMINATION_SCREENING_GUIDE.md)** - De novo assembly + BLAST pipeline
 
 ### Advanced Features
@@ -26,17 +26,17 @@ Complete documentation for all VICAST features and workflows.
 
 ### 🧬 New to VICAST?
 1. [Getting Started Guide](GETTING_STARTED.md)
-2. [Variant Calling Guide](VICAST_ANALYZE_GUIDE.md)
+2. [VICAST-Analyze Guide](VICAST_ANALYZE_GUIDE.md)
 3. [Contamination Screening Guide](CONTAMINATION_SCREENING_GUIDE.md)
 
 ### 📊 Passage Studies
-1. [Variant Calling Guide](VICAST_ANALYZE_GUIDE.md)
+1. [VICAST-Analyze Guide](VICAST_ANALYZE_GUIDE.md)
 2. [Haplotype Consensus Guide](HAPLOTYPE_CONSENSUS_GUIDE.md)
 3. [BAM Co-Occurrence Guide](BAM_COOCCURRENCE_GUIDE.md) - for validation
 
 ### 🆕 Adding New Virus
-1. [Genome Annotation Guide](VICAST_ANNOTATE_GUIDE.md)
-2. [Variant Calling Guide](VICAST_ANALYZE_GUIDE.md)
+1. [VICAST-Annotate Guide](VICAST_ANNOTATE_GUIDE.md)
+2. [VICAST-Analyze Guide](VICAST_ANALYZE_GUIDE.md)
 
 ### 🔬 Publication-Quality Analysis
 1. [Contamination Screening Guide](CONTAMINATION_SCREENING_GUIDE.md) - critical for publications
@@ -52,7 +52,7 @@ Complete documentation for all VICAST features and workflows.
 #### Getting Started Guide
 Complete installation and setup instructions for VICAST on different systems (local, HPC, Docker). Includes quickstart example and verification steps.
 
-#### Genome Annotation Guide (VICAST-Annotate)
+#### VICAST-Annotate Guide (VICAST-Annotate)
 How to prepare viral genomes for variant annotation:
 - Download genomes from NCBI
 - Parse GFF/GenBank files
@@ -60,7 +60,7 @@ How to prepare viral genomes for variant annotation:
 - Validate annotations
 - Troubleshoot common issues
 
-#### Variant Calling Guide (VICAST-Analyze)
+#### VICAST-Analyze Guide (VICAST-Analyze)
 Complete variant calling pipeline from FASTQ to annotated VCF:
 - Quality control (fastp)
 - Read alignment (bwa)
