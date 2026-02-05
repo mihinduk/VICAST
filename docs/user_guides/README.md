@@ -167,10 +167,11 @@ Validate variant co-occurrence with read-level evidence:
 | Task | Command | Guide |
 |------|---------|-------|
 | Install VICAST | `pip install -e .` | [Getting Started](GETTING_STARTED.md) |
-| Annotate genome | `python step1_parse_viral_genome.py NC_001477` | [VICAST-Annotate](VICAST_ANNOTATE_GUIDE.md) |
-| QC workflow | `./run_vicast_analyze_qc_only.sh R1.fq.gz R2.fq.gz NC_001477 4` | [VICAST-Analyze](VICAST_ANALYZE_GUIDE.md) |
-| Annotation workflow | `./run_vicast_analyze_annotate_only.sh R1.fq.gz R2.fq.gz NC_001477` | [VICAST-Analyze](VICAST_ANALYZE_GUIDE.md) |
-| Full pipeline | `./run_vicast_analyze_full.sh R1.fq.gz R2.fq.gz NC_001477 4` | [VICAST-Analyze](VICAST_ANALYZE_GUIDE.md) |
+| Parse genome | `python step1_parse_viral_genome.py NC_001477.1` | [VICAST-Annotate](VICAST_ANNOTATE_GUIDE.md) |
+| Build SnpEff DB | `python step2_add_to_snpeff.py NC_001477.1 features.tsv` | [VICAST-Annotate](VICAST_ANNOTATE_GUIDE.md) |
+| QC workflow | `./run_vicast_analyze_qc_only.sh R1.fq R2.fq NC_001477.1 4` | [VICAST-Analyze](VICAST_ANALYZE_GUIDE.md) |
+| Annotation workflow | `./run_vicast_analyze_annotate_only.sh R1.fq R2.fq NC_001477.1` | [VICAST-Analyze](VICAST_ANALYZE_GUIDE.md) |
+| Full pipeline | `./run_vicast_analyze_full.sh R1.fq R2.fq NC_001477.1 4` | [VICAST-Analyze](VICAST_ANALYZE_GUIDE.md) |
 | Generate consensus | `python generate_realistic_haplotype_consensus.py` | [Haplotype](HAPLOTYPE_CONSENSUS_GUIDE.md) |
 | Check co-occurrence | `python check_read_cooccurrence.py` | [BAM](BAM_COOCCURRENCE_GUIDE.md) |
 
@@ -180,24 +181,44 @@ Validate variant co-occurrence with read-level evidence:
 
 **Complete Analysis Pipeline:**
 ```bash
-# 1. Annotate genome (once per virus)
+# ===== STEP 1: Prepare Genome Annotation (once per virus) =====
 cd vicast-annotate
-python step1_parse_viral_genome.py NC_001477
 
-# 2. Run QC workflow (includes contamination screening as Step 6)
+# Parse genome from NCBI
+python step1_parse_viral_genome.py NC_001477.1
+
+# MANUAL: Review and edit NC_001477.1_features.tsv
+#   - Check gene boundaries
+#   - Remove polyprotein entries if needed
+#   - Validate ORFs
+
+# Build SnpEff database
+python step2_add_to_snpeff.py NC_001477.1 NC_001477.1_features.tsv
+
+# ===== STEP 2: Run Variant Calling with QC =====
 cd ../vicast-analyze
-./run_vicast_analyze_qc_only.sh sample_R1.fastq.gz sample_R2.fastq.gz NC_001477 4
 
-# 3. Review QC results, then run annotation workflow
-./run_vicast_analyze_annotate_only.sh sample_R1.fastq.gz sample_R2.fastq.gz NC_001477
+# QC workflow: fastp, mapping, assembly, contamination screening (Steps 1-6)
+./run_vicast_analyze_qc_only.sh sample_R1.fastq.gz sample_R2.fastq.gz NC_001477.1 4
 
-# 4. Generate consensus genomes (optional)
+# MANUAL: Review QC outputs
+#   - Check coverage: cleaned_seqs/mapping/sample_coverage.txt
+#   - Review contamination: diagnostic_sample/sample_diagnostic_report.txt
+#   - Assess quality metrics
+#   - Decide: Proceed, reject, or re-sequence?
+
+# ===== STEP 3: Variant Annotation & Filtering =====
+# Annotation workflow: variant calling, SnpEff annotation, filtering (Steps 7-9)
+./run_vicast_analyze_annotate_only.sh sample_R1.fastq.gz sample_R2.fastq.gz NC_001477.1
+
+# ===== STEP 4: Advanced Analysis (Optional) =====
+# Generate frequency-stratified consensus genomes
 python ../scripts/generate_realistic_haplotype_consensus.py \
     --vcf cleaned_seqs/variants/sample_vars.filt.vcf \
-    --reference cleaned_seqs/NC_001477.fasta \
-    --accession NC_001477
+    --reference cleaned_seqs/NC_001477.1.fasta \
+    --accession NC_001477.1
 
-# 5. Validate with BAM read-level evidence (optional)
+# Validate variant linkage with read-level evidence
 python ../scripts/check_read_cooccurrence.py \
     --bam cleaned_seqs/mapping/sample.lofreq.realign.bam \
     --vcf cleaned_seqs/variants/sample_vars.filt.vcf \
@@ -206,12 +227,17 @@ python ../scripts/check_read_cooccurrence.py \
 
 **Quick Passage Study:**
 ```bash
-# For each passage, run full pipeline (QC + annotation)
+# Prerequisite: Genome already annotated and added to SnpEff (once)
+# python vicast-annotate/step1_parse_viral_genome.py NC_001477.1
+# [Manual curation of TSV]
+# python vicast-annotate/step2_add_to_snpeff.py NC_001477.1 NC_001477.1_features.tsv
+
+# For each passage, run full pipeline (QC + annotation in one step)
 for passage in P0 P5 P10; do
     ./run_vicast_analyze_full.sh \
         ${passage}_R1.fq.gz \
         ${passage}_R2.fq.gz \
-        NC_001477 \
+        NC_001477.1 \
         4
 done
 
@@ -219,8 +245,8 @@ done
 for passage in P0 P5 P10; do
     python ../scripts/generate_realistic_haplotype_consensus.py \
         --vcf cleaned_seqs/variants/${passage}_vars.filt.vcf \
-        --reference cleaned_seqs/NC_001477.fasta \
-        --accession NC_001477 \
+        --reference cleaned_seqs/NC_001477.1.fasta \
+        --accession NC_001477.1 \
         --output-prefix ${passage}
 done
 
