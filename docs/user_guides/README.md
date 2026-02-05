@@ -6,6 +6,14 @@ Complete documentation for all VICAST features and workflows.
 
 ## 🔄 VICAST Workflow Overview
 
+**Legend:**
+- 🔵 **Blue boxes** = Input data
+- 🟠 **Orange boxes** = Processing steps
+- 🟡 **Yellow diamonds** = Manual QC checkpoints
+- 🟣 **Purple** = Database
+- 🟢 **Green** = Final outputs
+- 🔴 **Red** = Quality control reports
+
 ```mermaid
 flowchart TB
     subgraph "VICAST-ANNOTATE: Genome Preparation"
@@ -56,14 +64,6 @@ flowchart TB
     style C7 fill:#b3ffb3
     style B9 fill:#b3ffb3
 ```
-
-**Legend:**
-- 🔵 **Blue boxes** = Input data
-- 🟠 **Orange boxes** = Processing steps
-- 🟡 **Yellow diamonds** = Manual QC checkpoints
-- 🟣 **Purple** = Database
-- 🟢 **Green** = Final outputs
-- 🔴 **Red** = Quality control reports
 
 ---
 
