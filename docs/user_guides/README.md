@@ -7,12 +7,11 @@ Complete documentation for all VICAST features and workflows.
 ## 🔄 VICAST Workflow Overview
 
 **Legend:**
-- 🔵 **Blue boxes** = Input data
-- 🟠 **Orange boxes** = Processing steps
-- 🟡 **Yellow diamonds** = Manual QC checkpoints
-- 🟣 **Purple** = Database
-- 🟢 **Green** = Final outputs
-- 🔴 **Red** = Quality control reports
+- **Rectangle boxes** = Input data and processing steps
+- **🟡 Yellow diamonds** = Manual QC checkpoints (require human review)
+- **🟣 Purple box** = Database
+- **🟢 Green boxes** = Final outputs
+- **🔴 Red box** = Quality control report
 
 ```mermaid
 flowchart TB
@@ -24,7 +23,7 @@ flowchart TB
         A2 -->|Pathway 4| A6[Segmented Virus<br/>Combine segments]
 
         A3 --> A7[Ready to use!]
-        A4 --> A8[Manual Curation<br/>QC checkpoint]
+        A4 --> A8{Manual Curation<br/>QC checkpoint}
         A5 --> A8
         A6 --> A8
         A8 --> A9[Build SnpEff<br/>Database]
@@ -38,7 +37,7 @@ flowchart TB
         B2 --> B4[De novo Assembly<br/>MEGAHIT]
         B4 --> B5[Contamination Screening<br/>BLAST contigs]
         B3 --> B6[Variant Calling<br/>lofreq]
-        B6 --> B7[Manual Filtering<br/>QC checkpoint]
+        B6 --> B7{Manual Filtering<br/>QC checkpoint}
         B7 --> B8[SnpEff Annotation<br/>& Effect Prediction]
         A10 -.Database input.-> B8
         B8 --> B9[Annotated Variants<br/>VCF + TSV + Reports]
