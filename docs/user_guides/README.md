@@ -27,8 +27,8 @@ flowchart TB
     subgraph "VICAST-ANALYZE: Variant Calling Pipeline"
         B1[Raw Reads<br/>FASTQ] --> B2[Quality Control<br/>fastp]
         B2 --> B3[Read Alignment<br/>bwa mem]
-        B3 --> B4[De novo Assembly<br/>MEGAHIT optional]
-        B4 --> B5[Contamination<br/>Screening BLAST]
+        B2 --> B4[De novo Assembly<br/>MEGAHIT]
+        B4 --> B5[Contamination Screening<br/>BLAST contigs]
         B3 --> B6[Variant Calling<br/>lofreq]
         B6 --> B7[Manual Filtering<br/>QC checkpoint]
         B7 --> B8[SnpEff Annotation<br/>& Effect Prediction]
