@@ -24,6 +24,7 @@ dependencies:
   #   Module 7 (Parsing):     pandas, numpy
   #   Module 8 (Diagnostic):  megahit, blast, fastp, bwa, samtools, seqkit
   #   Module 9 (Consensus):   pandas, numpy, biopython
+  #   Module 10 (Phasing):    pysam, pandas (read-level co-occurrence analysis)
 
   - bwa>=0.7.17              # Read alignment (Modules 3, 8)
   - samtools>=1.15           # SAM/BAM manipulation (Modules 3, 6, 8)
@@ -47,6 +48,9 @@ dependencies:
 
   # Required for GenBank downloads (viral_pipeline.py)
   - biopython>=1.79          # Entrez.efetch replaces entrez-direct
+
+  # Required for read-level phasing and haplotype validation
+  - pysam>=0.19.0            # BAM file parsing for check_read_cooccurrence.py
 
   # NOTE: qc_with_simple_plots.py uses ONLY Python standard libraries
   #       (urllib, json, datetime, argparse, pathlib, re, os, sys)
