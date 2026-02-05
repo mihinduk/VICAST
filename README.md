@@ -40,7 +40,8 @@ Variant calling pipeline for cultured virus passage studies, optimized for ident
 - Low-frequency variant calling with lofreq
 - SnpEff variant annotation
 - Contamination detection
-- Haplotype reconstruction
+- Multi-tier variant analysis (high/medium/low frequency)
+- Consensus genome generation from dominant variants
 
 ## Installation
 

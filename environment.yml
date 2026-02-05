@@ -35,6 +35,7 @@ dependencies:
   - lofreq
   - fastp
   - seqkit
+  - pysam  # For BAM read-level co-occurrence checking
 
   # Utilities
   - entrez-direct  # For NCBI downloads

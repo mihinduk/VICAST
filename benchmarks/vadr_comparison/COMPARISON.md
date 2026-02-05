@@ -297,19 +297,20 @@ snpeff influenza_h1n1_2009 all_variants.vcf > annotated.vcf
 - Compare mutation rates between segments
 - Single workflow for entire genome
 
-### Viral Quasispecies & Haplotype Reconstruction (VICAST Unique)
+### Frequency-Stratified Variant Analysis & Consensus Generation (VICAST Unique)
 
-Viral populations exist as quasispecies—mixtures of related variants. VICAST includes specialized tools for reconstructing and analyzing these populations.
+Viral populations often exist as quasispecies—mixtures of related variants at different frequencies. VICAST includes specialized tools for analyzing population structure and generating consensus sequences stratified by variant frequency.
 
 **Module**: `generate_realistic_haplotype_consensus.py`
 
 **The Challenge**:
-- Viral samples contain multiple co-existing variants
-- Standard consensus masks population diversity
-- Need to track which mutations co-occur on same genome
-- Must distinguish true haplotypes from sequencing artifacts
+- Viral samples contain variants at different frequencies
+- Standard single consensus masks population diversity
+- High-frequency variants (≥80-95%) likely represent the dominant viral genome
+- Medium and low-frequency variants represent minority populations
+- Need to generate representative sequences for different frequency tiers
 
-**VICAST Haplotype Reconstruction**:
+**VICAST Frequency-Stratified Analysis**:
 
 ```
 VCF/TSV Mutations
@@ -317,50 +318,95 @@ VCF/TSV Mutations
     ▼
 ┌─────────────────────────┐
 │  Frequency Grouping     │
-│  - High (≥80%): Major   │
+│  - High (≥80%): Dominant│
 │  - Med (40-80%): Minor  │
 │  - Low (<40%): Rare     │
 └─────────────────────────┘
     │
     ▼
 ┌─────────────────────────┐
-│  Realistic Co-occurrence│
-│  - Models which mutations│
-│    appear together      │
-│  - Avoids impossible    │
-│    combinations         │
+│  Statistical Inference  │
+│  - High-freq variants:  │
+│    Assumed linked       │
+│    (statistical basis)  │
+│  - Low-freq variants:   │
+│    Linkage unknown      │
 └─────────────────────────┘
     │
     ▼
 ┌─────────────────────────┐
-│  Haplotype Generation   │
-│  - Wild-type sequence   │
-│  - Major haplotype(s)   │
-│  - Minor variants       │
+│  Consensus Generation   │
+│  - Dominant consensus   │
+│    (high-freq mutations)│
+│  - Alternative consensi │
+│    (frequency tiers)    │
 │  - Frequency estimates  │
 └─────────────────────────┘
     │
     ▼
-Output: FASTA + frequency table
+Output: Multi-FASTA + frequency table
 ```
+
+**Scientific Basis:**
+
+For **high-frequency variants (≥80-95%)**:
+- Statistical inference supports linkage assumption
+- If mutation A appears in 95% of reads and mutation B in 95% of reads, at minimum 90% of viral genomes must have both mutations (pigeonhole principle)
+- This is the same principle underlying consensus genome generation
+- VICAST generates a "dominant consensus" containing these mutations
+
+For **medium and low-frequency variants (<80%)**:
+- Linkage cannot be determined from frequency alone
+- These are reported as minority variants
+- VICAST generates exploratory alternative consensi
+- **Important:** These represent possible population structures, not proven haplotypes
 
 **Example Output**:
 ```
->Haplotype_1 (frequency: 65.2%)
-ATGGCTAGC...  # Wild-type + high-freq mutations
+>Dominant_consensus (frequency: 85-95%)
+ATGGCTAGC...  # Reference + all high-freq mutations (≥80%)
 
->Haplotype_2 (frequency: 23.8%)
-ATGGCAAGC...  # Contains NS5 p.Val123Ala
+>Medium_variant_1 (frequency: ~40%)
+ATGGCAAGC...  # Exploratory: contains medium-freq mutation A
 
->Haplotype_3 (frequency: 11.0%)
-ATGGTTAGC...  # Contains E p.Gly200Arg
+>Low_variant_1 (frequency: ~5%)
+ATGGTTAGC...  # Exploratory: contains low-freq mutation B
 ```
 
 **Why This Matters for Passage Studies**:
-- Track emergence of adaptive mutations
-- Identify competing viral lineages
-- Monitor selection dynamics over passages
-- Detect potential escape variants
+- Track emergence and fixation of adaptive mutations
+- Assess population diversity at each passage
+- Generate consensus sequences representing major and minor populations
+- Monitor selection dynamics through changing variant frequencies
+- Detect potential escape variants or emerging lineages
+- **Caveat:** Linkage of low-frequency variants is inferred, not proven
+
+**Comparison with True Haplotype Reconstruction:**
+
+| Feature | VICAST | True Reconstruction Tools |
+|---------|--------|--------------------------|
+| High-freq variant consensus | ✓ Statistical inference | ✓ Read-level evidence |
+| Low-freq variant linkage | ✗ Inferred from frequency | ✓ Proven from reads |
+| Method | Frequency grouping | Phasing algorithms |
+| Evidence | Allele frequencies | Overlapping reads |
+| Sequencing required | Standard Illumina (150bp) | Long-read or paired-end |
+| Output | Stratified consensi | Proven haplotypes |
+| Accuracy | High for dominant strain | High for all frequencies |
+| Cost | $100-300/sample | $500-2000/sample (long-read) |
+
+**When to use VICAST's approach:**
+- ✓ Generate dominant consensus genome (high confidence)
+- ✓ Comprehensive contamination screening (unique to VICAST)
+- ✓ Manual curation with quality control (semi-automated)
+- ✓ Assess overall population diversity
+- ✓ Track major variants across passages
+- ✓ Cost-effective with standard Illumina sequencing
+
+**When you need true haplotype reconstruction:**
+- Prove linkage of minority variants
+- Determine exact haplotype frequencies
+- Reconstruct complete quasispecies structure
+- → Use specialized tools: PredictHaplo, QuasiRecomb, ViQuaS, ShoRAH (require long-read sequencing)
 
 ### Multi-Allelic Consensus with Complex Indel Support (VICAST Unique)
 
