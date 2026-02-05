@@ -167,56 +167,64 @@ Validate variant co-occurrence with read-level evidence:
 | Task | Command | Guide |
 |------|---------|-------|
 | Install VICAST | `pip install -e .` | [Getting Started](GETTING_STARTED.md) |
-| Annotate genome | `python step1_parse_viral_genome.py NC_001477` | [Annotation](VICAST_ANNOTATE_GUIDE.md) |
-| Run variant calling | `bash run_pipeline.sh R1.fq.gz R2.fq.gz NC_001477` | [Variant Calling](VICAST_ANALYZE_GUIDE.md) |
-| Screen contamination | `bash viral_diagnostic.sh reads.fq.gz` | [Contamination](CONTAMINATION_SCREENING_GUIDE.md) |
+| Annotate genome | `python step1_parse_viral_genome.py NC_001477` | [VICAST-Annotate](VICAST_ANNOTATE_GUIDE.md) |
+| QC workflow | `./run_vicast_analyze_qc_only.sh R1.fq.gz R2.fq.gz NC_001477 4` | [VICAST-Analyze](VICAST_ANALYZE_GUIDE.md) |
+| Annotation workflow | `./run_vicast_analyze_annotate_only.sh R1.fq.gz R2.fq.gz NC_001477` | [VICAST-Analyze](VICAST_ANALYZE_GUIDE.md) |
+| Full pipeline | `./run_vicast_analyze_full.sh R1.fq.gz R2.fq.gz NC_001477 4` | [VICAST-Analyze](VICAST_ANALYZE_GUIDE.md) |
 | Generate consensus | `python generate_realistic_haplotype_consensus.py` | [Haplotype](HAPLOTYPE_CONSENSUS_GUIDE.md) |
 | Check co-occurrence | `python check_read_cooccurrence.py` | [BAM](BAM_COOCCURRENCE_GUIDE.md) |
+
+**Note:** Contamination screening runs automatically as Step 6 in the QC workflow. See [Contamination Guide](CONTAMINATION_SCREENING_GUIDE.md) for details.
 
 ### Typical Workflows
 
 **Complete Analysis Pipeline:**
 ```bash
 # 1. Annotate genome (once per virus)
-python vicast-annotate/step1_parse_viral_genome.py NC_001477
+cd vicast-annotate
+python step1_parse_viral_genome.py NC_001477
 
-# 2. Run variant calling
-cd vicast-analyze
-bash run_pipeline_htcf_consolidated.sh R1.fastq.gz R2.fastq.gz NC_001477 4
+# 2. Run QC workflow (includes contamination screening as Step 6)
+cd ../vicast-analyze
+./run_vicast_analyze_qc_only.sh sample_R1.fastq.gz sample_R2.fastq.gz NC_001477 4
 
-# 3. Screen for contamination
-bash viral_diagnostic.sh sample_R1.fastq.gz sample_R2.fastq.gz
+# 3. Review QC results, then run annotation workflow
+./run_vicast_analyze_annotate_only.sh sample_R1.fastq.gz sample_R2.fastq.gz NC_001477
 
-# 4. Generate consensus genomes
-python generate_realistic_haplotype_consensus.py \
-    --vcf sample_variants.vcf \
-    --reference NC_001477.fasta \
+# 4. Generate consensus genomes (optional)
+python ../scripts/generate_realistic_haplotype_consensus.py \
+    --vcf cleaned_seqs/variants/sample_vars.filt.vcf \
+    --reference cleaned_seqs/NC_001477.fasta \
     --accession NC_001477
 
-# 5. Validate with BAM (optional)
-python check_read_cooccurrence.py \
-    --bam sample_aligned.bam \
-    --vcf sample_variants.vcf \
+# 5. Validate with BAM read-level evidence (optional)
+python ../scripts/check_read_cooccurrence.py \
+    --bam cleaned_seqs/mapping/sample.lofreq.realign.bam \
+    --vcf cleaned_seqs/variants/sample_vars.filt.vcf \
     --output cooccurrence.tsv
 ```
 
 **Quick Passage Study:**
 ```bash
-# For each passage, run variant calling
+# For each passage, run full pipeline (QC + annotation)
 for passage in P0 P5 P10; do
-    bash run_pipeline.sh ${passage}_R1.fq.gz ${passage}_R2.fq.gz NC_001477
+    ./run_vicast_analyze_full.sh \
+        ${passage}_R1.fq.gz \
+        ${passage}_R2.fq.gz \
+        NC_001477 \
+        4
 done
 
-# Generate consensus for each
+# Generate frequency-stratified consensus for each passage
 for passage in P0 P5 P10; do
-    python generate_realistic_haplotype_consensus.py \
-        --vcf ${passage}_variants.vcf \
-        --reference NC_001477.fasta \
+    python ../scripts/generate_realistic_haplotype_consensus.py \
+        --vcf cleaned_seqs/variants/${passage}_vars.filt.vcf \
+        --reference cleaned_seqs/NC_001477.fasta \
         --accession NC_001477 \
         --output-prefix ${passage}
 done
 
-# Compare frequency changes across passages
+# Compare frequency changes across passages to track evolution
 ```
 
 ---
