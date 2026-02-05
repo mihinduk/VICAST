@@ -44,7 +44,7 @@ flowchart TB
     end
 
     subgraph "Advanced Analysis: Population Structure"
-        C1[Variants + BAM] --> C2[Frequency-Stratified<br/>Analysis]
+        C1[VCF + BAM<br/>files] --> C2[Frequency-Stratified<br/>Analysis]
         C2 --> C3[Haplotype Consensus<br/>Generation]
         C3 --> C4{Validate<br/>Linkage?}
         C4 -->|Yes| C5[BAM Co-Occurrence<br/>Read-level evidence]
