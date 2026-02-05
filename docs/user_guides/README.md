@@ -43,7 +43,7 @@ flowchart TB
         B8 --> B9[Annotated Variants<br/>VCF + TSV + Reports]
     end
 
-    subgraph "Advanced Analysis: Population Structure"
+    subgraph "Advanced Analysis"
         C1[VCF + BAM<br/>files] --> C2[Frequency-Stratified<br/>Analysis]
         C2 --> C3[Haplotype Consensus<br/>Generation]
         C3 --> C4{Validate<br/>Linkage?}
