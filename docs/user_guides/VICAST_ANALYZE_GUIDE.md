@@ -517,11 +517,250 @@ min_depth = 100 / min_frequency
 
 ---
 
-### Step 8B: BAM Co-occurrence Analysis (Optional but Recommended)
+### Manual Checkpoint 2: Variant Review and Filtering
 
-**NEW: Evidence-Based Variant Review**
+After automated filtering (Step 8A), you should manually review variants before final annotation. **You have two options:**
 
-After automated filtering but before final annotation, you can generate read-level co-occurrence data to support manual variant review decisions.
+---
+
+#### 🔀 Choose Your Pathway
+
+| Criterion | Pathway A: Frequency-Based | Pathway B: BAM Co-Occurrence |
+|-----------|---------------------------|------------------------------|
+| **Time required** | 30-60 min | 2-5 hours (1-3h compute + 1-2h review) |
+| **Expertise needed** | Basic virology | Basic virology + read interpretation |
+| **Best for** | Routine analysis, passage tracking | Publications, novel findings |
+| **Evidence type** | Frequency + quality scores | Read-level linkage proof |
+| **Variant confidence** | Conservative thresholds | Evidence-based decisions |
+| **False positive rate** | Higher (conservative removal) | Lower (validated variants) |
+| **Biological claims** | "Variants detected at X%" | "Variants co-occur on same reads" |
+| **Reviewer questions** | "How do you know it's real?" | Direct evidence provided |
+
+**Decision Guide:**
+
+**Use Pathway A (Frequency-Based) when:**
+- ✅ Routine passage studies with well-characterized viruses
+- ✅ Time constraints (need results quickly)
+- ✅ Previous samples showed clean, straightforward patterns
+- ✅ Variants are clearly high-frequency (>50%) or clearly low (<5%)
+- ✅ Internal exploratory work (not for publication yet)
+
+**Use Pathway B (BAM Co-Occurrence) when:**
+- ✅ Preparing for publication submission
+- ✅ Novel or unexpected findings (need to prove they're real)
+- ✅ Multiple mid-frequency variants (20-50%) - need to know if linked
+- ✅ Co-infection suspected - need to distinguish haplotypes
+- ✅ Borderline variants from Pathway A need validation
+- ✅ Reviewers likely to ask "How do you know these are linked?"
+
+**Can you switch pathways mid-analysis?**
+- ✅ YES! Start with Pathway A for quick review
+- If you find borderline/uncertain cases → Run Pathway B for those specific regions
+- BAM analysis can be run anytime on the same .bam and .vcf files
+
+---
+
+#### Pathway A: Frequency-Based Review (Standard)
+
+**Use when:**
+- Routine passage tracking
+- Time constraints
+- Well-characterized viral systems
+- Previous samples showed clean variant patterns
+
+**Decision criteria based on:**
+- Variant frequency
+- Quality scores
+- Coverage depth
+- Genomic context
+- Biological plausibility
+
+##### Standard Review Process
+
+```bash
+# Review filtered VCF
+less cleaned_seqs/variants/sample_vars.filt.vcf
+
+# Or export to TSV for easier viewing
+bcftools query -f '%CHROM\t%POS\t%REF\t%ALT\t%QUAL\t%INFO/DP\t%INFO/AF\n' \
+    cleaned_seqs/variants/sample_vars.filt.vcf > variants_summary.tsv
+```
+
+##### Frequency-Based Decision Rules
+
+**Rule 1: High-frequency variants (≥50%)**
+
+| Frequency | Quality | Decision | Rationale |
+|-----------|---------|----------|-----------|
+| ≥80% | ≥1000 | ✅ KEEP | Dominant variant, very reliable |
+| 50-80% | ≥1000 | ✅ KEEP | Major variant, reliable |
+| 50-80% | <1000 | ⚠️ CHECK | Review genomic context |
+
+**Action for low quality:**
+```bash
+# Check alignment at position
+samtools view cleaned_seqs/mapping/sample.bam NC_001477.1:POS-50-POS+50 | less
+
+# Look for:
+# - Homopolymer runs (AAAA, TTTT)
+# - Low-complexity regions
+# - Alignment artifacts
+```
+
+---
+
+**Rule 2: Mid-frequency variants (20-50%)**
+
+**Consider:**
+- Is this near other mid-frequency variants? (possible mixed population)
+- Is this in a variable region? (biological expectation)
+- Is the quality score high? (>1500)
+
+| Context | Decision | Action |
+|---------|----------|--------|
+| Multiple nearby mid-freq variants | ✅ KEEP | Possible co-infection or mixed population |
+| Known variable region (e.g., Spike RBD) | ✅ KEEP | Biologically expected |
+| Isolated + high quality | ✅ KEEP | Mark as uncertain, report conservatively |
+| Isolated + low quality | ❌ REMOVE | Likely artifact |
+| In homopolymer region | ❌ REMOVE | Indel artifact |
+
+---
+
+**Rule 3: Low-frequency variants (5-20%)**
+
+**Conservative approach (recommended without BAM evidence):**
+
+| Frequency | Depth | Quality | Decision |
+|-----------|-------|---------|----------|
+| 10-20% | ≥500X | ≥2000 | ✅ KEEP |
+| 10-20% | 200-500X | ≥1500 | ⚠️ CHECK | Review context |
+| 10-20% | <200X | Any | ❌ REMOVE | Insufficient evidence |
+| 5-10% | ≥500X | ≥2000 | ⚠️ UNCERTAIN | Report with caveats |
+| 5-10% | <500X | Any | ❌ REMOVE | Too unreliable |
+| <5% | Any | Any | ❌ REMOVE | Below detection threshold |
+
+**Rationale:** Without read-level evidence, we cannot prove these variants are real vs. artifacts
+
+---
+
+**Rule 4: Known hotspots and biological context**
+
+✅ **KEEP even if borderline, when:**
+- In known variable regions (literature support)
+- In epitope regions (immune pressure)
+- In drug target sites (resistance)
+- Consistent with passage history
+
+❌ **REMOVE even if frequency is OK, when:**
+- In conserved essential regions (unlikely to be real)
+- Premature stop codons in essential genes (lethal)
+- Multiple variants at same codon (likely artifact)
+
+---
+
+##### Simplified Review Template
+
+Use this for frequency-based filtering:
+
+```bash
+# Create review spreadsheet
+cat > variant_review_frequency_based.tsv << 'EOF'
+Position	Frequency	Quality	Depth	Gene	Effect	Decision	Confidence	Rationale	Notes
+# Fill in for each variant that needs review
+# Decision: KEEP/REMOVE/UNCERTAIN
+# Confidence: HIGH/MEDIUM/LOW
+# Rationale: Why you made this decision
+EOF
+```
+
+**Example entries:**
+
+```tsv
+Position	Freq	Quality	Depth	Gene	Effect	Decision	Confidence	Rationale	Notes
+2450	0.92	3500	8000	E	D614G	KEEP	HIGH	High freq, high quality, spike RBD	Known variable site
+5000	0.45	1200	3000	NS3	L234F	REMOVE	LOW	Mid-freq orphan, homopolymer region	AAAAAA run
+7500	0.18	2200	600	NS5	A456V	UNCERTAIN	MEDIUM	Borderline freq, depth too low	Report with caveat
+9000	0.08	1800	450	NS5	K789R	REMOVE	LOW	Below 10%, insufficient depth	Below threshold
+```
+
+---
+
+##### Quality Control Checklist (Frequency-Based)
+
+```
+┌────────────────────────────────────────────────────┐
+│ VARIANT REVIEW CHECKLIST - Frequency-Based        │
+├────────────────────────────────────────────────────┤
+│ Total variants after automated filtering: ___     │
+│                                                    │
+│ HIGH-FREQUENCY (≥50%):                             │
+│   - Total: ___                                     │
+│   - KEEP: ___                                      │
+│   - REMOVE: ___                                    │
+│   - UNCERTAIN: ___                                 │
+│                                                    │
+│ MID-FREQUENCY (20-50%):                            │
+│   - Total: ___                                     │
+│   - KEEP: ___                                      │
+│   - REMOVE: ___                                    │
+│   - Flagged for biological review: ___            │
+│                                                    │
+│ LOW-FREQUENCY (5-20%):                             │
+│   - Total: ___                                     │
+│   - KEEP (high confidence): ___                    │
+│   - UNCERTAIN (report with caveats): ___          │
+│   - REMOVE: ___                                    │
+│                                                    │
+│ VERY LOW (<5%):                                    │
+│   - All removed: YES/NO                            │
+│   - If NO, explain: ___                            │
+│                                                    │
+│ DECISION:                                          │
+│   [ ] Proceed to annotation with current set      │
+│   [ ] Need BAM co-occurrence for borderline cases │
+│   [ ] Consult literature for biological context   │
+└────────────────────────────────────────────────────┘
+```
+
+---
+
+##### Conservative Filtering Recommendation
+
+**Without BAM evidence, use conservative thresholds:**
+
+```bash
+# More stringent than with BAM evidence
+# Err on the side of removing uncertain variants
+
+# High-frequency only (safest)
+--quality 1500 --depth 200 --freq 0.50
+
+# Include moderate-frequency (standard)
+--quality 1000 --depth 200 --freq 0.20
+
+# Include low-frequency (requires high depth)
+--quality 2000 --depth 500 --freq 0.10
+```
+
+**Publication language (frequency-based only):**
+> "Variants were filtered based on quality score (≥1000), depth (≥200X), and frequency (≥20%). Manual review removed variants in low-complexity regions and those with biological implausibility. Without read-level linkage evidence, we applied conservative criteria to minimize false positives."
+
+---
+
+### Pathway B: Evidence-Based Review with BAM Co-occurrence (Enhanced)
+
+**Use when:**
+- Publication-quality analyses
+- Novel or unexpected findings
+- Complex samples (co-infections, mixed populations)
+- Need to validate variant linkage for biological claims
+- Borderline variants from Pathway A need resolution
+
+#### Step 8B: BAM Co-occurrence Analysis (Optional but Recommended)
+
+**Enhanced Variant Review with Read-Level Evidence**
+
+After automated filtering (Step 8A), you can generate read-level co-occurrence data to make evidence-based decisions instead of relying solely on frequency thresholds.
 
 #### When to Use This Step
 
