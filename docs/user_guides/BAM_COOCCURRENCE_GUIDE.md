@@ -173,6 +173,398 @@ The output TSV file contains:
 - Limited or no evidence possible
 - Depends on long reads or special libraries
 
+---
+
+## Using Co-occurrence Data for Manual Variant Review
+
+### Overview
+
+Co-occurrence analysis provides **evidence-based decision support** for Manual Checkpoint 2 in the VICAST workflow - the variant filtering review step. Instead of relying solely on frequency thresholds and quality scores, you can use read-level evidence to distinguish real variants from artifacts.
+
+### Workflow Integration
+
+#### Standard VICAST Workflow (Without BAM)
+
+```bash
+# Step 7-9: Variant calling and filtering
+./run_vicast_analyze_annotate_only.sh sample_R1.fq.gz sample_R2.fq.gz NC_001477.1
+
+# MANUAL CHECKPOINT 2: Review variants
+# - Check frequencies, quality scores
+# - Remove suspected artifacts
+# - Decisions based on thresholds alone
+```
+
+#### Enhanced Workflow (With BAM Co-occurrence)
+
+```bash
+# Step 7-9: Variant calling and filtering
+./run_vicast_analyze_annotate_only.sh sample_R1.fq.gz sample_R2.fq.gz NC_001477.1
+
+# NEW: Generate co-occurrence evidence
+python ../scripts/check_read_cooccurrence.py \
+    --bam cleaned_seqs/mapping/sample.lofreq.realign.bam \
+    --vcf cleaned_seqs/variants/sample_vars.filt.vcf \
+    --output sample_cooccurrence.tsv
+
+# MANUAL CHECKPOINT 2: Enhanced variant review
+# - Review variants AND their linkage patterns
+# - Use read-level evidence for decisions
+# - Distinguish real haplotypes from artifacts
+```
+
+---
+
+### Decision Rules for Variant Filtering
+
+#### Rule 1: Validate High-Frequency Variant Clusters
+
+**Pattern to look for:**
+- Multiple high-frequency variants (≥80%) in nearby positions
+- Co-occurrence rates ≥95% between them
+
+**Example:**
+```
+Position 22673  Freq=95%  T>C  │ Co-occurrence Matrix:
+Position 22674  Freq=92%  C>T  │ 22673+22674: 99.74% (69,436/69,616)
+Position 22679  Freq=93%  T>C  │ 22673+22679: 99.96% (68,670/68,697)
+Position 22686  Freq=90%  C>T  │ 22673+22686: 99.97% (66,150/66,169)
+                               │ 22674+22679: 99.95% (68,755/68,791)
+                               │ 22679+22686: 99.99% (68,512/68,521)
+```
+
+**Interpretation:** These variants form a coherent haplotype representing ~90-95% of the viral population.
+
+**Decision:** ✅ **KEEP ALL** - Strong evidence of real linked variants on same haplotype
+
+---
+
+#### Rule 2: Flag Suspicious Mid-Frequency Singletons
+
+**Pattern to look for:**
+- Variant at 30-70% frequency
+- NO high co-occurrence (≥95%) with any nearby variants
+- Doesn't fit into expected haplotype structure
+
+**Example:**
+```
+Position 5000   Freq=45%  G>A  │ Co-occurrence with nearby variants:
+Position 4950   Freq=85%  C>T  │ 5000+4950: 12% (5/42)
+Position 5100   Freq=88%  A>G  │ 5000+5100: 8% (3/37)
+                               │
+Interpretation: 45% variant doesn't belong to major haplotype
+```
+
+**Possible causes:**
+- Sequencing artifact in difficult region
+- Alignment error (homopolymer, repeat)
+- PCR error amplified during library prep
+- Real recombinant (rare for most viruses)
+
+**Decision:** 🚩 **FLAG FOR INVESTIGATION**
+
+**Checks to perform:**
+```bash
+# 1. Check coverage depth at position
+samtools depth -r NC_001477.1:4990-5010 sample.bam
+
+# 2. Examine alignment quality
+samtools view sample.bam NC_001477.1:4990-5010 | less
+
+# 3. Check for nearby homopolymers or repeats
+# If region is AAAAAAAA or similar → likely artifact
+```
+
+**Final decision:**
+- If region has alignment issues: ❌ **REMOVE**
+- If alignment looks clean: ⚠️ **MARK AS UNCERTAIN**, report conservatively
+
+---
+
+#### Rule 3: Resolve Ambiguous Low-Frequency Variants
+
+**Pattern A - Linked to major haplotype:**
+```
+Position 10000  Freq=8%   C>T  │ Co-occurrence:
+Position 10050  Freq=85%  A>G  │ 10000+10050: 92% (45/49 reads)
+                               │
+Interpretation: 8% variant appears WITH the 85% major variant
+→ Emerging mutation on the dominant haplotype
+```
+
+**Decision:** ✅ **KEEP** - Real emerging variant, biologically plausible (e.g., passage adaptation)
+
+---
+
+**Pattern B - Isolated singleton:**
+```
+Position 15000  Freq=6%   T>C  │ Co-occurrence:
+Position 14950  Freq=87%  G>A  │ 15000+14950: 2% (1/48)
+Position 15100  Freq=89%  C>T  │ 15000+15100: 3% (1/35)
+                               │
+Interpretation: 6% variant is independent of major haplotype
+→ Likely sequencing error or rare artifact
+```
+
+**Decision:** ❌ **REMOVE** - Insufficient evidence for biological reality
+
+**Threshold guideline:**
+- Low-frequency variants (<10%) with <10% co-occurrence with major haplotype → Remove
+- Low-frequency variants with >80% co-occurrence with major haplotype → Keep
+
+---
+
+#### Rule 4: Identify Distinct Haplotypes (Mutually Exclusive Variants)
+
+**Pattern to look for:**
+- Two variants at similar mid-range frequencies (30-70%)
+- ZERO or very low co-occurrence (<5%) between them
+- Each variant shows high co-occurrence with DIFFERENT sets of variants
+
+**Example:**
+```
+Position 10162  Freq=45%  G>A  │ Haplotype A marker
+Position 10163  Freq=55%  C>T  │ Haplotype B marker
+                               │
+Co-occurrence: 10162+10163: 0% (0/79 reads)
+→ Mutually exclusive = different haplotypes
+
+Downstream cluster (10179, 10200, 10212, 10230):
+10162 + cluster: 77-80% co-occurrence → Haplotype A
+10163 + cluster: 19-23% co-occurrence → Haplotype B (inverse)
+```
+
+**Interpretation:**
+- **Haplotype A**: Carries 10162 variant + downstream cluster (45% frequency)
+- **Haplotype B**: Carries 10163 variant alone (55% frequency)
+
+**Decision:** ✅ **KEEP BOTH** - Clear evidence of two distinct viral subpopulations
+
+**Publication language:**
+> "Read-level co-occurrence analysis revealed two distinct haplotypes: Haplotype A (45%) carrying position 10162 variant with downstream mutations at 10179-10230 (77-80% linkage), and Haplotype B (55%) defined by the mutually exclusive 10163 variant (0% co-occurrence with 10162)."
+
+---
+
+### Variant Review Checklist Template
+
+Use this checklist during Manual Checkpoint 2:
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│ VARIANT REVIEW CHECKLIST - BAM Co-occurrence Evidence                  │
+├──────────┬──────┬──────┬───────────────────────┬──────────┬────────────┤
+│ Position │ Freq │ Type │ Co-occurrence Pattern │ Decision │ Notes      │
+├──────────┼──────┼──────┼───────────────────────┼──────────┼────────────┤
+│ 22673    │ 95%  │ SNP  │ 99% with 22674-22686  │ KEEP     │ Major hap  │
+│ 22674    │ 92%  │ SNP  │ 99% with cluster      │ KEEP     │ Major hap  │
+│ 5000     │ 45%  │ SNP  │ No linkage found      │ FLAG     │ Check aln  │
+│ 10162    │ 45%  │ SNP  │ 77% with cluster      │ KEEP     │ Hap A      │
+│ 10163    │ 55%  │ SNP  │ Inverse to 10162      │ KEEP     │ Hap B      │
+│ 15000    │ 6%   │ SNP  │ Isolated singleton    │ REMOVE   │ Artifact   │
+└──────────┴──────┴──────┴───────────────────────┴──────────┴────────────┘
+
+Decision Key:
+  KEEP     - Strong evidence, retain in final VCF
+  REMOVE   - Likely artifact, exclude from analysis
+  FLAG     - Requires manual inspection
+  UNCERTAIN - Report but note low confidence
+```
+
+**Download template:** See `variant_review_template.tsv` in VICAST repository
+
+---
+
+### Step-by-Step Review Process
+
+#### Step 1: Load Both Files
+
+```bash
+# Open co-occurrence results
+less sample_cooccurrence.tsv
+
+# Open filtered VCF for reference
+less cleaned_seqs/variants/sample_vars.filt.vcf
+```
+
+#### Step 2: Identify High-Frequency Clusters
+
+```bash
+# Extract high-frequency variants (≥80%)
+awk -F'\t' 'NR==1 || $NF >= 0.80' cleaned_seqs/variants/sample_vars.filt.vcf > high_freq_vars.vcf
+
+# Find which pairs have >95% co-occurrence
+awk -F'\t' 'NR==1 || $12 >= 0.95' sample_cooccurrence.tsv > high_cooccur.tsv
+```
+
+**Expected result:** Clusters of nearby variants with high co-occurrence
+
+#### Step 3: Flag Suspicious Singletons
+
+Look for variants that:
+- Have moderate frequency (30-70%)
+- Don't appear in `high_cooccur.tsv`
+- Aren't part of any cluster
+
+Mark these for manual inspection.
+
+#### Step 4: Classify Low-Frequency Variants
+
+```bash
+# Extract low-frequency variants (5-20%)
+awk -F'\t' 'NR==1 || ($NF >= 0.05 && $NF < 0.20)' sample_vars.filt.vcf > low_freq_vars.vcf
+```
+
+For each low-frequency variant:
+- Check if it co-occurs (>80%) with any high-frequency variant
+  - YES → Keep (emerging mutation)
+  - NO → Remove (likely artifact)
+
+#### Step 5: Create Filtered VCF
+
+```bash
+# Create final filtered VCF with decisions applied
+python ../scripts/apply_cooccurrence_filters.py \
+    --vcf cleaned_seqs/variants/sample_vars.filt.vcf \
+    --cooccurrence sample_cooccurrence.tsv \
+    --review-checklist variant_review.tsv \
+    --output sample_vars.final.vcf
+```
+
+---
+
+### Common Patterns and Interpretations
+
+#### Pattern 1: Perfect Linkage Cluster (Publication-Quality)
+
+```
+Positions: 1000, 1025, 1050, 1080
+Frequencies: 95%, 94%, 96%, 93%
+Co-occurrence: All pairs >99.5%
+
+Interpretation: Single dominant haplotype at ~95% frequency
+Confidence: ★★★★★ Excellent
+Publication: "Variants at positions 1000-1080 showed >99.5% co-occurrence
+              (n=10,000-12,000 reads per pair), confirming linkage on a
+              single dominant haplotype."
+```
+
+#### Pattern 2: Two Distinct Haplotypes
+
+```
+Haplotype A markers: 2000, 2050  (45% each, 99% co-occurrence)
+Haplotype B markers: 2005, 2055  (55% each, 98% co-occurrence)
+A vs B co-occurrence: <5%
+
+Interpretation: Two competing viral populations
+Confidence: ★★★★☆ High
+Publication: "BAM analysis revealed two distinct haplotypes with mutually
+              exclusive markers (A: 45%, B: 55%; <5% co-occurrence between
+              lineages, n=500-800 reads)."
+```
+
+#### Pattern 3: Emerging Variant on Major Haplotype
+
+```
+Major haplotype: Positions 5000-5200 at 90% frequency
+New variant: Position 5100 at 12% frequency
+Co-occurrence: 5100 with major haplotype: 85%
+
+Interpretation: Emerging mutation arising on dominant background
+Confidence: ★★★☆☆ Moderate
+Publication: "Position 5100 variant (12%) showed 85% co-occurrence with
+              the major haplotype (90%), suggesting emergence through
+              mutation rather than co-infection."
+```
+
+#### Pattern 4: Suspicious Artifact (Remove)
+
+```
+Position 8000: 35% frequency
+Co-occurrence with all nearby variants: <10%
+Region: Homopolymer (AAAAAAA)
+Quality: Mean Q=25
+
+Interpretation: Likely sequencing artifact in difficult region
+Confidence: ★☆☆☆☆ Low (variant should be removed)
+Publication: Do not report
+```
+
+---
+
+### Quality Control Metrics
+
+Track these metrics during variant review:
+
+```
+Review Session Metrics:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Total variants in filtered VCF: 244
+High-frequency (≥80%): 45
+  ├─ In high-cooccur clusters: 42 (93%) ✓ Good
+  └─ Singletons: 3 (7%) → FLAG
+
+Mid-frequency (20-80%): 28
+  ├─ Linked to haplotypes: 20 (71%) ✓ Good
+  └─ Orphaned: 8 (29%) → INVESTIGATE
+
+Low-frequency (<20%): 171
+  ├─ Linked to major haplotype: 12 (7%) → KEEP
+  └─ Singletons: 159 (93%) → REMOVE
+
+Variants with co-occurrence data: 89/244 (36%)
+Variants too distant (>500bp): 155 (64%) → Use frequency alone
+
+Final retained variants: 74
+  ├─ With read-level evidence: 62 (84%)
+  └─ Frequency-based only: 12 (16%)
+```
+
+---
+
+### Integration with VICAST-Analyze Workflow
+
+#### Recommended Insertion Point
+
+Add BAM co-occurrence as **Step 8B** in the VICAST-Analyze pipeline:
+
+**Current workflow:**
+```
+Step 7: Variant calling (lofreq)
+Step 8: Automated filtering
+Step 9: SnpEff annotation
+```
+
+**Enhanced workflow:**
+```
+Step 7: Variant calling (lofreq)
+Step 8A: Automated filtering
+Step 8B: BAM co-occurrence analysis (NEW - optional)
+        MANUAL CHECKPOINT 2: Review with co-occurrence evidence
+Step 9: SnpEff annotation
+```
+
+#### Command-Line Integration
+
+Add to `run_vicast_analyze_annotate_only.sh`:
+
+```bash
+# After Step 8A: Filtering
+echo "Step 8B: Generating co-occurrence evidence (optional)..."
+if [ -f "${PIPELINE_BASE}/scripts/check_read_cooccurrence.py" ]; then
+    python "${PIPELINE_BASE}/scripts/check_read_cooccurrence.py" \
+        --bam "${OUTPUT_DIR}/mapping/${SAMPLE}.lofreq.realign.bam" \
+        --vcf "${OUTPUT_DIR}/variants/${SAMPLE}_vars.filt.vcf" \
+        --output "${OUTPUT_DIR}/variants/${SAMPLE}_cooccurrence.tsv"
+
+    echo "Co-occurrence results: ${OUTPUT_DIR}/variants/${SAMPLE}_cooccurrence.tsv"
+    echo "MANUAL REVIEW: Check variants with co-occurrence evidence before proceeding"
+    echo "Press Enter to continue to SnpEff annotation, or Ctrl+C to review first..."
+    read
+fi
+```
+
+---
+
 ## Integration with Haplotype Consensus
 
 ### Workflow

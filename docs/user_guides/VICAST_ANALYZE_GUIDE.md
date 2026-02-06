@@ -517,6 +517,193 @@ min_depth = 100 / min_frequency
 
 ---
 
+### Step 8B: BAM Co-occurrence Analysis (Optional but Recommended)
+
+**NEW: Evidence-Based Variant Review**
+
+After automated filtering but before final annotation, you can generate read-level co-occurrence data to support manual variant review decisions.
+
+#### When to Use This Step
+
+✅ **Highly recommended for:**
+- Publication-quality analyses
+- Studies with unexpected findings
+- Samples with complex haplotype structure
+- When you need to distinguish real variants from artifacts
+
+⚠️ **Optional for:**
+- Routine passage tracking
+- Well-characterized systems
+- Time-constrained exploratory work
+
+#### Running Co-occurrence Analysis
+
+```bash
+# After Step 8A: Automated filtering completes
+# Generate read-level co-occurrence evidence
+
+python ../scripts/check_read_cooccurrence.py \
+    --bam cleaned_seqs/mapping/sample.lofreq.realign.bam \
+    --vcf cleaned_seqs/variants/sample_vars.filt.vcf \
+    --output cleaned_seqs/variants/sample_cooccurrence.tsv \
+    --max-distance 500
+```
+
+**Parameters:**
+- `--bam`: Aligned BAM file (from Step 4)
+- `--vcf`: Filtered VCF file (from Step 8A)
+- `--output`: Output TSV file with co-occurrence metrics
+- `--max-distance`: Maximum bp between variants to check (default: 500)
+
+**Runtime:** ~1-3 hours for typical viral genome with 100-300 variants
+
+#### Output Format
+
+The co-occurrence TSV contains:
+
+```tsv
+variant1_pos  variant2_pos  distance  cooccurrence_rate  informative_reads  linkage_proven
+22673         22674         1         0.9974             69616              True
+22673         22679         6         0.9996             68697              True
+5000          5100          100       0.12               42                 True
+```
+
+**Key columns:**
+- **cooccurrence_rate**: Fraction of reads carrying BOTH alternative alleles
+- **informative_reads**: Number of reads spanning both positions
+- **linkage_proven**: Whether we have sufficient evidence (>10 reads)
+
+#### Manual Review with Co-occurrence Data
+
+**MANUAL CHECKPOINT 2: Enhanced Variant Filtering**
+
+Use the co-occurrence data to make evidence-based decisions:
+
+**Decision Rule 1: High-frequency clusters (≥80%)**
+- Look for variants with >95% co-occurrence
+- These are on the same haplotype → KEEP ALL
+
+**Decision Rule 2: Mid-frequency orphans (30-70%)**
+- Check if variant co-occurs with any cluster
+- No linkage found → FLAG for manual inspection (possible artifact)
+
+**Decision Rule 3: Low-frequency variants (<20%)**
+- Check if linked (>80%) to major haplotype → KEEP (emerging variant)
+- Isolated singleton with <10% co-occurrence → REMOVE (artifact)
+
+**Decision Rule 4: Mutually exclusive variants**
+- Two variants with 0% co-occurrence but each links to different clusters
+- These represent distinct haplotypes → KEEP BOTH
+
+#### Review Template
+
+Download and use the variant review checklist:
+
+```bash
+# Copy template to your working directory
+cp ../docs/user_guides/variant_review_template.tsv variant_review.tsv
+
+# Edit in Excel or text editor
+# Fill in decisions based on co-occurrence patterns
+```
+
+**Template columns:**
+- Position, Frequency, Variant Type
+- Co-occurrence Pattern (from TSV)
+- Decision (KEEP/REMOVE/FLAG/UNCERTAIN)
+- Confidence (HIGH/MEDIUM/LOW/NONE)
+- Notes (biological context, reviewer comments)
+
+#### Example Review Session
+
+```bash
+# 1. Load both files for comparison
+less cleaned_seqs/variants/sample_vars.filt.vcf
+less cleaned_seqs/variants/sample_cooccurrence.tsv
+
+# 2. Identify high-frequency clusters
+awk -F'\t' '$12 >= 0.95' sample_cooccurrence.tsv > high_linkage.tsv
+
+# 3. Flag suspicious singletons
+# (Variants with moderate frequency but no high linkage)
+
+# 4. Apply decisions to create final VCF
+# (Manual editing or scripted filtering)
+
+# 5. Document review in checklist
+vim variant_review.tsv
+```
+
+#### Integration with Workflow Scripts
+
+**Option A: Run manually between steps**
+
+```bash
+# Run QC and get filtered VCF
+./run_vicast_analyze_qc_only.sh sample_R1.fq sample_R2.fq NC_001477.1 4
+
+# Generate co-occurrence data
+python ../scripts/check_read_cooccurrence.py \
+    --bam cleaned_seqs/mapping/sample.lofreq.realign.bam \
+    --vcf cleaned_seqs/variants/sample_vars.filt.vcf \
+    --output cleaned_seqs/variants/sample_cooccurrence.tsv
+
+# MANUAL REVIEW HERE
+# Review co-occurrence patterns and make filtering decisions
+
+# Continue with annotation
+./run_vicast_analyze_annotate_only.sh sample_R1.fq sample_R2.fq NC_001477.1
+```
+
+**Option B: Modify workflow script to include automatic pause**
+
+Add to `run_vicast_analyze_annotate_only.sh` after filtering:
+
+```bash
+# Step 8B: BAM co-occurrence (optional)
+if [ -f "${PIPELINE_BASE}/scripts/check_read_cooccurrence.py" ]; then
+    echo "Generating co-occurrence evidence..."
+    python "${PIPELINE_BASE}/scripts/check_read_cooccurrence.py" \
+        --bam "${OUTPUT_DIR}/mapping/${SAMPLE}.lofreq.realign.bam" \
+        --vcf "${OUTPUT_DIR}/variants/${SAMPLE}_vars.filt.vcf" \
+        --output "${OUTPUT_DIR}/variants/${SAMPLE}_cooccurrence.tsv"
+
+    echo ""
+    echo "=========================================="
+    echo "MANUAL CHECKPOINT 2: Variant Review"
+    echo "=========================================="
+    echo "Co-occurrence results: ${OUTPUT_DIR}/variants/${SAMPLE}_cooccurrence.tsv"
+    echo "Filtered VCF: ${OUTPUT_DIR}/variants/${SAMPLE}_vars.filt.vcf"
+    echo ""
+    echo "Review variants using co-occurrence evidence before proceeding."
+    echo "See: docs/user_guides/BAM_COOCCURRENCE_GUIDE.md"
+    echo ""
+    echo "Press ENTER to continue to SnpEff annotation..."
+    echo "Or press Ctrl+C to stop and review manually"
+    read -r
+fi
+```
+
+#### Benefits for Publication
+
+Including BAM co-occurrence analysis strengthens your publication by:
+
+✅ **Validation**: Direct read-level evidence supports variant calls
+✅ **Rigor**: Demonstrates thorough quality control beyond frequency thresholds
+✅ **Transparency**: Provides reviewers with linkage evidence
+✅ **Novelty**: Distinguishes your analysis from frequency-only approaches
+
+**Example Methods text:**
+> "Variant co-occurrence was assessed at the read level using pysam (v0.22). For variant pairs within 500 bp, reads spanning both positions were examined to determine linkage. Variants showing >95% co-occurrence were considered to be on the same haplotype. This read-level evidence informed manual filtering decisions (see Supplementary Table X)."
+
+#### See Also
+
+- **Detailed decision rules**: [BAM Co-Occurrence Guide](BAM_COOCCURRENCE_GUIDE.md#using-co-occurrence-data-for-manual-variant-review)
+- **Template spreadsheet**: `docs/user_guides/variant_review_template.tsv`
+- **Example analysis**: BAM test results summary
+
+---
+
 ## Output Interpretation
 
 ### Key Output Files
