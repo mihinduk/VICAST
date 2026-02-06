@@ -57,7 +57,9 @@ USER root
 # Download and install SnpEff
 RUN mkdir -p /opt && \
     cd /opt && \
-    wget -q https://snpeff.blob.core.windows.net/versions/snpEff_latest_core.zip && \
+    wget --retry-connrefused --waitretry=1 --read-timeout=20 --timeout=15 -t 3 \
+        https://snpeff.blob.core.windows.net/versions/snpEff_latest_core.zip || \
+    curl -L -o snpEff_latest_core.zip https://snpeff.blob.core.windows.net/versions/snpEff_latest_core.zip && \
     unzip -q snpEff_latest_core.zip && \
     rm snpEff_latest_core.zip && \
     chmod -R 755 /opt/snpEff
