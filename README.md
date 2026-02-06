@@ -39,8 +39,9 @@ Variant calling pipeline for cultured virus passage studies, optimized for ident
 - Read mapping with bwa
 - Low-frequency variant calling with lofreq
 - SnpEff variant annotation
-- Contamination detection
+- Contamination detection with de novo assembly
 - Multi-tier variant analysis (high/medium/low frequency)
+- BAM read-level co-occurrence analysis for variant validation
 - Consensus genome generation from dominant variants
 
 ## Installation

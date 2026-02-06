@@ -9,6 +9,7 @@ Complete documentation for all VICAST features and workflows.
 **Legend:**
 - **Rectangle boxes** = Input data and processing steps
 - **🟡 Yellow diamonds** = Manual QC checkpoints (require human review)
+- **🔵 Light blue box** = Optional analysis step (BAM co-occurrence)
 - **🟣 Purple box** = Database
 - **🟢 Green boxes** = Final outputs
 - **🔴 Red box** = Quality control report
@@ -36,8 +37,12 @@ flowchart TB
         B2 --> B3[Read Alignment<br/>bwa mem]
         B2 --> B4[De novo Assembly<br/>MEGAHIT]
         B4 --> B5[Contamination Screening<br/>BLAST contigs]
+        B5 --> B5a{QC Review<br/>Checkpoint 1}
         B3 --> B6[Variant Calling<br/>lofreq]
-        B6 --> B7{Manual Filtering<br/>QC checkpoint}
+        B5a -->|Proceed| B6
+        B6 --> B6a[Automated Filtering<br/>Step 8A]
+        B6a --> B6b[BAM Co-Occurrence<br/>Step 8B optional]
+        B6b --> B7{Variant Review<br/>Checkpoint 2}
         B7 --> B8[SnpEff Annotation<br/>& Effect Prediction]
         A10 -.Database input.-> B8
         B8 --> B9[Annotated Variants<br/>VCF + TSV + Reports]
@@ -57,7 +62,9 @@ flowchart TB
     B5 --> C8[Contamination<br/>Report]
 
     style A8 fill:#fff4a3
+    style B5a fill:#fff4a3
     style B7 fill:#fff4a3
+    style B6b fill:#e6f3ff
     style A10 fill:#e6b3ff
     style C8 fill:#ffcccc
     style C7 fill:#b3ffb3
