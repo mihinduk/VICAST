@@ -1,0 +1,16 @@
+{
+  "version": "1.0",
+  "last_updated": "2026-02-06",
+  "databases": [
+    {
+      "accession": "NC_001474.2",
+      "name": "DENV-2",
+      "description": "Dengue virus type 2",
+      "size_mb": 0.0,
+      "features": 10,
+      "tags": ["dengue", "flavivirus", "arbovirus"],
+      "url": "https://github.com/shandley/VICAST/raw/main/prebuilt_databases/NC_001474.2.tar.gz",
+      "md5": "PLACEHOLDER"
+    }
+  ]
+}
