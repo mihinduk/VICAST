@@ -1,16 +1,216 @@
 {
   "version": "1.0",
-  "last_updated": "2026-02-06",
+  "last_updated": "2026-02-09",
   "databases": [
+    {
+      "accession": "HM440560.1",
+      "name": "POWV-DTVWiA08",
+      "description": "Powassan virus isolate DTVWiA08",
+      "size_mb": 0.06,
+      "features": 10,
+      "tags": ["flavivirus", "tick-borne", "encephalitis"],
+      "url": "https://github.com/mihinduk/VICAST/raw/main/prebuilt_databases/HM440560.1.tar.gz",
+      "md5": "8802f340d8ce72de2de320966215e5ff"
+    },
+    {
+      "accession": "HM440561.1",
+      "name": "POWV-DTVWiB08",
+      "description": "Powassan virus isolate DTVWiB08",
+      "size_mb": 0.04,
+      "features": 10,
+      "tags": ["flavivirus", "tick-borne", "encephalitis"],
+      "url": "https://github.com/mihinduk/VICAST/raw/main/prebuilt_databases/HM440561.1.tar.gz",
+      "md5": "d611d909f5f028abfd8a24a383ce5d44"
+    },
+    {
+      "accession": "HM440562.1",
+      "name": "POWV-DTVWiC08",
+      "description": "Powassan virus isolate DTVWiC08",
+      "size_mb": 0.04,
+      "features": 10,
+      "tags": ["flavivirus", "tick-borne", "encephalitis"],
+      "url": "https://github.com/mihinduk/VICAST/raw/main/prebuilt_databases/HM440562.1.tar.gz",
+      "md5": "176c1c717f55a9456035c2ac88d22523"
+    },
+    {
+      "accession": "AY532665.1",
+      "name": "WNV-B956",
+      "description": "West Nile virus strain B956",
+      "size_mb": 0.06,
+      "features": 10,
+      "tags": ["flavivirus", "arbovirus", "mosquito-borne"],
+      "url": "https://github.com/mihinduk/VICAST/raw/main/prebuilt_databases/AY532665.1.tar.gz",
+      "md5": "8167c7dfc2b7b8005bfec206f331f70b"
+    },
+    {
+      "accession": "influenza_pr8",
+      "name": "Influenza-A-PR8",
+      "description": "Influenza A virus A/Puerto Rico/8/1934 (H1N1) - 8 segments",
+      "size_mb": 0.05,
+      "features": 33,
+      "tags": ["influenza", "orthomyxovirus", "segmented", "respiratory"],
+      "url": "https://github.com/mihinduk/VICAST/raw/main/prebuilt_databases/influenza_pr8.tar.gz",
+      "md5": "b698538e3e7feb517ce255932130bfd9"
+    },
+    {
+      "accession": "NC_038433.1",
+      "name": "TDAV",
+      "description": "Theiler's disease-associated virus",
+      "size_mb": 0.03,
+      "features": 3,
+      "tags": ["parvovirus", "equine", "hepatitis"],
+      "url": "https://github.com/mihinduk/VICAST/raw/main/prebuilt_databases/NC_038433.1.tar.gz",
+      "md5": "acb65a42a6b3c2ae36fec75fb30239b2"
+    },
+    {
+      "accession": "GQ433359.1",
+      "name": "RRV",
+      "description": "Ross River virus strain T48",
+      "size_mb": 0.07,
+      "features": 9,
+      "tags": ["alphavirus", "arbovirus", "mosquito-borne"],
+      "url": "https://github.com/mihinduk/VICAST/raw/main/prebuilt_databases/GQ433359.1.tar.gz",
+      "md5": "3001816fba41a0a5b9d2214cc103a27a"
+    },
+    {
+      "accession": "J02363.1",
+      "name": "SINV-HRsp",
+      "description": "Sindbis virus strain HRsp",
+      "size_mb": 0.04,
+      "features": 9,
+      "tags": ["alphavirus", "arbovirus", "mosquito-borne"],
+      "url": "https://github.com/mihinduk/VICAST/raw/main/prebuilt_databases/J02363.1.tar.gz",
+      "md5": "02a4a0b9f6a5ee8a71cb728b0b17c032"
+    },
+    {
+      "accession": "OR882082.1",
+      "name": "SINV-TR339",
+      "description": "Sindbis virus strain TR339",
+      "size_mb": 0.06,
+      "features": 9,
+      "tags": ["alphavirus", "arbovirus", "mosquito-borne"],
+      "url": "https://github.com/mihinduk/VICAST/raw/main/prebuilt_databases/OR882082.1.tar.gz",
+      "md5": "7d4ddb3ef60026da47cb4e94cf88815f"
+    },
+    {
+      "accession": "PP889333.1",
+      "name": "SINV-SE",
+      "description": "Sindbis virus isolate SE_JM231060",
+      "size_mb": 0.04,
+      "features": 9,
+      "tags": ["alphavirus", "arbovirus", "mosquito-borne"],
+      "url": "https://github.com/mihinduk/VICAST/raw/main/prebuilt_databases/PP889333.1.tar.gz",
+      "md5": "5eb974c51b4820503b5d615c8bd4c192"
+    },
+    {
+      "accession": "NC_075022.1",
+      "name": "VEEV",
+      "description": "Venezuelan equine encephalitis virus",
+      "size_mb": 0.05,
+      "features": 9,
+      "tags": ["alphavirus", "arbovirus", "equine"],
+      "url": "https://github.com/mihinduk/VICAST/raw/main/prebuilt_databases/NC_075022.1.tar.gz",
+      "md5": "8b04a13ea247dffa61ca9f03d5a83887"
+    },
+    {
+      "accession": "NC_009942.1",
+      "name": "WNV-NY99",
+      "description": "West Nile virus (New York 1999)",
+      "size_mb": 0.05,
+      "features": 10,
+      "tags": ["flavivirus", "arbovirus", "mosquito-borne"],
+      "url": "https://github.com/mihinduk/VICAST/raw/main/prebuilt_databases/NC_009942.1.tar.gz",
+      "md5": "2ea3ac70f593bec50ad39dbf773bb139"
+    },
+    {
+      "accession": "NC_001563.2",
+      "name": "WNV-Kunjin",
+      "description": "West Nile virus Kunjin strain",
+      "size_mb": 0.07,
+      "features": 10,
+      "tags": ["flavivirus", "arbovirus", "mosquito-borne"],
+      "url": "https://github.com/mihinduk/VICAST/raw/main/prebuilt_databases/NC_001563.2.tar.gz",
+      "md5": "616840271364bd59ec6f5c13e80e21a4"
+    },
+    {
+      "accession": "OP713603.1",
+      "name": "WNV-Spain2020",
+      "description": "West Nile virus isolate Spain/2020/Cadiz",
+      "size_mb": 0.04,
+      "features": 10,
+      "tags": ["flavivirus", "arbovirus", "mosquito-borne"],
+      "url": "https://github.com/mihinduk/VICAST/raw/main/prebuilt_databases/OP713603.1.tar.gz",
+      "md5": "296077d0daef551201ba0e37f44a8346"
+    },
+    {
+      "accession": "KU955591.1",
+      "name": "ZIKV",
+      "description": "Zika virus isolate 41525-DAK (Senegal 1984)",
+      "size_mb": 0.06,
+      "features": 10,
+      "tags": ["flavivirus", "arbovirus", "mosquito-borne"],
+      "url": "https://github.com/mihinduk/VICAST/raw/main/prebuilt_databases/KU955591.1.tar.gz",
+      "md5": "616bb1d63ad30df673ae5bcb5a22c676"
+    },
+    {
+      "accession": "NC_027998.1",
+      "name": "HPgV-2",
+      "description": "Human pegivirus 2 isolate ABT0029A",
+      "size_mb": 0.03,
+      "features": 3,
+      "tags": ["pegivirus", "flaviviridae", "human"],
+      "url": "https://github.com/mihinduk/VICAST/raw/main/prebuilt_databases/NC_027998.1.tar.gz",
+      "md5": "fd1ab20ebda5b6480005db0c9eaaa0fd"
+    },
+    {
+      "accession": "NC_045512.2",
+      "name": "SARS-CoV-2",
+      "description": "SARS-CoV-2 isolate Wuhan-Hu-1",
+      "size_mb": 0.09,
+      "features": 12,
+      "tags": ["coronavirus", "sarbecovirus", "respiratory"],
+      "url": "https://github.com/mihinduk/VICAST/raw/main/prebuilt_databases/NC_045512.2.tar.gz",
+      "md5": "88918794460876fbc873a067ee6af2fc"
+    },
+    {
+      "accession": "NC_001477.1",
+      "name": "DENV-1",
+      "description": "Dengue virus type 1",
+      "size_mb": 0.03,
+      "features": 10,
+      "tags": ["dengue", "flavivirus", "arbovirus"],
+      "url": "https://github.com/mihinduk/VICAST/raw/main/prebuilt_databases/NC_001477.1.tar.gz",
+      "md5": "50b3b902b8cbee21a357482cdadbee1d"
+    },
+    {
+      "accession": "ON109597.1",
+      "name": "DENV-1-ICIDR92",
+      "description": "Dengue virus type 1 isolate ICIDR92",
+      "size_mb": 0.04,
+      "features": 10,
+      "tags": ["dengue", "flavivirus", "arbovirus"],
+      "url": "https://github.com/mihinduk/VICAST/raw/main/prebuilt_databases/ON109597.1.tar.gz",
+      "md5": "4a7971bf6c3840ea584c65d236ac92d0"
+    },
+    {
+      "accession": "ON123646.1",
+      "name": "DENV-1-THSTI",
+      "description": "Dengue virus type 1 isolate THSTI-TRC-DENV1-01",
+      "size_mb": 0.04,
+      "features": 10,
+      "tags": ["dengue", "flavivirus", "arbovirus"],
+      "url": "https://github.com/mihinduk/VICAST/raw/main/prebuilt_databases/ON123646.1.tar.gz",
+      "md5": "1c35d992844362a7e2f406313377df10"
+    },
     {
       "accession": "NC_001474.2",
       "name": "DENV-2",
       "description": "Dengue virus type 2",
-      "size_mb": 0.0,
+      "size_mb": 0.04,
       "features": 10,
       "tags": ["dengue", "flavivirus", "arbovirus"],
-      "url": "https://github.com/shandley/VICAST/raw/main/prebuilt_databases/NC_001474.2.tar.gz",
-      "md5": "PLACEHOLDER"
+      "url": "https://github.com/mihinduk/VICAST/raw/main/prebuilt_databases/NC_001474.2.tar.gz",
+      "md5": "acc0c6656a7c394f108d8b105b34c16e"
     }
   ]
 }

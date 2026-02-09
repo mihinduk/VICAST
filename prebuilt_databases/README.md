@@ -98,6 +98,52 @@ Submit your changes via GitHub pull request with:
 - Updated `manifest.json`
 - Brief description of the genome
 
+## Inspecting Pre-built Databases
+
+Before using a pre-built database, you can inspect its annotation quality:
+
+```bash
+# View all genes/features in the database
+snpeff dump NC_001474.2 | head -50
+
+# See the GFF3 annotation
+cat $SNPEFF_DATA/NC_001474.2/genes.gff
+
+# Count how many features are annotated
+grep -c "CDS" $SNPEFF_DATA/NC_001474.2/genes.gff
+
+# Check protein sequences
+head $SNPEFF_DATA/NC_001474.2/protein.fa
+```
+
+## Overwriting Pre-built Databases
+
+**Don't like our annotation?** You can always replace it with your own:
+
+### Option 1: Build from scratch (overwrites existing)
+
+```bash
+# Download genome and build custom database
+step1_parse_viral_genome.py NC_001474.2
+
+# This creates NC_001474.2_features.tsv - edit it to your liking
+# Then build the database (overwrites pre-built)
+step2_add_to_snpeff.py NC_001474.2 NC_001474.2_features.tsv --force
+```
+
+### Option 2: Reinstall pre-built (revert changes)
+
+```bash
+# Reinstall original pre-built database
+install_prebuilt_database.sh --install NC_001474.2 --force
+```
+
+**Key points:**
+- ✅ Pre-built databases are **starting points**, not requirements
+- ✅ You have **full control** to modify or replace them
+- ✅ Custom annotations always **overwrite** pre-built ones
+- ✅ Use `--force` flag to overwrite existing databases
+
 ## Building from Scratch
 
 If you want to build your own database instead of using pre-built ones:
