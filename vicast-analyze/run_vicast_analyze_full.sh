@@ -119,7 +119,7 @@ if java -jar "$SNPEFF_JAR" databases 2>/dev/null | grep -q "$ACCESSION"; then
     echo "✓ snpEff database found for $ACCESSION in config"
 
     # Verify the database is actually built (has snpEffectPredictor.bin)
-    if [ -f "$SNPEFF_DIR/data/$ACCESSION/snpEffectPredictor.bin" ]; then
+    if [ -f "$SNPEFF_DATA/$ACCESSION/snpEffectPredictor.bin" ]; then
         echo "✓ Database is built and ready"
         echo ""
     else

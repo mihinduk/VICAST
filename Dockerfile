@@ -96,6 +96,14 @@ RUN printf '#!/bin/bash\njava -jar %s "$@"\n' "${SNPEFF_JAR}" > /usr/local/bin/s
 RUN echo '#!/bin/bash\ncat << "EOF"\n\n╔══════════════════════════════════════════════════════════════╗\n║                    VICAST Docker v2.2.3                      ║\n║        Viral Cultured-virus Annotation & SnpEff Toolkit      ║\n╚══════════════════════════════════════════════════════════════╝\n\nQuick Start:\n  install_prebuilt_database.sh --list    # See available genomes\n  install_prebuilt_database.sh --install NC_001474.2  # Install DENV-2\n  download_sra_data.sh SRR5992153        # Get test data\n  run_vicast_analyze_full.sh SRR5992153_1.fastq.gz SRR5992153_2.fastq.gz NC_001474.2 4\n\nOr Build Custom Genome:\n  step1_parse_viral_genome.py NC_001477.1\n  step2_add_to_snpeff.py NC_001477.1 features.tsv\n  snpeff dump NC_001477.1 | head\n\nYour data: /data (mounted from host)\nVICAST code: /opt/vicast/\nDocumentation: /opt/vicast/README.md\n\nEOF' > /etc/profile.d/vicast_motd.sh && \
     chmod +x /etc/profile.d/vicast_motd.sh
 
+# Create conda symlink to micromamba for compatibility
+RUN ln -s /usr/bin/micromamba /usr/local/bin/conda
+
+# Initialize micromamba for all users
+RUN micromamba shell init --shell=bash --root-prefix=/opt/conda && \
+    echo 'eval "$(micromamba shell hook --shell bash)"' >> /etc/bash.bashrc && \
+    echo 'micromamba activate base' >> /etc/bash.bashrc
+
 # Set working directory
 WORKDIR /data
 
