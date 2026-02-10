@@ -1,0 +1,14 @@
+##gff-version 3
+##sequence-region NC_EXAMPLE.1 1 1080
+NC_EXAMPLE.1	VICAST	gene	1	300	.	+	.	ID=gene_NS1;gene=NS1
+NC_EXAMPLE.1	VICAST	mRNA	1	300	.	+	.	ID=mRNA_NS1;Parent=gene_NS1;gene=NS1
+NC_EXAMPLE.1	VICAST	CDS	1	300	.	+	0	ID=cds_NS1;Parent=mRNA_NS1;gene=NS1;protein_id=YP_EXAMPLE_001;product=nonstructural protein 1
+NC_EXAMPLE.1	VICAST	gene	301	600	.	+	.	ID=gene_NS2;gene=NS2
+NC_EXAMPLE.1	VICAST	mRNA	301	600	.	+	.	ID=mRNA_NS2;Parent=gene_NS2;gene=NS2
+NC_EXAMPLE.1	VICAST	CDS	301	600	.	+	0	ID=cds_NS2;Parent=mRNA_NS2;gene=NS2;protein_id=YP_EXAMPLE_002;product=nonstructural protein 2
+NC_EXAMPLE.1	VICAST	gene	601	900	.	+	.	ID=gene_capsid;gene=capsid
+NC_EXAMPLE.1	VICAST	mRNA	601	900	.	+	.	ID=mRNA_capsid;Parent=gene_capsid;gene=capsid
+NC_EXAMPLE.1	VICAST	CDS	601	900	.	+	0	ID=cds_capsid;Parent=mRNA_capsid;gene=capsid;protein_id=YP_EXAMPLE_003;product=capsid protein
+NC_EXAMPLE.1	VICAST	gene	901	1080	.	+	.	ID=gene_envelope;gene=envelope
+NC_EXAMPLE.1	VICAST	mRNA	901	1080	.	+	.	ID=mRNA_envelope;Parent=gene_envelope;gene=envelope
+NC_EXAMPLE.1	VICAST	CDS	901	1080	.	+	0	ID=cds_envelope;Parent=mRNA_envelope;gene=envelope;protein_id=YP_EXAMPLE_004;product=envelope protein

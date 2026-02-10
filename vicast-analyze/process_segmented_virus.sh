@@ -65,7 +65,7 @@ fi
 KNOWN_VIRUSES="${PIPELINE_DIR}/known_viruses.json"
 
 # Activate environment
-source /ref/sahlab/software/anaconda3/bin/activate
+source $CONDA_BASE/bin/activate (or your conda installation)
 conda activate vicast_analyze
 
 # Extract segment information

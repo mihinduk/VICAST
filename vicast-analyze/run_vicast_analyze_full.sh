@@ -23,7 +23,7 @@ if [ $# -lt 3 ]; then
     echo "  Part 2: ./run_vicast_analyze_annotate_only.sh <R1> <R2> <accession>"
     echo ""
     echo "Prerequisites:"
-    echo "  - Activate conda: source /ref/sahlab/software/anaconda3/bin/activate"
+    echo "  - Activate conda: source $CONDA_BASE/bin/activate (or your conda installation)"
     echo "  - snpEff database must exist (use VICAST-annotate to add genomes)"
     exit 1
 fi
@@ -59,7 +59,7 @@ else
     echo "⚠️  No configuration file found. Using hardcoded paths."
     # Fallback defaults for backward compatibility
     MAMBA_CMD="conda run -n viral_genomics"
-    SNPEFF_DIR="/ref/sahlab/software/snpEff"
+    SNPEFF_DIR="${SNPEFF_DIR:-/ref/sahlab/software/snpEff}"  # Use env var or default
     SNPEFF_JAR="${SNPEFF_DIR}/snpEff.jar"
     JAVA_PATH="java"
 fi
@@ -69,7 +69,7 @@ if ! command -v conda &> /dev/null; then
     echo "❌ Error: conda not found in PATH"
     echo ""
     echo "Please activate conda first:"
-    echo "  source /ref/sahlab/software/anaconda3/bin/activate"
+    echo "  source $CONDA_BASE/bin/activate (or your conda installation)"
     echo ""
     echo "Then re-run this script."
     exit 1

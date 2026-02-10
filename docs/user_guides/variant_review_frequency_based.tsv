@@ -1,0 +1,83 @@
+Position	Frequency	Quality_Score	Depth	Gene	Amino_Acid_Change	Variant_Effect	Genomic_Context	Decision	Confidence	Rationale	Biological_Notes	Reviewer	Review_Date
+# VARIANT REVIEW TEMPLATE - FREQUENCY-BASED FILTERING
+# Use this template when NOT using BAM co-occurrence analysis
+#
+# INSTRUCTIONS:
+# 1. Export filtered VCF to fill columns 1-7
+# 2. Add genomic context information (column 8)
+# 3. Make decisions using frequency-based rules (columns 9-10)
+# 4. Document rationale and biological context (columns 11-12)
+# 5. Add reviewer info (columns 13-14)
+#
+# DECISION RULES (without read-level evidence):
+#
+# HIGH-FREQUENCY (≥50%):
+#   Freq ≥80%, Quality ≥1000 → KEEP (dominant variant)
+#   Freq 50-80%, Quality ≥1000 → KEEP (major variant)
+#   Freq 50-80%, Quality <1000 → CHECK genomic context
+#
+# MID-FREQUENCY (20-50%):
+#   Multiple nearby mid-freq → KEEP (possible mixed population)
+#   Known variable region + high quality → KEEP
+#   Isolated + high quality (>1500) → KEEP (mark uncertain)
+#   Isolated + low quality → REMOVE (artifact)
+#   Homopolymer region → REMOVE (indel artifact)
+#
+# LOW-FREQUENCY (5-20%):
+#   Freq 10-20%, Depth ≥500X, Quality ≥2000 → KEEP
+#   Freq 10-20%, Depth 200-500X, Quality ≥1500 → CHECK context
+#   Freq 10-20%, Depth <200X → REMOVE (insufficient evidence)
+#   Freq 5-10%, Depth ≥500X, Quality ≥2000 → UNCERTAIN (report with caveats)
+#   Freq 5-10%, Depth <500X → REMOVE
+#   Freq <5% → REMOVE (below detection threshold)
+#
+# BIOLOGICAL CONTEXT MODIFIERS:
+#   Known hotspot/variable region → More lenient (KEEP borderline)
+#   Conserved essential region → More stringent (REMOVE borderline)
+#   Premature stop in essential gene → REMOVE (likely artifact, would be lethal)
+#   Consistent with passage history → KEEP
+#
+# CONFIDENCE LEVELS:
+#   HIGH: Frequency ≥50%, Quality ≥1500, Clear biological context
+#   MEDIUM: Frequency 20-50%, Quality ≥1000, OR borderline with biological support
+#   LOW: Frequency 5-20%, Quality <2000, OR uncertain context
+#   UNCERTAIN: Report but note insufficient evidence without BAM validation
+#
+# GENOMIC CONTEXT FLAGS:
+#   - "Homopolymer" = AAAA, TTTT runs (likely artifact)
+#   - "Low-complexity" = Simple repeats (likely artifact)
+#   - "Variable region" = Known from literature (biologically expected)
+#   - "Conserved" = Essential/invariant region (unlikely real)
+#   - "Near other variants" = Clustered mutations (possible haplotype)
+#
+# EXAMPLE ENTRIES:
+2450	0.92	3500	8000	E	D614G	Missense	Spike RBD, known variable site	KEEP	HIGH	High freq + quality, known hotspot	E gene position critical for binding	JDoe	2026-02-05
+2500	0.88	3200	7500	E	N501Y	Missense	Near 2450, known variable	KEEP	HIGH	High freq, near other variant	Potential linked haplotype with 2450	JDoe	2026-02-05
+5000	0.45	1200	3000	NS3	L234F	Missense	Homopolymer AAAAAA	REMOVE	LOW	Mid-freq orphan in homopolymer	Likely indel artifact	JDoe	2026-02-05
+6500	0.35	1800	2500	NS3	A456V	Missense	Near other mid-freq variants	KEEP	MEDIUM	Multiple mid-freq nearby	Possible co-infection or mixed pop	JDoe	2026-02-05
+7500	0.18	2200	600	NS5	K789R	Missense	Conserved polymerase region	UNCERTAIN	LOW	Borderline freq, low depth	Report with caveat, need higher depth	JDoe	2026-02-05
+8000	0.12	1800	450	NS5	L123P	Missense	No special context	REMOVE	LOW	Below 20%, insufficient depth	Below threshold without BAM evidence	JDoe	2026-02-05
+9000	0.08	1500	400	NS4B	V567A	Missense	No special context	REMOVE	LOW	Below 10%, too low without evidence	Standard removal for <10%	JDoe	2026-02-05
+1500	0.65	2500	5000	C	Stop gained	Nonsense	Essential structural gene	REMOVE	LOW	Premature stop would be lethal	Biologically implausible, artifact	JDoe	2026-02-05
+3500	0.15	2500	800	NS2A	I234V	Missense	Known adaptation site from lit	KEEP	MEDIUM	Literature support for adaptation	Passage-adaptive mutation reported	JDoe	2026-02-05
+#
+# WHEN TO ESCALATE TO BAM CO-OCCURRENCE ANALYSIS:
+# 1. Multiple mid-frequency variants (20-50%) - need to know if they're linked
+# 2. Borderline low-frequency variants (10-15%) - need validation
+# 3. Novel findings for publication - need read-level evidence
+# 4. Contradictory biological expectations - need to resolve
+# 5. Co-infection suspected - need to distinguish haplotypes
+#
+# CONSERVATIVE APPROACH (recommended without BAM):
+# - Remove all variants <20% frequency
+# - Remove mid-frequency (20-50%) unless multiple clustered OR known biology
+# - Keep only high-frequency (≥50%) with quality ≥1000
+# - Report uncertainties clearly in publication
+#
+# PUBLICATION NOTES:
+# When using frequency-based filtering only, include in Methods:
+# "Variants were filtered based on quality score (≥X), coverage depth (≥Y), and
+#  frequency (≥Z%). Manual review excluded variants in low-complexity regions
+#  and those with biological implausibility. Conservative frequency thresholds
+#  were applied to minimize false positives in the absence of read-level
+#  linkage validation."

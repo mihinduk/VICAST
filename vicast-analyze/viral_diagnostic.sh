@@ -68,7 +68,7 @@ rm -rf /home/mihindu/.cache/mamba/locks* 2>/dev/null || true
 sleep 2
 
 # Try using conda instead of mamba to avoid lock issues entirely
-source /ref/sahlab/software/anaconda3/bin/activate base
+source $CONDA_BASE/bin/activate (or your conda installation) base
 eval "$(conda shell.bash hook)"
 
 # Check if vicast_analyze tools are available via anaconda3 conda
@@ -289,7 +289,7 @@ echo "Filtered contigs for BLAST: $FILTERED_COUNT"
 
 if [ "$FILTERED_COUNT" -gt 0 ]; then
     # Check for local contamination database first
-    LOCAL_DB_PATH="/ref/sahlab/data/microbes_db/microbial_contaminants"
+    LOCAL_DB_PATH="${BLAST_DB:-/ref/sahlab/data/microbes_db/microbial_contaminants}"
     
     # Add header to BLAST results
     echo -e "Query_ID\tSubject_ID\tPercent_Identity\tAlignment_Length\tMismatches\tGap_Opens\tQuery_Start\tQuery_End\tSubject_Start\tSubject_End\tE_value\tBit_Score\tSubject_Title" > "${SAMPLE_NAME}_blast_all.tsv"

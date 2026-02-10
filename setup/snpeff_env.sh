@@ -2,7 +2,7 @@
 # snpEff Environment Setup
 # Source this file to use snpEff with Java 21
 
-export JAVA_HOME="/ref/sahlab/software/jdk-21.0.5+11"
+export JAVA_HOME="${JAVA_HOME:-/ref/sahlab/software/jdk-21.0.5+11}"
 export SNPEFF_HOME="/home/mihindu/software/snpEff"
 export PATH="$JAVA_HOME/bin:$PATH"
 

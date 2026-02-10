@@ -1,0 +1,45 @@
+##gff-version 3
+##sequence-region NC_026431.1 1 982
+NC_026431.1	NCBI	gene	1	982	.	+	.	ID=gene_M2;Name=M2
+NC_026431.1	NCBI	mRNA	1	982	.	+	.	ID=mRNA_M2;Parent=gene_M2;Name=M2;gene=M2
+NC_026431.1	NCBI	CDS	1	26	.	+	0	ID=cds_M2_1;Parent=mRNA_M2;Name=M2;gene=M2;product=matrix protein 2;protein_id=YP_009118622.1
+NC_026431.1	NCBI	CDS	715	982	.	+	2	ID=cds_M2_2;Parent=mRNA_M2;Name=M2;gene=M2;product=matrix protein 2;protein_id=YP_009118622.1
+NC_026431.1	NCBI	gene	1	759	.	+	.	ID=gene_M1;Name=M1
+NC_026431.1	NCBI	mRNA	1	759	.	+	.	ID=mRNA_M1;Parent=gene_M1;Name=M1;gene=M1
+NC_026431.1	NCBI	CDS	1	759	.	+	0	ID=cds_M1_1;Parent=mRNA_M1;Name=M1;gene=M1;product=matrix protein 1;protein_id=YP_009118623.1
+##sequence-region NC_026432.1 1 863
+NC_026432.1	NCBI	gene	1	838	.	+	.	ID=gene_NEP;Name=NEP
+NC_026432.1	NCBI	mRNA	1	838	.	+	.	ID=mRNA_NEP;Parent=gene_NEP;Name=NEP;gene=NEP
+NC_026432.1	NCBI	CDS	1	30	.	+	0	ID=cds_NEP_1;Parent=mRNA_NEP;Name=NEP;gene=NEP;product=nuclear export protein;protein_id=YP_009118624.1
+NC_026432.1	NCBI	CDS	503	838	.	+	1	ID=cds_NEP_2;Parent=mRNA_NEP;Name=NEP;gene=NEP;product=nuclear export protein;protein_id=YP_009118624.1
+NC_026432.1	NCBI	gene	1	660	.	+	.	ID=gene_NS1;Name=NS1
+NC_026432.1	NCBI	mRNA	1	660	.	+	.	ID=mRNA_NS1;Parent=gene_NS1;Name=NS1;gene=NS1
+NC_026432.1	NCBI	CDS	1	660	.	+	0	ID=cds_NS1_1;Parent=mRNA_NS1;Name=NS1;gene=NS1;product=nonstructural protein 1;protein_id=YP_009118625.1
+##sequence-region NC_026433.1 1 1701
+NC_026433.1	NCBI	gene	1	1701	.	+	.	ID=gene_HA;Name=HA
+NC_026433.1	NCBI	mRNA	1	1701	.	+	.	ID=mRNA_HA;Parent=gene_HA;Name=HA;gene=HA
+NC_026433.1	NCBI	CDS	1	1701	.	+	0	ID=cds_HA_1;Parent=mRNA_HA;Name=HA;gene=HA;product=hemagglutinin;protein_id=YP_009118626.1
+##sequence-region NC_026434.1 1 1410
+NC_026434.1	NCBI	gene	1	1410	.	+	.	ID=gene_NA;Name=NA
+NC_026434.1	NCBI	mRNA	1	1410	.	+	.	ID=mRNA_NA;Parent=gene_NA;Name=NA;gene=NA
+NC_026434.1	NCBI	CDS	1	1410	.	+	0	ID=cds_NA_1;Parent=mRNA_NA;Name=NA;gene=NA;product=neuraminidase;protein_id=YP_009118627.1
+##sequence-region NC_026435.1 1 2274
+NC_026435.1	NCBI	gene	1	2274	.	+	.	ID=gene_PB1;Name=PB1
+NC_026435.1	NCBI	mRNA	1	2274	.	+	.	ID=mRNA_PB1;Parent=gene_PB1;Name=PB1;gene=PB1
+NC_026435.1	NCBI	CDS	1	2274	.	+	0	ID=cds_PB1_1;Parent=mRNA_PB1;Name=PB1;gene=PB1;product=polymerase PB1;protein_id=YP_009118628.1
+##sequence-region NC_026436.1 1 1497
+NC_026436.1	NCBI	gene	1	1497	.	+	.	ID=gene_NP;Name=NP
+NC_026436.1	NCBI	mRNA	1	1497	.	+	.	ID=mRNA_NP;Parent=gene_NP;Name=NP;gene=NP
+NC_026436.1	NCBI	CDS	1	1497	.	+	0	ID=cds_NP_1;Parent=mRNA_NP;Name=NP;gene=NP;product=nucleocapsid protein;protein_id=YP_009118629.1
+##sequence-region NC_026437.1 1 2151
+NC_026437.1	NCBI	gene	1	2151	.	+	.	ID=gene_PA;Name=PA
+NC_026437.1	NCBI	mRNA	1	2151	.	+	.	ID=mRNA_PA;Parent=gene_PA;Name=PA;gene=PA
+NC_026437.1	NCBI	CDS	1	2151	.	+	0	ID=cds_PA_1;Parent=mRNA_PA;Name=PA;gene=PA;product=polymerase PA;protein_id=YP_009118630.1
+NC_026437.1	NCBI	gene	1	700	.	+	.	ID=gene_PA-X;Name=PA-X
+NC_026437.1	NCBI	mRNA	1	700	.	+	.	ID=mRNA_PA-X;Parent=gene_PA-X;Name=PA-X;gene=PA-X
+NC_026437.1	NCBI	CDS	1	570	.	+	0	ID=cds_PA-X_1;Parent=mRNA_PA-X;Name=PA-X;gene=PA-X;product=PA-X protein;protein_id=YP_009121769.1
+NC_026437.1	NCBI	CDS	572	700	.	+	1	ID=cds_PA-X_2;Parent=mRNA_PA-X;Name=PA-X;gene=PA-X;product=PA-X protein;protein_id=YP_009121769.1
+##sequence-region NC_026438.1 1 2280
+NC_026438.1	NCBI	gene	1	2280	.	+	.	ID=gene_PB2;Name=PB2
+NC_026438.1	NCBI	mRNA	1	2280	.	+	.	ID=mRNA_PB2;Parent=gene_PB2;Name=PB2;gene=PB2
+NC_026438.1	NCBI	CDS	1	2280	.	+	0	ID=cds_PB2_1;Parent=mRNA_PB2;Name=PB2;gene=PB2;product=polymerase PB2;protein_id=YP_009118631.1

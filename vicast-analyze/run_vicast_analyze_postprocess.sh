@@ -100,14 +100,14 @@ if [ -f "$CONFIG_FILE" ]; then
     source "$CONFIG_FILE"
 else
     MAMBA_CMD="conda run -n viral_genomics"
-    SNPEFF_DIR="/ref/sahlab/software/snpEff"
+    SNPEFF_DIR="${SNPEFF_DIR:-/ref/sahlab/software/snpEff}"  # Use env var or default
 fi
 
 # Check if conda is available
 if ! command -v conda &> /dev/null; then
     echo "❌ Error: conda not found in PATH"
     echo "Please activate conda first:"
-    echo "  source /ref/sahlab/software/anaconda3/bin/activate"
+    echo "  source $CONDA_BASE/bin/activate (or your conda installation)"
     exit 1
 fi
 

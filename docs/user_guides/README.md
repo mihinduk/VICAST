@@ -1,0 +1,283 @@
+# VICAST User Guides
+
+Complete documentation for all VICAST features and workflows.
+
+---
+
+## 🔄 VICAST Workflow Overview
+
+**Legend:**
+- **Rectangle boxes** = Input data and processing steps
+- **🟡 Yellow diamonds** = Manual QC checkpoints (require human review)
+- **🔵 Light blue box** = Optional analysis step (BAM co-occurrence)
+- **🟣 Purple box** = Database
+- **🟢 Green boxes** = Final outputs
+- **🔴 Red box** = Quality control report
+
+```mermaid
+flowchart TB
+    subgraph "VICAST-ANNOTATE: Genome Preparation"
+        A1[Reference Genome<br/>GenBank/FASTA] --> A2{Annotation<br/>Pathway}
+        A2 -->|Pathway 1| A3[Check SnpEff<br/>Already exists?]
+        A2 -->|Pathway 2| A4[Parse GenBank<br/>Standard annotation]
+        A2 -->|Pathway 3| A5[BLASTx<br/>Homology search]
+        A2 -->|Pathway 4| A6[Segmented Virus<br/>Combine segments]
+
+        A3 --> A7[Ready to use!]
+        A4 --> A8{Manual Curation<br/>QC checkpoint}
+        A5 --> A8
+        A6 --> A8
+        A8 --> A9[Build SnpEff<br/>Database]
+        A9 --> A10[(Custom Viral<br/>Database)]
+        A7 --> A10
+    end
+
+    subgraph "VICAST-ANALYZE: Variant Calling Pipeline"
+        B1[Raw Reads<br/>FASTQ] --> B2[Quality Control<br/>fastp]
+        B2 --> B3[Read Alignment<br/>bwa mem]
+        B2 --> B4[De novo Assembly<br/>MEGAHIT]
+        B4 --> B5[Contamination Screening<br/>BLAST contigs]
+        B5 --> B5a{QC Review<br/>Checkpoint 1}
+        B3 --> B6[Variant Calling<br/>lofreq]
+        B5a -->|Proceed| B6
+        B6 --> B6a[Automated Filtering<br/>Step 8A]
+        B6a --> B6b[BAM Co-Occurrence<br/>Step 8B optional]
+        B6b --> B7{Variant Review<br/>Checkpoint 2}
+        B7 --> B8[SnpEff Annotation<br/>& Effect Prediction]
+        A10 -.Database input.-> B8
+        B8 --> B9[Annotated Variants<br/>VCF + TSV + Reports]
+    end
+
+    subgraph "Advanced Analysis"
+        C1[VCF + BAM<br/>files] --> C2[Frequency-Stratified<br/>Analysis]
+        C2 --> C3[Haplotype Consensus<br/>Generation]
+        C3 --> C4{Validate<br/>Linkage?}
+        C4 -->|Yes| C5[BAM Co-Occurrence<br/>Read-level evidence]
+        C4 -->|No| C6[Dominant Consensus<br/>Alternative consensi]
+        C5 --> C7[Validated Haplotypes<br/>+ Evidence metrics]
+        C6 --> C7
+    end
+
+    B9 --> C1
+    B5 --> C8[Contamination<br/>Report]
+
+    style A8 fill:#fff4a3
+    style B5a fill:#fff4a3
+    style B7 fill:#fff4a3
+    style B6b fill:#e6f3ff
+    style A10 fill:#e6b3ff
+    style C8 fill:#ffcccc
+    style C7 fill:#b3ffb3
+    style B9 fill:#b3ffb3
+```
+
+---
+
+## 📚 Quick Navigation
+
+### Getting Started
+- **[Getting Started Guide](GETTING_STARTED.md)** - Installation, setup, and first analysis
+
+### Core Workflows
+- **[VICAST-Annotate Guide](VICAST_ANNOTATE_GUIDE.md)** - Annotate viral genomes for SnpEff
+- **[VICAST-Analyze Guide](VICAST_ANALYZE_GUIDE.md)** - Complete variant calling pipeline
+- **[Contamination Screening Guide](CONTAMINATION_SCREENING_GUIDE.md)** - De novo assembly + BLAST pipeline
+
+### Advanced Features
+- **[Haplotype Consensus Guide](HAPLOTYPE_CONSENSUS_GUIDE.md)** - Generate frequency-stratified consensus genomes
+- **[BAM Co-Occurrence Guide](BAM_COOCCURRENCE_GUIDE.md)** - Read-level validation of variant linkage
+
+### Reference
+- **[Parameter Reference](PARAMETER_REFERENCE.md)** - Complete parameter documentation
+- **[Troubleshooting Guide](TROUBLESHOOTING.md)** - Common issues and solutions
+
+---
+
+## By Use Case
+
+### 🧬 New to VICAST?
+1. [Getting Started Guide](GETTING_STARTED.md)
+2. [VICAST-Analyze Guide](VICAST_ANALYZE_GUIDE.md)
+3. [Contamination Screening Guide](CONTAMINATION_SCREENING_GUIDE.md)
+
+### 📊 Passage Studies
+1. [VICAST-Analyze Guide](VICAST_ANALYZE_GUIDE.md)
+2. [Haplotype Consensus Guide](HAPLOTYPE_CONSENSUS_GUIDE.md)
+3. [BAM Co-Occurrence Guide](BAM_COOCCURRENCE_GUIDE.md) - for validation
+
+### 🆕 Adding New Virus
+1. [VICAST-Annotate Guide](VICAST_ANNOTATE_GUIDE.md)
+2. [VICAST-Analyze Guide](VICAST_ANALYZE_GUIDE.md)
+
+### 🔬 Publication-Quality Analysis
+1. [Contamination Screening Guide](CONTAMINATION_SCREENING_GUIDE.md) - critical for publications
+2. [Haplotype Consensus Guide](HAPLOTYPE_CONSENSUS_GUIDE.md) - population structure
+3. [BAM Co-Occurrence Guide](BAM_COOCCURRENCE_GUIDE.md) - validate claims
+
+---
+
+## Guide Descriptions
+
+### Core Workflows
+
+#### Getting Started Guide
+Complete installation and setup instructions for VICAST on different systems (local, HPC, Docker). Includes quickstart example and verification steps.
+
+#### VICAST-Annotate Guide (VICAST-Annotate)
+How to prepare viral genomes for variant annotation:
+- Download genomes from NCBI
+- Parse GFF/GenBank files
+- Build SnpEff databases
+- Validate annotations
+- Troubleshoot common issues
+
+#### VICAST-Analyze Guide (VICAST-Analyze)
+Complete variant calling pipeline from FASTQ to annotated VCF:
+- Quality control (fastp)
+- Read alignment (bwa)
+- Variant calling (lofreq)
+- Variant annotation (SnpEff)
+- Filtering and reporting
+
+#### Contamination Screening Guide
+De novo assembly and BLAST-based contamination detection:
+- When to use contamination screening
+- De novo assembly with megahit
+- BLAST against contamination databases
+- Interpreting results
+- Reporting for publications
+
+### Advanced Features
+
+#### Haplotype Consensus Guide
+Generate frequency-stratified consensus genomes:
+- Understanding variant frequencies
+- Parameter selection by virus type
+- Biological interpretation
+- Publication language
+- Limitations and caveats
+
+#### BAM Co-Occurrence Guide
+Validate variant co-occurrence with read-level evidence:
+- When direct evidence is needed
+- Running co-occurrence analysis
+- Interpreting results
+- Integration with haplotype consensus
+- Strengthening publication claims
+
+---
+
+## Quick Reference Tables
+
+### Command Cheat Sheet
+
+| Task | Command | Guide |
+|------|---------|-------|
+| Install VICAST | `pip install -e .` | [Getting Started](GETTING_STARTED.md) |
+| Parse genome | `python step1_parse_viral_genome.py NC_001477.1` | [VICAST-Annotate](VICAST_ANNOTATE_GUIDE.md) |
+| Build SnpEff DB | `python step2_add_to_snpeff.py NC_001477.1 features.tsv` | [VICAST-Annotate](VICAST_ANNOTATE_GUIDE.md) |
+| QC workflow | `./run_vicast_analyze_qc_only.sh R1.fq R2.fq NC_001477.1 4` | [VICAST-Analyze](VICAST_ANALYZE_GUIDE.md) |
+| Annotation workflow | `./run_vicast_analyze_annotate_only.sh R1.fq R2.fq NC_001477.1` | [VICAST-Analyze](VICAST_ANALYZE_GUIDE.md) |
+| Full pipeline | `./run_vicast_analyze_full.sh R1.fq R2.fq NC_001477.1 4` | [VICAST-Analyze](VICAST_ANALYZE_GUIDE.md) |
+| Generate consensus | `python generate_realistic_haplotype_consensus.py` | [Haplotype](HAPLOTYPE_CONSENSUS_GUIDE.md) |
+| Check co-occurrence | `python check_read_cooccurrence.py` | [BAM](BAM_COOCCURRENCE_GUIDE.md) |
+
+**Note:** Contamination screening runs automatically as Step 6 in the QC workflow. See [Contamination Guide](CONTAMINATION_SCREENING_GUIDE.md) for details.
+
+### Typical Workflows
+
+**Complete Analysis Pipeline:**
+```bash
+# ===== STEP 1: Prepare Genome Annotation (once per virus) =====
+cd vicast-annotate
+
+# Parse genome from NCBI
+python step1_parse_viral_genome.py NC_001477.1
+
+# MANUAL: Review and edit NC_001477.1_features.tsv
+#   - Check gene boundaries
+#   - Remove polyprotein entries if needed
+#   - Validate ORFs
+
+# Build SnpEff database
+python step2_add_to_snpeff.py NC_001477.1 NC_001477.1_features.tsv
+
+# ===== STEP 2: Run Variant Calling with QC =====
+cd ../vicast-analyze
+
+# QC workflow: fastp, mapping, assembly, contamination screening (Steps 1-6)
+./run_vicast_analyze_qc_only.sh sample_R1.fastq.gz sample_R2.fastq.gz NC_001477.1 4
+
+# MANUAL: Review QC outputs
+#   - Check coverage: cleaned_seqs/mapping/sample_coverage.txt
+#   - Review contamination: diagnostic_sample/sample_diagnostic_report.txt
+#   - Assess quality metrics
+#   - Decide: Proceed, reject, or re-sequence?
+
+# ===== STEP 3: Variant Annotation & Filtering =====
+# Annotation workflow: variant calling, SnpEff annotation, filtering (Steps 7-9)
+./run_vicast_analyze_annotate_only.sh sample_R1.fastq.gz sample_R2.fastq.gz NC_001477.1
+
+# ===== STEP 4: Advanced Analysis (Optional) =====
+# Generate frequency-stratified consensus genomes
+python ../scripts/generate_realistic_haplotype_consensus.py \
+    --vcf cleaned_seqs/variants/sample_vars.filt.vcf \
+    --reference cleaned_seqs/NC_001477.1.fasta \
+    --accession NC_001477.1
+
+# Validate variant linkage with read-level evidence
+python ../scripts/check_read_cooccurrence.py \
+    --bam cleaned_seqs/mapping/sample.lofreq.realign.bam \
+    --vcf cleaned_seqs/variants/sample_vars.filt.vcf \
+    --output cooccurrence.tsv
+```
+
+**Quick Passage Study:**
+```bash
+# Prerequisite: Genome already annotated and added to SnpEff (once)
+# python vicast-annotate/step1_parse_viral_genome.py NC_001477.1
+# [Manual curation of TSV]
+# python vicast-annotate/step2_add_to_snpeff.py NC_001477.1 NC_001477.1_features.tsv
+
+# For each passage, run full pipeline (QC + annotation in one step)
+for passage in P0 P5 P10; do
+    ./run_vicast_analyze_full.sh \
+        ${passage}_R1.fq.gz \
+        ${passage}_R2.fq.gz \
+        NC_001477.1 \
+        4
+done
+
+# Generate frequency-stratified consensus for each passage
+for passage in P0 P5 P10; do
+    python ../scripts/generate_realistic_haplotype_consensus.py \
+        --vcf cleaned_seqs/variants/${passage}_vars.filt.vcf \
+        --reference cleaned_seqs/NC_001477.1.fasta \
+        --accession NC_001477.1 \
+        --output-prefix ${passage}
+done
+
+# Compare frequency changes across passages to track evolution
+```
+
+---
+
+## Support & Troubleshooting
+
+- **Common Issues:** See [Troubleshooting Guide](TROUBLESHOOTING.md)
+- **Bug Reports:** https://github.com/mihinduk/VICAST/issues
+- **Questions:** Check existing issues or create new one
+
+---
+
+## Contributing to Documentation
+
+Found an error or have a suggestion? Please:
+1. Open an issue on GitHub
+2. Submit a pull request with corrections
+3. Share your use case for new guide ideas
+
+---
+
+**Last Updated:** 2026-02-05
+**VICAST Version:** 2.2.0

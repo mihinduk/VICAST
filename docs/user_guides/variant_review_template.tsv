@@ -1,0 +1,65 @@
+Position	Frequency	Variant_Type	Ref_Allele	Alt_Allele	Quality_Score	Depth	Co-occurrence_Pattern	Linked_Positions	Max_Cooccurrence_Rate	Evidence_Level	Decision	Confidence	Notes	Biological_Context	Reviewer	Review_Date
+# INSTRUCTIONS FOR USE:
+# 1. Export your filtered VCF variants to fill in columns 1-7
+# 2. Run check_read_cooccurrence.py to get co-occurrence data
+# 3. Fill in columns 8-11 based on co-occurrence results
+# 4. Make decisions using the guidelines below and fill in columns 12-14
+# 5. Add biological context and reviewer info in columns 15-17
+#
+# DECISION GUIDELINES:
+# - KEEP: Strong evidence variant is real (co-occurrence >95% with cluster, or emerging variant >80% linked)
+# - REMOVE: Likely artifact (isolated singleton, homopolymer region, alignment issues)
+# - FLAG: Requires manual inspection (suspicious pattern, mid-frequency orphan)
+# - UNCERTAIN: Report but note low confidence (edge case, borderline evidence)
+#
+# CONFIDENCE LEVELS:
+# - HIGH: Read-level evidence >95% co-occurrence, >1000 reads
+# - MEDIUM: Co-occurrence 80-95%, or >500 reads
+# - LOW: Co-occurrence <80%, or <500 reads
+# - NONE: No co-occurrence data (variants >500bp apart)
+#
+# EXAMPLE ENTRIES:
+22673	0.95	SNP	T	C	3500	12000	High_cluster	22674,22679,22686	0.9997	read-level	KEEP	HIGH	Major haplotype marker, part of Spike gene cluster	Spike RBD region, biological significance	JDoe	2026-02-05
+22674	0.92	SNP	C	T	3200	11500	High_cluster	22673,22679,22686	0.9995	read-level	KEEP	HIGH	Major haplotype marker	Spike RBD region	JDoe	2026-02-05
+5000	0.45	SNP	G	A	1800	5000	No_linkage	-	0.12	read-level	FLAG	LOW	Mid-freq orphan, check alignment	Homopolymer region (AAAA)	JDoe	2026-02-05
+10162	0.45	SNP	G	A	2100	3500	Haplotype_A	10179,10200,10212	0.78	read-level	KEEP	MEDIUM	Haplotype A marker	Alternative lineage	JDoe	2026-02-05
+10163	0.55	SNP	C	T	2300	3800	Haplotype_B	-	0.23	read-level	KEEP	MEDIUM	Haplotype B marker, mutually exclusive with 10162	Dominant lineage	JDoe	2026-02-05
+15000	0.06	SNP	T	C	800	2000	Isolated	-	0.03	read-level	REMOVE	LOW	Low-freq singleton, no linkage	Likely PCR error	JDoe	2026-02-05
+8500	0.88	SNP	C	T	4500	15000	High_cluster	8510,8525	0.99	read-level	KEEP	HIGH	Major haplotype	ORF1ab conserved region	JDoe	2026-02-05
+12000	0.08	SNP	A	G	1200	4000	Emerging	12050	0.92	read-level	KEEP	MEDIUM	Emerging on major haplotype	Potential adaptation	JDoe	2026-02-05
+18000	0.35	DEL	AT	A	1500	3000	No_data	-	NA	no-coverage	UNCERTAIN	NONE	No spanning reads, frequency-based only	Indel in repeat region	JDoe	2026-02-05
+#
+# COMMON PATTERNS TO RECOGNIZE:
+#
+# 1. Major Haplotype Cluster:
+#    - Multiple high-freq variants (>80%)
+#    - Co-occurrence >95% between all pairs
+#    - Decision: KEEP ALL
+#    - Confidence: HIGH
+#
+# 2. Distinct Haplotypes (Co-infection or Mixed Population):
+#    - Two sets of mid-freq variants (30-70%)
+#    - High co-occurrence WITHIN each set
+#    - Low co-occurrence BETWEEN sets (<5%)
+#    - Decision: KEEP ALL (mark as different haplotypes)
+#    - Confidence: MEDIUM-HIGH
+#
+# 3. Emerging Variant:
+#    - Low-freq variant (5-20%)
+#    - High co-occurrence (>80%) with major haplotype
+#    - Decision: KEEP
+#    - Confidence: MEDIUM
+#    - Note: Potential adaptation/selection
+#
+# 4. Artifact Indicators:
+#    - Mid-freq (30-70%) but no linkage
+#    - Located in homopolymer or low-complexity region
+#    - Low quality score (<1000)
+#    - Decision: REMOVE or FLAG
+#    - Confidence: LOW
+#
+# 5. No Co-occurrence Data:
+#    - Variants >500bp from others
+#    - Use frequency and quality thresholds
+#    - Decision: Based on standard criteria
+#    - Confidence: NONE (mark as frequency-based)

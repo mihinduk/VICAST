@@ -1,0 +1,52 @@
+##gff-version 3
+##sequence-region NC_045512.2 1 29903
+NC_045512.2	NCBI	gene	266	21555	.	+	.	ID=gene_ORF1ab;Name=ORF1ab
+NC_045512.2	NCBI	mRNA	266	21555	.	+	.	ID=mRNA_ORF1ab;Parent=gene_ORF1ab;Name=ORF1ab;gene=ORF1ab
+NC_045512.2	NCBI	CDS	266	13468	.	+	0	ID=cds_ORF1ab_1;Parent=mRNA_ORF1ab;Name=ORF1ab;gene=ORF1ab;product=ORF1ab polyprotein;protein_id=YP_009724389.1
+NC_045512.2	NCBI	CDS	13468	21555	.	+	0	ID=cds_ORF1ab_2;Parent=mRNA_ORF1ab;Name=ORF1ab;gene=ORF1ab;product=ORF1ab polyprotein;protein_id=YP_009724389.1
+NC_045512.2	NCBI	gene	21563	25384	.	+	.	ID=gene_S;Name=S
+NC_045512.2	NCBI	mRNA	21563	25384	.	+	.	ID=mRNA_S;Parent=gene_S;Name=S;gene=S
+NC_045512.2	NCBI	CDS	21563	25384	.	+	0	ID=cds_S_1;Parent=mRNA_S;Name=S;gene=S;product=surface glycoprotein;protein_id=YP_009724390.1
+NC_045512.2	NCBI	gene	25393	26220	.	+	.	ID=gene_ORF3a;Name=ORF3a
+NC_045512.2	NCBI	mRNA	25393	26220	.	+	.	ID=mRNA_ORF3a;Parent=gene_ORF3a;Name=ORF3a;gene=ORF3a
+NC_045512.2	NCBI	CDS	25393	26220	.	+	0	ID=cds_ORF3a_1;Parent=mRNA_ORF3a;Name=ORF3a;gene=ORF3a;product=ORF3a protein;protein_id=YP_009724391.1
+NC_045512.2	NCBI	gene	26245	26472	.	+	.	ID=gene_E;Name=E
+NC_045512.2	NCBI	mRNA	26245	26472	.	+	.	ID=mRNA_E;Parent=gene_E;Name=E;gene=E
+NC_045512.2	NCBI	CDS	26245	26472	.	+	0	ID=cds_E_1;Parent=mRNA_E;Name=E;gene=E;product=envelope protein;protein_id=YP_009724392.1
+NC_045512.2	NCBI	gene	26523	27191	.	+	.	ID=gene_M;Name=M
+NC_045512.2	NCBI	mRNA	26523	27191	.	+	.	ID=mRNA_M;Parent=gene_M;Name=M;gene=M
+NC_045512.2	NCBI	CDS	26523	27191	.	+	0	ID=cds_M_1;Parent=mRNA_M;Name=M;gene=M;product=membrane glycoprotein;protein_id=YP_009724393.1
+NC_045512.2	NCBI	gene	27202	27387	.	+	.	ID=gene_ORF6;Name=ORF6
+NC_045512.2	NCBI	mRNA	27202	27387	.	+	.	ID=mRNA_ORF6;Parent=gene_ORF6;Name=ORF6;gene=ORF6
+NC_045512.2	NCBI	CDS	27202	27387	.	+	0	ID=cds_ORF6_1;Parent=mRNA_ORF6;Name=ORF6;gene=ORF6;product=ORF6 protein;protein_id=YP_009724394.1
+NC_045512.2	NCBI	gene	27394	27759	.	+	.	ID=gene_ORF7a;Name=ORF7a
+NC_045512.2	NCBI	mRNA	27394	27759	.	+	.	ID=mRNA_ORF7a;Parent=gene_ORF7a;Name=ORF7a;gene=ORF7a
+NC_045512.2	NCBI	CDS	27394	27759	.	+	0	ID=cds_ORF7a_1;Parent=mRNA_ORF7a;Name=ORF7a;gene=ORF7a;product=ORF7a protein;protein_id=YP_009724395.1
+NC_045512.2	NCBI	gene	27756	27887	.	+	.	ID=gene_ORF7b;Name=ORF7b
+NC_045512.2	NCBI	mRNA	27756	27887	.	+	.	ID=mRNA_ORF7b;Parent=gene_ORF7b;Name=ORF7b;gene=ORF7b
+NC_045512.2	NCBI	CDS	27756	27887	.	+	0	ID=cds_ORF7b_1;Parent=mRNA_ORF7b;Name=ORF7b;gene=ORF7b;product=ORF7b;protein_id=YP_009725318.1
+NC_045512.2	NCBI	gene	27894	28259	.	+	.	ID=gene_ORF8;Name=ORF8
+NC_045512.2	NCBI	mRNA	27894	28259	.	+	.	ID=mRNA_ORF8;Parent=gene_ORF8;Name=ORF8;gene=ORF8
+NC_045512.2	NCBI	CDS	27894	28259	.	+	0	ID=cds_ORF8_1;Parent=mRNA_ORF8;Name=ORF8;gene=ORF8;product=ORF8 protein;protein_id=YP_009724396.1
+NC_045512.2	NCBI	gene	28274	29533	.	+	.	ID=gene_N;Name=N
+NC_045512.2	NCBI	mRNA	28274	29533	.	+	.	ID=mRNA_N;Parent=gene_N;Name=N;gene=N
+NC_045512.2	NCBI	CDS	28274	29533	.	+	0	ID=cds_N_1;Parent=mRNA_N;Name=N;gene=N;product=nucleocapsid phosphoprotein;protein_id=YP_009724397.2
+NC_045512.2	NCBI	gene	29558	29674	.	+	.	ID=gene_ORF10;Name=ORF10
+NC_045512.2	NCBI	mRNA	29558	29674	.	+	.	ID=mRNA_ORF10;Parent=gene_ORF10;Name=ORF10;gene=ORF10
+NC_045512.2	NCBI	CDS	29558	29674	.	+	0	ID=cds_ORF10_1;Parent=mRNA_ORF10;Name=ORF10;gene=ORF10;product=ORF10 protein;protein_id=YP_009725255.1
+NC_045512.2	NCBI	mature_peptide	266	805	.	+	.	ID=mat_nsp1;Parent=mRNA_ORF1ab;Name=nsp1;gene=ORF1ab;product=leader protein;protein_id=YP_009725297.1
+NC_045512.2	NCBI	mature_peptide	806	2719	.	+	.	ID=mat_nsp2;Parent=mRNA_ORF1ab;Name=nsp2;gene=ORF1ab;product=nsp2;protein_id=YP_009725298.1
+NC_045512.2	NCBI	mature_peptide	2720	8554	.	+	.	ID=mat_nsp3;Parent=mRNA_ORF1ab;Name=nsp3;gene=ORF1ab;product=nsp3;protein_id=YP_009725299.1
+NC_045512.2	NCBI	mature_peptide	8555	10054	.	+	.	ID=mat_nsp4;Parent=mRNA_ORF1ab;Name=nsp4;gene=ORF1ab;product=nsp4;protein_id=YP_009725300.1
+NC_045512.2	NCBI	mature_peptide	10055	10972	.	+	.	ID=mat_nsp5;Parent=mRNA_ORF1ab;Name=nsp5;gene=ORF1ab;product=3C-like proteinase;protein_id=YP_009725301.1
+NC_045512.2	NCBI	mature_peptide	10973	11842	.	+	.	ID=mat_nsp6;Parent=mRNA_ORF1ab;Name=nsp6;gene=ORF1ab;product=nsp6;protein_id=YP_009725302.1
+NC_045512.2	NCBI	mature_peptide	11843	12091	.	+	.	ID=mat_nsp7;Parent=mRNA_ORF1ab;Name=nsp7;gene=ORF1ab;product=nsp7;protein_id=YP_009725303.1
+NC_045512.2	NCBI	mature_peptide	12092	12685	.	+	.	ID=mat_nsp8;Parent=mRNA_ORF1ab;Name=nsp8;gene=ORF1ab;product=nsp8;protein_id=YP_009725304.1
+NC_045512.2	NCBI	mature_peptide	12686	13024	.	+	.	ID=mat_nsp9;Parent=mRNA_ORF1ab;Name=nsp9;gene=ORF1ab;product=nsp9;protein_id=YP_009725305.1
+NC_045512.2	NCBI	mature_peptide	13025	13441	.	+	.	ID=mat_nsp10;Parent=mRNA_ORF1ab;Name=nsp10;gene=ORF1ab;product=nsp10;protein_id=YP_009725306.1
+NC_045512.2	NCBI	mature_peptide	13442	16236	.	+	.	ID=mat_nsp12;Parent=mRNA_ORF1ab;Name=nsp12;gene=ORF1ab;product=RNA-dependent RNA polymerase;protein_id=YP_009725307.1
+NC_045512.2	NCBI	mature_peptide	16237	18039	.	+	.	ID=mat_nsp13;Parent=mRNA_ORF1ab;Name=nsp13;gene=ORF1ab;product=helicase;protein_id=YP_009725308.1
+NC_045512.2	NCBI	mature_peptide	18040	19620	.	+	.	ID=mat_nsp14;Parent=mRNA_ORF1ab;Name=nsp14;gene=ORF1ab;product=3'-to-5' exonuclease;protein_id=YP_009725309.1
+NC_045512.2	NCBI	mature_peptide	19621	20658	.	+	.	ID=mat_nsp15;Parent=mRNA_ORF1ab;Name=nsp15;gene=ORF1ab;product=endoRNAse;protein_id=YP_009725310.1
+NC_045512.2	NCBI	mature_peptide	20659	21552	.	+	.	ID=mat_nsp16;Parent=mRNA_ORF1ab;Name=nsp16;gene=ORF1ab;product=2'-O-ribose methyltransferase;protein_id=YP_009725311.1
+NC_045512.2	NCBI	mature_peptide	13442	13480	.	+	.	ID=mat_nsp11;Parent=mRNA_ORF1ab;Name=nsp11;gene=ORF1ab;product=nsp11;protein_id=YP_009725312.1

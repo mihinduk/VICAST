@@ -14,7 +14,7 @@ MAMBA_CMD="/path/to/conda_or_mamba run -n your_viral_env"
 
 # Example for HTCF (using shared anaconda3):
 # MAMBA_CMD="conda run -n viral_genomics"
-# Note: Must have already run: source /ref/sahlab/software/anaconda3/bin/activate
+# Note: Must have already run: source $CONDA_BASE/bin/activate (or your conda installation)
 
 # =============================================================================
 # SNPEFF CONFIGURATION

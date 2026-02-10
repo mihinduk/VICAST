@@ -25,7 +25,15 @@ MAMBA_CMD="conda run -n vicast_analyze"
 # SNPEFF CONFIGURATION
 # =============================================================================
 # Directory where snpEff is installed
-SNPEFF_DIR="/ref/sahlab/software/snpEff"
+# Load from environment, or use default if not set
+if [ -z "$SNPEFF_DIR" ]; then
+    if [ -d "/ref/sahlab/software/snpEff" ]; then
+    SNPEFF_DIR="${SNPEFF_DIR:-/ref/sahlab/software/snpEff}"  # Use env var or default
+    else
+        echo "ERROR: SNPEFF_DIR not set. Please set environment variable or source vicast_paths.env"
+        exit 1
+    fi
+fi
 
 # snpEff JAR file (in the snpEff directory)
 SNPEFF_JAR="${SNPEFF_DIR}/snpEff.jar"
