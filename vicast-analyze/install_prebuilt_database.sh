@@ -15,7 +15,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Default manifest URL (can be overridden)
-MANIFEST_URL="${VICAST_MANIFEST_URL:-https://raw.githubusercontent.com/shandley/VICAST/main/prebuilt_databases/manifest.json}"
+MANIFEST_URL="${VICAST_MANIFEST_URL:-https://raw.githubusercontent.com/mihinduk/VICAST/main/prebuilt_databases/manifest.json}"
 SNPEFF_DATA="${SNPEFF_DATA:-${SNPEFF_HOME}/data}"
 
 # Usage message

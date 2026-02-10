@@ -23,7 +23,8 @@ LABEL version="2.2.0"
 
 # Set environment variables
 ENV VICAST_HOME=/opt/vicast
-ENV SNPEFF_HOME=/opt/snpEff
+# SnpEff installed via conda
+ENV SNPEFF_HOME=/opt/conda/share/snpeff-5.4.0a-0
 ENV SNPEFF_JAR=${SNPEFF_HOME}/snpEff.jar
 ENV SNPEFF_DATA=${SNPEFF_HOME}/data
 ENV NCBI_EMAIL=vicast_docker@example.com
@@ -51,18 +52,12 @@ USER $MAMBA_USER
 RUN micromamba install -y -n base -f /tmp/environment.yml && \
     micromamba clean --all --yes
 
-# Switch back to root for SnpEff installation
+# SnpEff is already installed via conda in environment.yml
+# Create SnpEff data directory and set permissions
 USER root
-
-# Download and install SnpEff
-RUN mkdir -p /opt && \
-    cd /opt && \
-    wget --retry-connrefused --waitretry=1 --read-timeout=20 --timeout=15 -t 3 \
-        https://snpeff.blob.core.windows.net/versions/snpEff_latest_core.zip || \
-    curl -L -o snpEff_latest_core.zip https://snpeff.blob.core.windows.net/versions/snpEff_latest_core.zip && \
-    unzip -q snpEff_latest_core.zip && \
-    rm snpEff_latest_core.zip && \
-    chmod -R 755 /opt/snpEff
+RUN mkdir -p ${SNPEFF_DATA} && \
+    chown -R $MAMBA_USER:$MAMBA_USER ${SNPEFF_HOME} && \
+    chmod -R 755 ${SNPEFF_HOME}
 
 # Copy VICAST source code
 COPY --chown=$MAMBA_USER:$MAMBA_USER . ${VICAST_HOME}
@@ -72,11 +67,46 @@ USER $MAMBA_USER
 RUN cd ${VICAST_HOME} && \
     /opt/conda/bin/pip install -e .
 
+# Make all Python scripts executable
+USER root
+RUN find ${VICAST_HOME}/vicast-annotate -name "*.py" -exec chmod +x {} \; && \
+    find ${VICAST_HOME}/vicast-analyze -name "*.py" -exec chmod +x {} \;
+
+# Create wrapper scripts for easy access
+RUN printf '#!/bin/bash\npython /opt/vicast/vicast-annotate/step1_parse_viral_genome.py "$@"\n' > /usr/local/bin/step1_parse_viral_genome.py && \
+    printf '#!/bin/bash\npython /opt/vicast/vicast-annotate/step2_add_to_snpeff.py "$@"\n' > /usr/local/bin/step2_add_to_snpeff.py && \
+    printf '#!/bin/bash\npython /opt/vicast/vicast-annotate/step0_check_snpeff.py "$@"\n' > /usr/local/bin/step0_check_snpeff.py && \
+    chmod +x /usr/local/bin/step*.py
+
+# Create wrappers for analyze scripts
+RUN printf '#!/bin/bash\nbash /opt/vicast/vicast-analyze/run_vicast_analyze_full.sh "$@"\n' > /usr/local/bin/run_vicast_analyze_full.sh && \
+    printf '#!/bin/bash\nbash /opt/vicast/vicast-analyze/run_vicast_analyze_qc_only.sh "$@"\n' > /usr/local/bin/run_vicast_analyze_qc_only.sh && \
+    printf '#!/bin/bash\nbash /opt/vicast/vicast-analyze/run_vicast_analyze_annotate_only.sh "$@"\n' > /usr/local/bin/run_vicast_analyze_annotate_only.sh && \
+    printf '#!/bin/bash\nbash /opt/vicast/vicast-analyze/download_sra_data.sh "$@"\n' > /usr/local/bin/download_sra_data.sh && \
+    printf '#!/bin/bash\nbash /opt/vicast/vicast-analyze/install_prebuilt_database.sh "$@"\n' > /usr/local/bin/install_prebuilt_database.sh && \
+    chmod +x /usr/local/bin/run_vicast_analyze*.sh && \
+    chmod +x /usr/local/bin/download_sra_data.sh && \
+    chmod +x /usr/local/bin/install_prebuilt_database.sh
+
+# Create snpeff wrapper script
+RUN printf '#!/bin/bash\njava -jar %s "$@"\n' "${SNPEFF_JAR}" > /usr/local/bin/snpeff && \
+    chmod +x /usr/local/bin/snpeff
+
+# Create helpful MOTD
+RUN echo '#!/bin/bash\ncat << "EOF"\n\n╔══════════════════════════════════════════════════════════════╗\n║                    VICAST Docker v2.2.3                      ║\n║        Viral Cultured-virus Annotation & SnpEff Toolkit      ║\n╚══════════════════════════════════════════════════════════════╝\n\nQuick Start:\n  install_prebuilt_database.sh --list    # See available genomes\n  install_prebuilt_database.sh --install NC_001474.2  # Install DENV-2\n  download_sra_data.sh SRR5992153        # Get test data\n  run_vicast_analyze_full.sh SRR5992153_1.fastq.gz SRR5992153_2.fastq.gz NC_001474.2 4\n\nOr Build Custom Genome:\n  step1_parse_viral_genome.py NC_001477.1\n  step2_add_to_snpeff.py NC_001477.1 features.tsv\n  snpeff dump NC_001477.1 | head\n\nYour data: /data (mounted from host)\nVICAST code: /opt/vicast/\nDocumentation: /opt/vicast/README.md\n\nEOF' > /etc/profile.d/vicast_motd.sh && \
+    chmod +x /etc/profile.d/vicast_motd.sh
+
 # Set working directory
 WORKDIR /data
 
 # Add VICAST to PATH
 ENV PATH="${VICAST_HOME}/vicast-annotate:${VICAST_HOME}/vicast-analyze:${PATH}"
+
+# Switch back to regular user for runtime
+USER $MAMBA_USER
+
+# Show welcome message on container start
+ENV BASH_ENV=/etc/profile.d/vicast_motd.sh
 
 # Default command
 CMD ["bash"]
