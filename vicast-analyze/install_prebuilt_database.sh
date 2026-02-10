@@ -120,11 +120,11 @@ list_databases() {
 import json, sys
 with open('$manifest') as f:
     data = json.load(f)
-    print(f'{'ACCESSION':<15} {'NAME':<12} {'DESCRIPTION':<40} {'SIZE':<8} TAGS')
+    print('{:<15} {:<12} {:<40} {:<8} {}'.format('ACCESSION', 'NAME', 'DESCRIPTION', 'SIZE', 'TAGS'))
     print('-' * 100)
     for db in data['databases']:
         tags = ', '.join(db.get('tags', []))
-        print(f'{db[\"accession\"]:<15} {db[\"name\"]:<12} {db[\"description\"]:<40} {db[\"size_mb\"]}MB {tags}')
+        print('{:<15} {:<12} {:<40} {}MB   {}'.format(db['accession'], db['name'], db['description'], db['size_mb'], tags))
 "
     fi
 
