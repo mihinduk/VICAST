@@ -259,6 +259,15 @@ with open('$manifest') as f:
 
     rm -f "$temp_file"
 
+    # Add genome to SnpEff config if not already there
+    local snpeff_config="${SNPEFF_HOME}/snpEff.config"
+    if [[ -f "$snpeff_config" ]]; then
+        if ! grep -q "^${accession}.genome" "$snpeff_config"; then
+            echo "Adding $accession to SnpEff config..."
+            echo "${accession}.genome : ${name}" >> "$snpeff_config"
+        fi
+    fi
+
     echo -e "${GREEN}✓ Successfully installed $accession${NC}"
     echo ""
     echo "Test with: snpeff dump $accession | head"
