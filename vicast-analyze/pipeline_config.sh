@@ -25,12 +25,20 @@ MAMBA_CMD="conda run -n vicast_analyze"
 # SNPEFF CONFIGURATION
 # =============================================================================
 # Directory where snpEff is installed
-# Load from environment, or use default if not set
-if [ -z "$SNPEFF_DIR" ]; then
+# Supports both Docker (SNPEFF_HOME from conda) and HTCF (SNPEFF_DIR)
+
+# First, check if we're in a Docker/conda environment with SNPEFF_HOME
+if [ -n "$SNPEFF_HOME" ]; then
+    # Docker environment - use conda SnpEff
+    SNPEFF_DIR="$SNPEFF_HOME"
+elif [ -z "$SNPEFF_DIR" ]; then
+    # HTCF environment - use shared installation
     if [ -d "/ref/sahlab/software/snpEff" ]; then
-    SNPEFF_DIR="${SNPEFF_DIR:-/ref/sahlab/software/snpEff}"  # Use env var or default
+        SNPEFF_DIR="/ref/sahlab/software/snpEff"
     else
-        echo "ERROR: SNPEFF_DIR not set. Please set environment variable or source vicast_paths.env"
+        echo "ERROR: Neither SNPEFF_HOME nor SNPEFF_DIR is set."
+        echo "Please set SNPEFF_HOME (Docker) or SNPEFF_DIR (HTCF) environment variable"
+        echo "or source vicast_paths.env on HTCF"
         exit 1
     fi
 fi
