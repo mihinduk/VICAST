@@ -15,7 +15,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Default manifest URL (can be overridden)
-MANIFEST_URL="${VICAST_MANIFEST_URL:-https://raw.githubusercontent.com/shandley/VICAST/main/prebuilt_databases/manifest.json}"
+MANIFEST_URL="${VICAST_MANIFEST_URL:-https://raw.githubusercontent.com/mihinduk/VICAST/main/prebuilt_databases/manifest.json}"
 SNPEFF_DATA="${SNPEFF_DATA:-${SNPEFF_HOME}/data}"
 
 # Usage message
@@ -258,6 +258,15 @@ with open('$manifest') as f:
     }
 
     rm -f "$temp_file"
+
+    # Add genome to SnpEff config if not already there
+    local snpeff_config="${SNPEFF_HOME}/snpEff.config"
+    if [[ -f "$snpeff_config" ]]; then
+        if ! grep -q "^${accession}.genome" "$snpeff_config"; then
+            echo "Adding $accession to SnpEff config..."
+            echo "${accession}.genome : ${name}" >> "$snpeff_config"
+        fi
+    fi
 
     echo -e "${GREEN}✓ Successfully installed $accession${NC}"
     echo ""

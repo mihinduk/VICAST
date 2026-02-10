@@ -39,6 +39,7 @@ dependencies:
 
   # Utilities
   - entrez-direct  # For NCBI downloads
+  - sra-tools      # For downloading sequencing data from SRA/ENA
   - pip
 
   - pip:
