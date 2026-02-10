@@ -48,16 +48,56 @@ Variant calling pipeline for cultured virus passage studies, optimized for ident
 
 ### Option 1: Docker (Recommended for Portability)
 
+Docker provides a self-contained environment with all dependencies pre-installed.
+
+#### Building the Image
+
 ```bash
-# Pull or build the Docker image
+# Clone repository
+git clone https://github.com/mihinduk/VICAST.git
+cd VICAST
+
+# Build Docker image
 docker build -t vicast:latest .
-
-# Run with your data mounted
-docker run -it -v $(pwd):/data vicast:latest bash
-
-# Inside container, run VICAST commands
-python /opt/vicast/vicast-annotate/step1_parse_viral_genome.py NC_001477
 ```
+
+#### Running VICAST in Docker
+
+**Important:** Your data must be on the HOST system and mounted into the container at `/data`.
+
+```bash
+# Start container with your data directory mounted
+docker run -it --rm \
+  -v /path/to/your/data:/data \
+  -w /data \
+  vicast:latest
+
+# Example: Mount current directory
+docker run -it --rm -v $(pwd):/data -w /data vicast:latest
+```
+
+**Inside the container:**
+
+Your host directory appears at `/data`. Place your FASTQ files there before starting the container.
+
+```bash
+# Install pre-built viral genome database (first time only)
+install_prebuilt_database.sh --list              # See available genomes
+install_prebuilt_database.sh --install NC_001474.2  # Install DENV-2
+
+# Download test data (optional)
+download_sra_data.sh SRR5992153
+
+# Run analysis (FASTQ files must be in /data or subdirectories)
+cd /data  # Your host directory
+run_vicast_analyze_full.sh R1.fastq.gz R2.fastq.gz NC_001474.2 8
+```
+
+**Tips:**
+- Results are written to `/data` (your host directory), so they persist after the container exits
+- Use `--rm` flag to auto-remove containers after exit (saves disk space)
+- Database installations are container-specific and need reinstalling in new containers
+- Mount a directory with sufficient space (analysis requires ~20-50GB)
 
 ### Option 2: Conda Installation
 
