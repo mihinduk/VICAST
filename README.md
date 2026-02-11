@@ -63,41 +63,171 @@ docker build -t vicast:latest .
 
 #### Running VICAST in Docker
 
-**Important:** Your data must be on the HOST system and mounted into the container at `/data`.
+**Prerequisites:**
+
+VICAST requires two persistent directories on your host system:
+1. **Data directory**: For input files (FASTQ) and output results (VCF, HTML reports)
+2. **Database directory**: For SnpEff viral genome databases (reusable across analyses)
+
+**Setup - Create Directories:**
 
 ```bash
-# Start container with your data directory mounted
+# Option 1: Home directory (recommended for laptops/workstations)
+mkdir -p ~/vicast_data ~/vicast_databases
+
+# Option 2: Scratch space (recommended for HPC/servers with limited home quota)
+mkdir -p /scratch/$USER/vicast_data /scratch/$USER/vicast_databases
+
+# Option 3: Custom location (adjust paths as needed)
+mkdir -p /path/to/your/vicast_data /path/to/your/vicast_databases
+```
+
+**Quick Start - Pre-built Database Workflow:**
+
+VICAST provides 20+ pre-built viral genome databases available from GitHub.
+
+```bash
+# Start VICAST container with directory mounts
+# Replace ~/vicast_data and ~/vicast_databases with your actual paths if using Option 2 or 3 above
 docker run -it --rm \
-  -v /path/to/your/data:/data \
+  -v ~/vicast_data:/data \
+  -v ~/vicast_databases:/opt/vicast/snpeff_data_custom \
   -w /data \
+  --user $(id -u):$(id -g) \
+  --hostname vicast \
   vicast:latest
 
-# Example: Mount current directory
-docker run -it --rm -v $(pwd):/data -w /data vicast:latest
-```
+# You are now inside the container
+# Prompt shows: (base) I have no name!@vicast:/data$
+# The "I have no name!" is expected when using --user flag - it's harmless
 
-**Inside the container:**
+# Step 1: List available pre-built databases
+install_prebuilt_database.sh --list
+# Shows 20+ viruses: DENV-1/2, SARS-CoV-2, Influenza A, WNV, ZIKV, etc.
 
-Your host directory appears at `/data`. Place your FASTQ files there before starting the container.
+# Step 2: Install a database (example: Dengue virus 2)
+install_prebuilt_database.sh --install NC_001474.2
 
-```bash
-# Install pre-built viral genome database (first time only)
-install_prebuilt_database.sh --list              # See available genomes
-install_prebuilt_database.sh --install NC_001474.2  # Install DENV-2
-
-# Download test data (optional)
+# Step 3: Download test data from SRA (optional)
 download_sra_data.sh SRR5992153
 
-# Run analysis (FASTQ files must be in /data or subdirectories)
-cd /data  # Your host directory
-run_vicast_analyze_full.sh R1.fastq.gz R2.fastq.gz NC_001474.2 8
+# Step 4: Run complete analysis pipeline
+run_vicast_analyze_full.sh SRR5992153_1.fastq.gz SRR5992153_2.fastq.gz NC_001474.2 8
+
+# Results appear in ~/vicast_data on your host:
+# - QC reports (HTML)
+# - Variant calls (VCF)
+# - Annotated variants (TSV)
+# - Coverage plots
+
+# Exit container when done
+exit
 ```
 
-**Tips:**
-- Results are written to `/data` (your host directory), so they persist after the container exits
-- Use `--rm` flag to auto-remove containers after exit (saves disk space)
-- Database installations are container-specific and need reinstalling in new containers
-- Mount a directory with sufficient space (analysis requires ~20-50GB)
+**Understanding the Docker Command:**
+
+```bash
+docker run -it --rm \
+  -v ~/vicast_data:/data \
+  -v ~/vicast_databases:/opt/vicast/snpeff_data_custom \
+  -w /data \
+  --user $(id -u):$(id -g) \
+  --hostname vicast \
+  vicast:latest
+```
+
+**What each parameter does:**
+- `-it`: Interactive terminal (allows you to type commands)
+- `--rm`: Remove container after exit (saves disk space)
+- `-v ~/vicast_data:/data`: Mount your data directory into the container at `/data`
+- `-v ~/vicast_databases:/opt/vicast/snpeff_data_custom`: Mount database directory (databases persist!)
+- `-w /data`: Set working directory to `/data` inside container
+- `--user $(id -u):$(id -g)`: Run as your user ID (ensures correct file permissions)
+- `--hostname vicast`: Set container hostname to "vicast" (shows in prompt)
+- `vicast:latest`: The Docker image to run
+
+**Note:** The prompt will show `(base) I have no name!@vicast:/data$` - the "I have no name!" is expected when using `--user` flag and is harmless. It indicates you're running with your host user ID for correct file permissions.
+
+**Where Your Files Are:**
+
+After running the analysis, find your results on the host system:
+
+```bash
+# On your host machine (not in container):
+ls ~/vicast_data/
+# Shows: FASTQ files, VCF, HTML reports, annotated TSV
+
+ls ~/vicast_databases/
+# Shows: NC_001474.2/ (database directory)
+# This database is now available for all future runs!
+```
+
+**Reusing Installed Databases:**
+
+Once a database is installed, it persists in `~/vicast_databases/`. Next time you run the container with the same database mount, the database is already available - no need to reinstall!
+
+```bash
+# Restart container later with same mounts
+docker run -it --rm \
+  -v ~/vicast_data:/data \
+  -v ~/vicast_databases:/opt/vicast/snpeff_data_custom \
+  -w /data \
+  --user $(id -u):$(id -g) \
+  --hostname vicast \
+  vicast:latest
+
+# Database is already there!
+ls /opt/vicast/snpeff_data_custom/NC_001474.2/
+
+# Run analysis immediately
+run_vicast_analyze_full.sh new_sample_R1.fastq.gz new_sample_R2.fastq.gz NC_001474.2 8
+```
+
+**Custom Genome Annotation:**
+
+For genomes not in the pre-built collection, use VICAST-annotate pathways:
+
+```bash
+# Same container setup - REPLACE paths if you used Option 2 or 3 above
+docker run -it --rm \
+  -v ~/vicast_data:/data \
+  -v ~/vicast_databases:/opt/vicast/snpeff_data_custom \
+  -w /data \
+  --user $(id -u):$(id -g) \
+  --hostname vicast \
+  vicast:latest
+
+# Inside container - download and annotate a new genome from NCBI
+step1_parse_viral_genome.py AF252854.1  # Example: Bovine adenovirus 2
+
+# This creates: AF252854.1.tsv
+# Edit the TSV file if you need to curate gene names/features
+# (Use exit to leave container, edit on host, then restart container)
+
+# Add the curated genome to SnpEff
+step2_add_to_snpeff.py AF252854.1 AF252854.1.tsv
+
+# Database now saved to ~/vicast_databases/AF252854.1/
+# Run analysis with your new genome
+run_vicast_analyze_full.sh R1.fastq.gz R2.fastq.gz AF252854.1 8
+```
+
+**Available Pre-built Databases (v2.3.0+):**
+- DENV-1, DENV-2 (Dengue virus)
+- SARS-CoV-2 (COVID-19)
+- Influenza A (PR8, 8 segments)
+- West Nile virus (multiple strains)
+- Zika, Sindbis, Ross River, VEEV
+- And 10+ more viruses
+
+Run `install_prebuilt_database.sh --list` to see all available databases.
+
+**Important Usage Notes:**
+- ✅ **User mapping (`--user`)**: Required for correct file permissions on host
+- ✅ **Database mount**: `-v ~/vicast_databases:/opt/vicast/snpeff_data_custom` persists databases across runs
+- ✅ **Data mount**: `-v ~/vicast_data:/data` for input/output files
+- ✅ **Space requirements**: ~20-50GB for analysis intermediate files
+- ✅ **Database persistence**: Installed databases available in all future runs with same mount
 
 ### Option 2: Conda Installation
 
@@ -324,18 +454,22 @@ Developed in the Handley Lab for viral genomics research with a focus on culture
 
 ## Version History
 
-### v2.2.0 (2025)
-- Portable configuration system
-- Docker and Singularity support
+### v2.2.0 (2025) - Unified Release
+- **Architectural milestone:** Unified VICAST-annotate and VICAST-analyze into single integrated toolkit
+- Portable configuration system across Docker/Conda/HPC
+- Docker and Singularity support for reproducibility
 - Python package structure with pyproject.toml
 - CI/CD with GitHub Actions
-- Comprehensive test suite
+- Comprehensive test suite (5 test modules)
+- 8 integrated user guides (>3,200 lines of documentation)
 
-### v2.1.0 (2024)
-- Initial public release
-- Complete VICAST-annotate pipeline
+**Development history:** VICAST originated as two independent repositories ([VICAST-analyze](https://github.com/mihinduk/VICAST-analyze): July 2025, 89 commits; [VICAST-annotate](https://github.com/mihinduk/VICAST-annotate): September 2025, 19 commits) that were unified in October 2025 into this integrated system. See [DEVELOPMENT_HISTORY.md](DEVELOPMENT_HISTORY.md) for complete repository evolution documentation.
+
+### v2.1.0 (2024) - Initial Standalone Releases
+- VICAST-annotate: Complete annotation curation pipeline
+- VICAST-analyze: Variant calling pipeline
 - Automated setup and validation tools
-- Comprehensive documentation
+- Initial documentation
 
 ---
 

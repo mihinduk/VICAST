@@ -93,7 +93,7 @@ RUN printf '#!/bin/bash\njava -jar %s "$@"\n' "${SNPEFF_JAR}" > /usr/local/bin/s
     chmod +x /usr/local/bin/snpeff
 
 # Create helpful MOTD
-RUN echo '#!/bin/bash\ncat << "EOF"\n\n╔══════════════════════════════════════════════════════════════╗\n║                    VICAST Docker v2.3.0                      ║\n║        Viral Cultured-virus Annotation & SnpEff Toolkit      ║\n╚══════════════════════════════════════════════════════════════╝\n\nQuick Start:\n  install_prebuilt_database.sh --list    # See available genomes\n  install_prebuilt_database.sh --install NC_001474.2  # Install DENV-2\n  download_sra_data.sh SRR5992153        # Get test data\n  run_vicast_analyze_full.sh SRR5992153_1.fastq.gz SRR5992153_2.fastq.gz NC_001474.2 4\n\nOr Build Custom Genome:\n  step1_parse_viral_genome.py NC_001477.1\n  step2_add_to_snpeff.py NC_001477.1 features.tsv\n  snpeff dump NC_001477.1 | head\n\nYour data: /data (mounted from host)\nVICAST code: /opt/vicast/\nDocumentation: /opt/vicast/README.md\n\nEOF' > /etc/profile.d/vicast_motd.sh && \
+RUN echo '#!/bin/bash\ncat << "EOF"\n\n╔══════════════════════════════════════════════════════════════╗\n║                    VICAST Docker v2.3.0                      ║\n║        Viral Cultured-virus Annotation & SnpEff Toolkit      ║\n╚══════════════════════════════════════════════════════════════╝\n\nPre-built Genomes (Ready to Use):\n  ✓ DENV-2      (NC_001474.2)\n  ✓ SARS-CoV-2  (NC_045512.2)\n  ✓ Ebola       (NC_002549.1)\n\nQuick Start - Pre-built Genome:\n  download_sra_data.sh SRR5992153\n  run_vicast_analyze_full.sh SRR5992153_1.fastq.gz SRR5992153_2.fastq.gz NC_001474.2 8\n\nCustom Genome Workflow:\n  step1_parse_viral_genome.py AF252854.1  # Download & parse\n  step2_add_to_snpeff.py AF252854.1 AF252854.1.tsv  # Add to SnpEff\n  run_vicast_analyze_full.sh R1.fq.gz R2.fq.gz AF252854.1 8\n\nMounted Locations:\n  /data              → Your working directory\n  /opt/vicast        → VICAST installation\n  $SNPEFF_DATA_CUSTOM → Custom databases (if mounted)\n\nDocumentation: /opt/vicast/README.md\n\nEOF' > /etc/profile.d/vicast_motd.sh && \
     chmod +x /etc/profile.d/vicast_motd.sh
 
 # Create conda symlink to micromamba for compatibility
@@ -115,34 +115,43 @@ USER root
 RUN mkdir -p /opt/vicast/snpeff_data_custom && \
     chown -R $MAMBA_USER:$MAMBA_USER /opt/vicast/snpeff_data_custom
 
-# Pre-build common viral genomes (saves user setup time)
-USER $MAMBA_USER
-RUN cd ${VICAST_HOME}/vicast-analyze && \
-    bash install_prebuilt_database.sh --install NC_001474.2 && \
-    echo "Pre-built database: DENV-2 (NC_001474.2)" && \
-    bash install_prebuilt_database.sh --install NC_045512.2 && \
-    echo "Pre-built database: SARS-CoV-2 (NC_045512.2)" && \
-    bash install_prebuilt_database.sh --install NC_002549.1 && \
-    echo "Pre-built database: Ebola (NC_002549.1)"
+# Pre-build common viral genomes (DISABLED - install at runtime instead)
+# Users can run: install_prebuilt_database.sh --install NC_001474.2
+# Commented out because manifest download fails during Docker build
+# USER $MAMBA_USER
+# RUN cd ${VICAST_HOME}/vicast-analyze && \
+#     bash install_prebuilt_database.sh --install NC_001474.2 && \
+#     echo "Pre-built database: DENV-2 (NC_001474.2)" && \
+#     bash install_prebuilt_database.sh --install NC_045512.2 && \
+#     echo "Pre-built database: SARS-CoV-2 (NC_045512.2)"
 
 # Set environment variables for database locations
-# SNPEFF_DATA_BUILTIN: Read-only pre-built databases in image
+# SNPEFF_DATA_BUILTIN: Read-only pre-built databases in image (reference only)
 # SNPEFF_DATA_CUSTOM: User-mounted writable location for custom genomes
-# SNPEFF_DATA: Combined search path (custom takes precedence)
+# SNPEFF_DATA: Points to custom directory (SnpEff doesn't support colon-separated paths)
 ENV SNPEFF_DATA_BUILTIN=${SNPEFF_DATA}
 ENV SNPEFF_DATA_CUSTOM=/opt/vicast/snpeff_data_custom
-ENV SNPEFF_DATA=${SNPEFF_DATA_CUSTOM}:${SNPEFF_DATA_BUILTIN}
+ENV SNPEFF_DATA=${SNPEFF_DATA_CUSTOM}
+
+# Fix SnpEff config to use absolute path for data directory
+# Make config writable so users can add genome entries when running with --user flag
+USER root
+RUN sed -i 's|^data\.dir = \./data/$|data.dir = /opt/vicast/snpeff_data_custom|' ${SNPEFF_HOME}/snpEff.config && \
+    chmod 666 ${SNPEFF_HOME}/snpEff.config && \
+    grep "^data.dir" ${SNPEFF_HOME}/snpEff.config
 
 # Create writable config location (for when running with --user flag)
 ENV SNPEFF_CONFIG_BUILTIN=${SNPEFF_HOME}/snpEff.config
 ENV SNPEFF_CONFIG_CUSTOM=/opt/vicast/snpeff_data_custom/snpEff.config
-
 
 # Set working directory
 WORKDIR /data
 
 # Add VICAST to PATH
 ENV PATH="${VICAST_HOME}/vicast-annotate:${VICAST_HOME}/vicast-analyze:${PATH}"
+
+# Set friendly prompt for when running with --user flag
+ENV PS1="(vicast) \\w$ "
 
 # Switch back to regular user for runtime
 USER $MAMBA_USER
