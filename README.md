@@ -340,3 +340,7 @@ Developed in the Handley Lab for viral genomics research with a focus on culture
 ---
 
 **VICAST** - Systematic viral genomics for cultured virus research
+
+---
+
+**Note:** Conda installation files are preserved in the `conda-legacy` branch for reference.
