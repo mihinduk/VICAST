@@ -272,8 +272,8 @@ PIPELINE_EXIT_CODE=$?
 # =============================================================================
 
 if [ $PIPELINE_EXIT_CODE -eq 0 ]; then
-    # Extract sample name (match Python's logic)
-    SAMPLE_NAME=$(basename "$R1" | sed -E 's/(_R1)?(_001)?\.fastq\.gz$//')
+    # Extract sample name (match Python's logic: strip _R1/_R2/_1/_2 and _001 suffix)
+    SAMPLE_NAME=$(basename "$R1" | sed -E 's/(_R?[12])?(_001)?\.fastq\.gz$//')
 
     echo ""
     echo "========================================"

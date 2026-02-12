@@ -57,30 +57,45 @@ fi
 mkdir -p "$DIAGNOSTIC_DIR"
 cd "$DIAGNOSTIC_DIR"
 
-# Set up conda environment commands  
+# Set up conda/micromamba environment commands
 echo "Setting up environment commands..."
 
-# Aggressively clear mamba locks and processes
-echo "Cleaning up any existing mamba processes and locks..."
-pkill -f "mamba" 2>/dev/null || true
-rm -rf /home/mihindu/.cache/mamba/proc* 2>/dev/null || true
-rm -rf /home/mihindu/.cache/mamba/locks* 2>/dev/null || true
-sleep 2
+# Detect conda/micromamba (Docker vs native)
+CONDA_AVAILABLE=false
+CONDA_CMD=""
+VICAST_ENV="vicast_analyze"
 
-# Try using conda instead of mamba to avoid lock issues entirely
-source $CONDA_BASE/bin/activate (or your conda installation) base
-eval "$(conda shell.bash hook)"
+if command -v conda &> /dev/null; then
+    CONDA_AVAILABLE=true
+    CONDA_CMD="conda"
+    echo "Detected conda"
+elif command -v micromamba &> /dev/null; then
+    CONDA_AVAILABLE=true
+    CONDA_CMD="micromamba"
+    VICAST_ENV="base"
+    echo "Detected micromamba (Docker environment)"
+fi
 
-# Check if vicast_analyze tools are available via anaconda3 conda
-# NOTE: vicast_analyze has the bioinformatics tools (bwa, samtools, megahit)
-#       viral_genomics has only Python packages (biopython, pandas, etc.)
-if conda run -n vicast_analyze which bwa >/dev/null 2>&1; then
-    echo "Using anaconda3 conda for vicast_analyze environment"
-    GENOMICS_CMD="conda run -n vicast_analyze"
+# Activate conda environment if available
+if [ "$CONDA_AVAILABLE" = true ]; then
+    if [ "$CONDA_CMD" = "conda" ]; then
+        # Activate conda environment
+        eval "$(conda shell.bash hook)"
+        if conda activate "$VICAST_ENV" 2>/dev/null; then
+            echo "Activated conda environment: $VICAST_ENV"
+            GENOMICS_CMD=""  # Direct execution (already activated)
+        else
+            echo "Could not activate conda environment, using conda run"
+            GENOMICS_CMD="conda run -n $VICAST_ENV"
+        fi
+    elif [ "$CONDA_CMD" = "micromamba" ]; then
+        # Docker: tools already in base environment, no activation needed
+        echo "Using current micromamba base environment"
+        GENOMICS_CMD=""  # Direct execution
+    fi
 else
-    echo "Using miniforge3 mamba for vicast_analyze environment (anaconda3 doesn't have tools)"
-    export MAMBA_NO_BANNER=1
-    GENOMICS_CMD="/home/mihindu/miniforge3/bin/mamba run -n vicast_analyze"
+    echo "Warning: conda/micromamba not found - assuming tools are in PATH"
+    GENOMICS_CMD=""  # Direct execution
 fi
 
 # Initialize base filenames for consistent use throughout script
@@ -251,8 +266,7 @@ if [ -d "assembly_${SAMPLE_NAME}" ]; then
     rm -rf "assembly_${SAMPLE_NAME}"
 fi
 
-eval "$(conda shell.bash hook)"
-conda activate viral_assembly
+# MEGAHIT is available in current environment (no separate activation needed in Docker)
 # Build MEGAHIT command with conditional extreme memory settings
 MEGAHIT_CMD="megahit -1 \"${SAMPLE_NAME}_R1.qc.fastq.gz\" -2 \"${SAMPLE_NAME}_R2.qc.fastq.gz\" -o \"assembly_${SAMPLE_NAME}\" --presets meta-sensitive --min-contig-len 500 --memory 0.7 -t \"$THREADS\""
 
@@ -293,12 +307,9 @@ if [ "$FILTERED_COUNT" -gt 0 ]; then
     
     # Add header to BLAST results
     echo -e "Query_ID\tSubject_ID\tPercent_Identity\tAlignment_Length\tMismatches\tGap_Opens\tQuery_Start\tQuery_End\tSubject_Start\tSubject_End\tE_value\tBit_Score\tSubject_Title" > "${SAMPLE_NAME}_blast_all.tsv"
-    
-    # Use Blast environment for BLAST commands
-    echo "Using Blast environment for BLAST..."
-    
-    eval "$(conda shell.bash hook)"
-    conda activate Blast
+
+    # BLAST is available in current environment (no separate activation needed in Docker)
+    echo "Running BLAST analysis..."
     
     if [ -f "${LOCAL_DB_PATH}.nhr" ] || [ -f "${LOCAL_DB_PATH}.00.nhr" ]; then
         echo "Using local contamination database for fast BLAST..."
