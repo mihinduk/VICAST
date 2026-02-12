@@ -111,41 +111,33 @@ echo "Pre-flight check: snpEff database"
 echo "========================================="
 echo "Checking if $ACCESSION is in snpEff database..."
 
-# Activate conda environment for snpEff check
-eval "$(conda shell.bash hook)"
-conda activate vicast_analyze
+# Activate conda/micromamba environment if available
+if command -v conda &> /dev/null; then
+    eval "$(conda shell.bash hook)"
+    conda activate vicast_analyze 2>/dev/null || echo "Using current environment"
+elif command -v micromamba &> /dev/null; then
+    echo "Detected micromamba (Docker environment) - using current environment"
+fi
 
-if java -jar "$SNPEFF_JAR" databases 2>/dev/null | grep -q "$ACCESSION"; then
-    echo "✓ snpEff database found for $ACCESSION in config"
-
-    # Verify the database is actually built (has snpEffectPredictor.bin)
-    if [ -f "$SNPEFF_DATA/$ACCESSION/snpEffectPredictor.bin" ]; then
-        echo "✓ Database is built and ready"
-        echo ""
-    else
-        echo ""
-        echo "❌ ERROR: Database exists in config but is not built!"
-        echo ""
-        echo "Please use VICAST-annotate to properly build the database:"
-        echo "  cd /path/to/VICAST/vicast-annotate"
-        echo "  python3 vicast_annotate.py $ACCESSION"
-        echo ""
-        exit 1
-    fi
+# Check for database files directly (works offline, faster)
+if [ -f "$SNPEFF_DATA/$ACCESSION/snpEffectPredictor.bin" ]; then
+    echo "✓ Database found: $SNPEFF_DATA/$ACCESSION/"
+    echo "✓ Database is built and ready"
+    echo ""
 else
     echo ""
-    echo "❌ ERROR: Genome $ACCESSION not found in snpEff database!"
+    echo "❌ ERROR: Genome $ACCESSION database not found!"
     echo ""
-    echo "This pipeline requires the snpEff database to be set up first."
-    echo "Please use VICAST-annotate to add this genome:"
+    echo "Checked location: $SNPEFF_DATA/$ACCESSION/"
     echo ""
-    echo "  cd /path/to/VICAST/vicast-annotate"
-    echo "  python3 vicast_annotate.py $ACCESSION"
+    echo "Please install the database first:"
+    echo "  Option 1 (pre-built database):"
+    echo "    install_prebuilt_database.sh --install $ACCESSION"
     echo ""
-    echo "This will:"
-    echo "  - Download the reference genome and GenBank annotation"
-    echo "  - Add the genome to snpEff configuration"
-    echo "  - Build the snpEff database with viral-friendly settings"
+    echo "  Option 2 (custom annotation):"
+    echo "    cd /path/to/VICAST/vicast-annotate"
+    echo "    python3 step1_parse_viral_genome.py $ACCESSION"
+    echo "    python3 step2_add_to_snpeff.py $ACCESSION ${ACCESSION}.tsv"
     echo ""
     exit 1
 fi

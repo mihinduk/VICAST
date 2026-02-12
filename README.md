@@ -71,16 +71,27 @@ VICAST requires two persistent directories on your host system:
 
 **Setup - Create Directories:**
 
+Choose the appropriate location based on your system:
+
 ```bash
-# Option 1: Home directory (recommended for laptops/workstations)
+# Option 1: Home directory (laptops/workstations with large home quota)
 mkdir -p ~/vicast_data ~/vicast_databases
+export VICAST_DATA=~/vicast_data
+export VICAST_DB=~/vicast_databases
 
-# Option 2: Scratch space (recommended for HPC/servers with limited home quota)
+# Option 2: Scratch/tmp space (HPC/servers - RECOMMENDED)
+# Replace /scratch with your system's scratch directory
 mkdir -p /scratch/$USER/vicast_data /scratch/$USER/vicast_databases
+export VICAST_DATA=/scratch/$USER/vicast_data
+export VICAST_DB=/scratch/$USER/vicast_databases
 
-# Option 3: Custom location (adjust paths as needed)
-mkdir -p /path/to/your/vicast_data /path/to/your/vicast_databases
+# Option 3: Large storage partition (e.g., Pathogen example)
+mkdir -p /mnt/pathogen2/$USER/vicast_data /mnt/pathogen2/$USER/vicast_databases
+export VICAST_DATA=/mnt/pathogen2/$USER/vicast_data
+export VICAST_DB=/mnt/pathogen2/$USER/vicast_databases
 ```
+
+**Important:** After creating directories, the examples below use `$VICAST_DATA` and `$VICAST_DB` environment variables. Make sure you've run ONE of the export commands above!
 
 **Quick Start - Pre-built Database Workflow:**
 
@@ -90,8 +101,8 @@ VICAST provides 20+ pre-built viral genome databases available from GitHub.
 # Start VICAST container with directory mounts
 # Replace ~/vicast_data and ~/vicast_databases with your actual paths if using Option 2 or 3 above
 docker run -it --rm \
-  -v ~/vicast_data:/data \
-  -v ~/vicast_databases:/opt/vicast/snpeff_data_custom \
+  -v $VICAST_DATA:/data \
+  -v $VICAST_DB:/opt/vicast/snpeff_data_custom \
   -w /data \
   --user $(id -u):$(id -g) \
   --hostname vicast \
@@ -128,8 +139,8 @@ exit
 
 ```bash
 docker run -it --rm \
-  -v ~/vicast_data:/data \
-  -v ~/vicast_databases:/opt/vicast/snpeff_data_custom \
+  -v $VICAST_DATA:/data \
+  -v $VICAST_DB:/opt/vicast/snpeff_data_custom \
   -w /data \
   --user $(id -u):$(id -g) \
   --hostname vicast \
@@ -154,23 +165,27 @@ After running the analysis, find your results on the host system:
 
 ```bash
 # On your host machine (not in container):
-ls ~/vicast_data/
+ls $VICAST_DATA/
 # Shows: FASTQ files, VCF, HTML reports, annotated TSV
 
-ls ~/vicast_databases/
+ls $VICAST_DB/
 # Shows: NC_001474.2/ (database directory)
 # This database is now available for all future runs!
+
+# Or use the full path you created earlier:
+# ls /scratch/$USER/vicast_data/  (if using Option 2)
+# ls /mnt/pathogen2/$USER/vicast_data/  (if using Option 3)
 ```
 
 **Reusing Installed Databases:**
 
-Once a database is installed, it persists in `~/vicast_databases/`. Next time you run the container with the same database mount, the database is already available - no need to reinstall!
+Once a database is installed, it persists in your database directory (`$VICAST_DB`). Next time you run the container with the same database mount, the database is already available - no need to reinstall!
 
 ```bash
 # Restart container later with same mounts
 docker run -it --rm \
-  -v ~/vicast_data:/data \
-  -v ~/vicast_databases:/opt/vicast/snpeff_data_custom \
+  -v $VICAST_DATA:/data \
+  -v $VICAST_DB:/opt/vicast/snpeff_data_custom \
   -w /data \
   --user $(id -u):$(id -g) \
   --hostname vicast \
@@ -190,8 +205,8 @@ For genomes not in the pre-built collection, use VICAST-annotate pathways:
 ```bash
 # Same container setup - REPLACE paths if you used Option 2 or 3 above
 docker run -it --rm \
-  -v ~/vicast_data:/data \
-  -v ~/vicast_databases:/opt/vicast/snpeff_data_custom \
+  -v $VICAST_DATA:/data \
+  -v $VICAST_DB:/opt/vicast/snpeff_data_custom \
   -w /data \
   --user $(id -u):$(id -g) \
   --hostname vicast \

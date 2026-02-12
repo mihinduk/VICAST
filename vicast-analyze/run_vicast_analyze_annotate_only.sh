@@ -122,9 +122,13 @@ fi
 echo "✓ Found $VCF_COUNT VCF file(s) from QC workflow"
 echo ""
 
-# Activate conda environment
-eval "$(conda shell.bash hook)"
-conda activate vicast_analyze
+# Activate conda/micromamba environment if available
+if command -v conda &> /dev/null; then
+    eval "$(conda shell.bash hook)"
+    conda activate vicast_analyze 2>/dev/null || echo "Using current environment"
+elif command -v micromamba &> /dev/null; then
+    echo "Detected micromamba (Docker environment) - using current environment"
+fi
 
 # Set PYTHONUNBUFFERED for real-time output
 export PYTHONUNBUFFERED=1

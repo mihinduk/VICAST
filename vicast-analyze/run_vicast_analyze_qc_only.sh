@@ -125,16 +125,16 @@ fi
 # Detect conda environment
 VICAST_CONDA_ENV="${VICAST_CONDA_ENV:-vicast_analyze}"
 
-# Check if conda is available
-if ! command -v conda &> /dev/null; then
-    echo ""
-    echo "ERROR: conda not found in PATH"
-    echo "=============================="
-    echo ""
-    echo "Please ensure conda is installed and available in your PATH."
-    echo "Then activate the VICAST environment before running this script."
-    echo ""
-    exit 1
+# Check if conda/micromamba is available (optional in Docker)
+CONDA_AVAILABLE=false
+if command -v conda &> /dev/null; then
+    CONDA_AVAILABLE=true
+    CONDA_CMD="conda"
+elif command -v micromamba &> /dev/null; then
+    CONDA_AVAILABLE=true
+    CONDA_CMD="micromamba"
+    # In Docker with micromamba, use base environment
+    VICAST_CONDA_ENV="base"
 fi
 
 # Set paths
@@ -190,41 +190,45 @@ echo ""
 echo "Pre-flight check: snpEff database"
 echo "Checking if $ACCESSION is in snpEff database..."
 
-# Activate conda environment
-eval "$(conda shell.bash hook)"
-if conda activate "$VICAST_CONDA_ENV" 2>/dev/null; then
-    echo "Activated conda environment: $VICAST_CONDA_ENV"
-else
-    echo "Warning: Could not activate conda environment '$VICAST_CONDA_ENV'"
-    echo "Attempting to continue with current environment..."
-fi
-
-if "$JAVA_PATH" -jar "$SNPEFF_JAR" databases 2>/dev/null | grep -q "$ACCESSION"; then
-    echo "OK: snpEff database found for $ACCESSION"
-    if [ -f "${SNPEFF_DATA}/${ACCESSION}/snpEffectPredictor.bin" ]; then
-        echo "OK: Database is built and ready"
-    else
-        echo ""
-        echo "ERROR: Database exists in config but is not built!"
-        echo "======================================================="
-        echo ""
-        echo "Please use VICAST-annotate to build the database:"
-        echo "  cd ${VICAST_HOME}/vicast-annotate"
-        echo "  python3 step1_parse_viral_genome.py $ACCESSION"
-        echo "  # Edit the TSV file, then:"
-        echo "  python3 step2_add_to_snpeff.py $ACCESSION ${ACCESSION}_no_polyprotein.tsv"
-        exit 1
+# Activate conda/micromamba environment if available
+if [ "$CONDA_AVAILABLE" = true ]; then
+    if [ "$CONDA_CMD" = "conda" ]; then
+        eval "$(conda shell.bash hook)"
+        if conda activate "$VICAST_CONDA_ENV" 2>/dev/null; then
+            echo "Activated conda environment: $VICAST_CONDA_ENV"
+        else
+            echo "Warning: Could not activate conda environment '$VICAST_CONDA_ENV'"
+            echo "Attempting to continue with current environment..."
+        fi
+    elif [ "$CONDA_CMD" = "micromamba" ]; then
+        # In Docker, tools are already in base environment - no activation needed
+        echo "Detected micromamba (Docker environment) - using current environment"
     fi
 else
+    echo "Warning: conda/micromamba not found - assuming tools are in PATH"
+fi
+
+# Check for database files directly first (faster and works offline)
+if [ -f "${SNPEFF_DATA}/${ACCESSION}/snpEffectPredictor.bin" ]; then
+    echo "✓ Database found: ${SNPEFF_DATA}/${ACCESSION}/"
+    echo "✓ Database is built and ready"
+else
     echo ""
-    echo "ERROR: Genome $ACCESSION not found in snpEff database!"
+    echo "ERROR: Genome $ACCESSION database not found!"
     echo "========================================================"
     echo ""
-    echo "Please use VICAST-annotate to add this genome first:"
-    echo "  cd ${VICAST_HOME}/vicast-annotate"
-    echo "  python3 step1_parse_viral_genome.py $ACCESSION"
-    echo "  # Edit the TSV file, then:"
-    echo "  python3 step2_add_to_snpeff.py $ACCESSION ${ACCESSION}_no_polyprotein.tsv"
+    echo "Checked location: ${SNPEFF_DATA}/${ACCESSION}/"
+    echo ""
+    echo "Please install the database first:"
+    echo "  Option 1 (pre-built database):"
+    echo "    install_prebuilt_database.sh --install $ACCESSION"
+    echo ""
+    echo "  Option 2 (custom annotation):"
+    echo "    cd ${VICAST_HOME}/vicast-annotate"
+    echo "    python3 step1_parse_viral_genome.py $ACCESSION"
+    echo "    # Edit the TSV file, then:"
+    echo "    python3 step2_add_to_snpeff.py $ACCESSION ${ACCESSION}.tsv"
+    echo ""
     exit 1
 fi
 
