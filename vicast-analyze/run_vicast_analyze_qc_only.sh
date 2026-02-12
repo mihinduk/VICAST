@@ -272,33 +272,56 @@ PIPELINE_EXIT_CODE=$?
 # =============================================================================
 
 if [ $PIPELINE_EXIT_CODE -eq 0 ]; then
-    # Extract sample name (match Python's logic)
-    SAMPLE_NAME=$(basename "$R1" | sed -E 's/(_R1)?(_001)?\.fastq\.gz$//')
+    # Extract sample name (match Python's logic: strip _R1/_R2/_1/_2 and _001 suffix)
+    SAMPLE_NAME=$(basename "$R1" | sed -E 's/(_R?[12])?(_001)?\.fastq\.gz$//')
 
     echo ""
     echo "========================================"
     echo "OK: QC WORKFLOW COMPLETED (Steps 1-6)"
     echo "========================================"
     echo ""
+    echo "COMPLETED STEPS:"
+    echo "  1. Prepare reference - Extract genome from SnpEff database"
+    echo "  2. Read statistics - Count total reads, calculate coverage"
+    echo "  3. Quality control - fastp trimming/filtering"
+    echo "  4. Map & call variants - BWA mapping → lofreq variant calling"
+    echo "  5. Coverage depth - Generate depth profile across genome"
+    echo "  6. Diagnostic report - HTML report with QC metrics, contamination check"
+    echo ""
     echo "REVIEW THE FOLLOWING QC OUTPUTS:"
     echo ""
     echo "1. Depth File:"
-    echo "   ${SAMPLE_NAME}_results/${SAMPLE_NAME}_depth.txt"
+    echo "   $(pwd)/${SAMPLE_NAME}_results/${SAMPLE_NAME}_depth.txt"
     echo ""
     echo "2. Diagnostic Report:"
-    echo "   diagnostic_${SAMPLE_NAME}/${SAMPLE_NAME}_diagnostic_report.txt"
-    echo "   diagnostic_${SAMPLE_NAME}/diagnostic_${SAMPLE_NAME}_presentation_ready_report.html"
+    echo "   $(pwd)/diagnostic_${SAMPLE_NAME}/${SAMPLE_NAME}_diagnostic_report.txt"
+    echo "   $(pwd)/diagnostic_${SAMPLE_NAME}/diagnostic_${SAMPLE_NAME}_presentation_ready_report.html"
     echo ""
     echo "3. VCF Files:"
-    find ./cleaned_seqs/variants -name "*${SAMPLE_NAME}*.vcf" 2>/dev/null | head -5
+    # Extract base sample name without _R1/_R2/_1/_2 suffix for VCF matching
+    BASE_SAMPLE=$(echo "$SAMPLE_NAME" | sed -E 's/_[12]$//')
+    find $(pwd)/cleaned_seqs/variants -name "${BASE_SAMPLE}*.vcf" 2>/dev/null | head -10
+    if [ -f "$(pwd)/cleaned_seqs/variants/${BASE_SAMPLE}_vars.vcf" ]; then
+        echo "   Unfiltered: $(pwd)/cleaned_seqs/variants/${BASE_SAMPLE}_vars.vcf"
+    fi
+    if [ -f "$(pwd)/cleaned_seqs/variants/${BASE_SAMPLE}_vars.filt.vcf" ]; then
+        echo "   Filtered:   $(pwd)/cleaned_seqs/variants/${BASE_SAMPLE}_vars.filt.vcf"
+    fi
     echo ""
     echo "NEXT STEPS:"
     echo ""
-    echo "  If QC results are satisfactory, continue with annotation:"
-    echo "    ./run_vicast_analyze_annotate_only.sh $R1 $R2 $ACCESSION"
+    echo "  Review QC outputs, then continue with annotation (Steps 7-9):"
+    echo ""
+    echo "  Basic annotation (recommended):"
+    echo "    $(pwd)/run_vicast_analyze_annotate_only.sh $R1 $R2 $ACCESSION"
+    echo ""
+    echo "  With custom quality threshold (default: min_depth=200, min_qual=1000):"
+    echo "    # Edit filtered VCF parameters in viral_pipeline.py or use different depth:"
+    echo "    # Step 7 filters: ≥1% freq, ≥200× depth, qual ≥1000 (high confidence)"
+    echo "    # Step 8 filters: 0.5-5% freq, ≥200× depth, qual ≥1000 (low frequency)"
     echo ""
     echo "  Or submit as SLURM job:"
-    echo "    sbatch --wrap=\"./run_vicast_analyze_annotate_only.sh $R1 $R2 $ACCESSION\""
+    echo "    sbatch --wrap=\"$(pwd)/run_vicast_analyze_annotate_only.sh $R1 $R2 $ACCESSION\""
     echo ""
     echo "========================================"
 else
