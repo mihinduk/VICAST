@@ -289,8 +289,16 @@ if [ $PIPELINE_EXIT_CODE -eq 0 ]; then
     echo "   $(pwd)/diagnostic_${SAMPLE_NAME}/${SAMPLE_NAME}_diagnostic_report.txt"
     echo "   $(pwd)/diagnostic_${SAMPLE_NAME}/diagnostic_${SAMPLE_NAME}_presentation_ready_report.html"
     echo ""
-    echo "3. VCF Files (unfiltered variants):"
-    find $(pwd)/cleaned_seqs/variants -name "*${SAMPLE_NAME}*.vcf" 2>/dev/null | head -10
+    echo "3. VCF Files:"
+    # Extract base sample name without _R1/_R2/_1/_2 suffix for VCF matching
+    BASE_SAMPLE=$(echo "$SAMPLE_NAME" | sed -E 's/_[12]$//')
+    find $(pwd)/cleaned_seqs/variants -name "${BASE_SAMPLE}*.vcf" 2>/dev/null | head -10
+    if [ -f "$(pwd)/cleaned_seqs/variants/${BASE_SAMPLE}_vars.vcf" ]; then
+        echo "   Unfiltered: $(pwd)/cleaned_seqs/variants/${BASE_SAMPLE}_vars.vcf"
+    fi
+    if [ -f "$(pwd)/cleaned_seqs/variants/${BASE_SAMPLE}_vars.filt.vcf" ]; then
+        echo "   Filtered:   $(pwd)/cleaned_seqs/variants/${BASE_SAMPLE}_vars.filt.vcf"
+    fi
     echo ""
     echo "NEXT STEPS:"
     echo ""
