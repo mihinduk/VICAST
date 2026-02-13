@@ -111,10 +111,37 @@ echo ""
 echo "Step 1: Mapping Statistics Check"
 echo "================================"
 
-# Download reference if needed
+# Get reference genome (reuse from main pipeline if available)
 if [ ! -f "${ACCESSION}.fasta" ]; then
-    echo "Downloading reference genome: $ACCESSION"
-    $GENOMICS_CMD efetch -db nucleotide -id "$ACCESSION" -format fasta > "${ACCESSION}.fasta"
+    # Check if reference exists in main pipeline output
+    if [ -f "../cleaned_seqs/${ACCESSION}.fasta" ]; then
+        echo "Reusing reference genome from main pipeline: ../cleaned_seqs/${ACCESSION}.fasta"
+        ln -s "../cleaned_seqs/${ACCESSION}.fasta" "${ACCESSION}.fasta"
+    elif [ -f "../${ACCESSION}.fasta" ]; then
+        echo "Reusing reference genome from parent directory: ../${ACCESSION}.fasta"
+        ln -s "../${ACCESSION}.fasta" "${ACCESSION}.fasta"
+    else
+        echo "Downloading reference genome: $ACCESSION"
+        # Use Python BioPython (more reliable than efetch command)
+        python -c "
+from Bio import Entrez
+import os
+Entrez.email = os.environ.get('NCBI_EMAIL', 'vicast_docker@example.com')
+try:
+    handle = Entrez.efetch(db='nucleotide', id='${ACCESSION}', rettype='fasta', retmode='text')
+    with open('${ACCESSION}.fasta', 'w') as f:
+        f.write(handle.read())
+    handle.close()
+    print('Reference genome downloaded successfully')
+except Exception as e:
+    print(f'ERROR: Failed to download reference: {e}')
+    exit(1)
+"
+        if [ ! -s "${ACCESSION}.fasta" ]; then
+            echo "ERROR: Failed to download reference genome"
+            exit 1
+        fi
+    fi
 fi
 
 # Index reference
