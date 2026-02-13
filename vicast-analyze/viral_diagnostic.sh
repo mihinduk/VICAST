@@ -111,10 +111,37 @@ echo ""
 echo "Step 1: Mapping Statistics Check"
 echo "================================"
 
-# Download reference if needed
+# Get reference genome (reuse from main pipeline if available)
 if [ ! -f "${ACCESSION}.fasta" ]; then
-    echo "Downloading reference genome: $ACCESSION"
-    $GENOMICS_CMD efetch -db nucleotide -id "$ACCESSION" -format fasta > "${ACCESSION}.fasta"
+    # Check if reference exists in main pipeline output
+    if [ -f "../cleaned_seqs/${ACCESSION}.fasta" ]; then
+        echo "Reusing reference genome from main pipeline: ../cleaned_seqs/${ACCESSION}.fasta"
+        ln -s "../cleaned_seqs/${ACCESSION}.fasta" "${ACCESSION}.fasta"
+    elif [ -f "../${ACCESSION}.fasta" ]; then
+        echo "Reusing reference genome from parent directory: ../${ACCESSION}.fasta"
+        ln -s "../${ACCESSION}.fasta" "${ACCESSION}.fasta"
+    else
+        echo "Downloading reference genome: $ACCESSION"
+        # Use Python BioPython (more reliable than efetch command)
+        python -c "
+from Bio import Entrez
+import os
+Entrez.email = os.environ.get('NCBI_EMAIL', 'vicast_docker@example.com')
+try:
+    handle = Entrez.efetch(db='nucleotide', id='${ACCESSION}', rettype='fasta', retmode='text')
+    with open('${ACCESSION}.fasta', 'w') as f:
+        f.write(handle.read())
+    handle.close()
+    print('Reference genome downloaded successfully')
+except Exception as e:
+    print(f'ERROR: Failed to download reference: {e}')
+    exit(1)
+"
+        if [ ! -s "${ACCESSION}.fasta" ]; then
+            echo "ERROR: Failed to download reference genome"
+            exit 1
+        fi
+    fi
 fi
 
 # Index reference
@@ -129,27 +156,72 @@ CLEANED_R2="../cleaned_seqs/${R2_BASE}.qc.fastq.gz"
 
 if [ -f "$CLEANED_R1" ] && [ -f "$CLEANED_R2" ]; then
     echo "  Using cleaned reads: $CLEANED_R1 and $CLEANED_R2"
-    $GENOMICS_CMD bash -c "bwa mem -t $THREADS ${ACCESSION}.fasta $CLEANED_R1 $CLEANED_R2 | \
-        samtools view -@ $THREADS -bS - | \
-        samtools sort -@ $THREADS -o ${SAMPLE_NAME}_quick.bam -"
+    echo "  Reference: ${ACCESSION}.fasta"
+    echo "  Output BAM: ${SAMPLE_NAME}_quick.bam"
+
+    if [ -z "$GENOMICS_CMD" ]; then
+        # Direct execution (Docker/micromamba base environment)
+        echo "  Running BWA mem + samtools (direct execution)..."
+        set -o pipefail  # Fail if any command in pipe fails
+        bwa mem -t $THREADS "${ACCESSION}.fasta" "$CLEANED_R1" "$CLEANED_R2" 2>&1 | \
+            samtools view -@ $THREADS -bS - 2>&1 | \
+            samtools sort -@ $THREADS -o "${SAMPLE_NAME}_quick.bam" - 2>&1
+        BWA_EXIT=$?
+        set +o pipefail
+        if [ $BWA_EXIT -ne 0 ]; then
+            echo "  ERROR: BWA mapping failed with exit code $BWA_EXIT"
+        fi
+    else
+        # Conda run execution
+        $GENOMICS_CMD bash -c "bwa mem -t $THREADS ${ACCESSION}.fasta $CLEANED_R1 $CLEANED_R2 | \
+            samtools view -@ $THREADS -bS - | \
+            samtools sort -@ $THREADS -o ${SAMPLE_NAME}_quick.bam -"
+    fi
 else
     echo "  Warning: Cleaned reads not found, using original reads"
     echo "  Looking for: $CLEANED_R1 and $CLEANED_R2"
-    $GENOMICS_CMD bash -c "bwa mem -t $THREADS ${ACCESSION}.fasta ../$R1 ../$R2 | \
-        samtools view -@ $THREADS -bS - | \
-        samtools sort -@ $THREADS -o ${SAMPLE_NAME}_quick.bam -"
+    if [ -z "$GENOMICS_CMD" ]; then
+        # Direct execution (Docker/micromamba base environment)
+        bwa mem -t $THREADS "${ACCESSION}.fasta" "../$R1" "../$R2" 2>&1 | \
+            samtools view -@ $THREADS -bS - 2>&1 | \
+            samtools sort -@ $THREADS -o "${SAMPLE_NAME}_quick.bam" - 2>&1
+    else
+        # Conda run execution
+        $GENOMICS_CMD bash -c "bwa mem -t $THREADS ${ACCESSION}.fasta ../$R1 ../$R2 | \
+            samtools view -@ $THREADS -bS - | \
+            samtools sort -@ $THREADS -o ${SAMPLE_NAME}_quick.bam -"
+    fi
 fi
 
-$GENOMICS_CMD samtools index "${SAMPLE_NAME}_quick.bam"
+# Check if BAM was created
+if [ ! -f "${SAMPLE_NAME}_quick.bam" ]; then
+    echo "ERROR: Failed to create BAM file from mapping"
+    echo "Skipping mapping statistics..."
+    TOTAL_READS=0
+    MAPPED_READS=0
+else
+    if [ -z "$GENOMICS_CMD" ]; then
+        samtools index "${SAMPLE_NAME}_quick.bam" 2>&1
+    else
+        $GENOMICS_CMD samtools index "${SAMPLE_NAME}_quick.bam"
+    fi
+fi
 
-# Generate mapping statistics
-echo "Generating mapping statistics..."
-$GENOMICS_CMD samtools flagstat "${SAMPLE_NAME}_quick.bam" > "${SAMPLE_NAME}_mapping_stats.txt"
-$GENOMICS_CMD samtools idxstats "${SAMPLE_NAME}_quick.bam" > "${SAMPLE_NAME}_idxstats.txt"
-
-# Calculate mapping percentage
-TOTAL_READS=$($GENOMICS_CMD samtools view -c "${SAMPLE_NAME}_quick.bam")
-MAPPED_READS=$($GENOMICS_CMD samtools view -c -F 4 "${SAMPLE_NAME}_quick.bam")
+# Generate mapping statistics (only if BAM exists)
+if [ -f "${SAMPLE_NAME}_quick.bam" ]; then
+    echo "Generating mapping statistics..."
+    if [ -z "$GENOMICS_CMD" ]; then
+        samtools flagstat "${SAMPLE_NAME}_quick.bam" > "${SAMPLE_NAME}_mapping_stats.txt" 2>&1
+        samtools idxstats "${SAMPLE_NAME}_quick.bam" > "${SAMPLE_NAME}_idxstats.txt" 2>&1
+        TOTAL_READS=$(samtools view -c "${SAMPLE_NAME}_quick.bam" 2>/dev/null || echo "0")
+        MAPPED_READS=$(samtools view -c -F 4 "${SAMPLE_NAME}_quick.bam" 2>/dev/null || echo "0")
+    else
+        $GENOMICS_CMD samtools flagstat "${SAMPLE_NAME}_quick.bam" > "${SAMPLE_NAME}_mapping_stats.txt"
+        $GENOMICS_CMD samtools idxstats "${SAMPLE_NAME}_quick.bam" > "${SAMPLE_NAME}_idxstats.txt"
+        TOTAL_READS=$($GENOMICS_CMD samtools view -c "${SAMPLE_NAME}_quick.bam")
+        MAPPED_READS=$($GENOMICS_CMD samtools view -c -F 4 "${SAMPLE_NAME}_quick.bam")
+    fi
+fi
 
 # Extract duplication rate from fastp report
 # First try to get it from the original main pipeline fastp report
@@ -658,7 +730,8 @@ fi
 echo ""
 echo "Cleaning up temporary files..."
 rm -f "${ACCESSION}.fasta."* # Remove BWA index files
-rm -f "${SAMPLE_NAME}_quick.bam" "${SAMPLE_NAME}_quick.bam.bai"
+# Keep BAM files for QC review - they're useful for debugging
+# rm -f "${SAMPLE_NAME}_quick.bam" "${SAMPLE_NAME}_quick.bam.bai"
 
 echo ""
 echo "========================================="
