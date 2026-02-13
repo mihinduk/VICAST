@@ -61,25 +61,30 @@ cd "$DIAGNOSTIC_DIR"
 echo "Setting up environment commands..."
 
 # Detect conda/micromamba (Docker vs native)
+# IMPORTANT: Check micromamba FIRST because it provides a conda symlink
 CONDA_AVAILABLE=false
 CONDA_CMD=""
 VICAST_ENV="vicast_analyze"
 
-if command -v conda &> /dev/null; then
-    CONDA_AVAILABLE=true
-    CONDA_CMD="conda"
-    echo "Detected conda"
-elif command -v micromamba &> /dev/null; then
+if command -v micromamba &> /dev/null; then
     CONDA_AVAILABLE=true
     CONDA_CMD="micromamba"
     VICAST_ENV="base"
     echo "Detected micromamba (Docker environment)"
+elif command -v conda &> /dev/null; then
+    CONDA_AVAILABLE=true
+    CONDA_CMD="conda"
+    echo "Detected conda"
 fi
 
 # Activate conda environment if available
 if [ "$CONDA_AVAILABLE" = true ]; then
-    if [ "$CONDA_CMD" = "conda" ]; then
-        # Activate conda environment
+    if [ "$CONDA_CMD" = "micromamba" ]; then
+        # Docker: tools already in base environment, no activation needed
+        echo "Using micromamba base environment (tools already available)"
+        GENOMICS_CMD=""  # Direct execution
+    elif [ "$CONDA_CMD" = "conda" ]; then
+        # Native conda: try to activate environment
         eval "$(conda shell.bash hook)"
         if conda activate "$VICAST_ENV" 2>/dev/null; then
             echo "Activated conda environment: $VICAST_ENV"
@@ -88,10 +93,6 @@ if [ "$CONDA_AVAILABLE" = true ]; then
             echo "Could not activate conda environment, using conda run"
             GENOMICS_CMD="conda run -n $VICAST_ENV"
         fi
-    elif [ "$CONDA_CMD" = "micromamba" ]; then
-        # Docker: tools already in base environment, no activation needed
-        echo "Using current micromamba base environment"
-        GENOMICS_CMD=""  # Direct execution
     fi
 else
     echo "Warning: conda/micromamba not found - assuming tools are in PATH"
