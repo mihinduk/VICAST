@@ -187,22 +187,30 @@ if [ -f "$CLEANED_R1" ] && [ -f "$CLEANED_R2" ]; then
         echo "  Running BWA mem + samtools (direct execution)..."
         echo "  This may take several minutes for large datasets..."
 
-        # Save output to log file for debugging
-        LOG_FILE="${SAMPLE_NAME}_mapping.log"
+        # Log files for debugging
+        BWA_LOG="${SAMPLE_NAME}_bwa.log"
+        SAMTOOLS_LOG="${SAMPLE_NAME}_samtools.log"
 
         set -o pipefail  # Fail if any command in pipe fails
-        bwa mem -t $THREADS "${ACCESSION}.fasta" "$CLEANED_R1" "$CLEANED_R2" 2>&1 | tee -a "$LOG_FILE" | \
-            samtools view -@ $THREADS -bS - 2>&1 | tee -a "$LOG_FILE" | \
-            samtools sort -@ $THREADS -o "${SAMPLE_NAME}_quick.bam" - 2>&1 | tee -a "$LOG_FILE"
+        bwa mem -t $THREADS "${ACCESSION}.fasta" "$CLEANED_R1" "$CLEANED_R2" 2>"$BWA_LOG" | \
+            samtools view -@ $THREADS -bS - 2>>"$SAMTOOLS_LOG" | \
+            samtools sort -@ $THREADS -o "${SAMPLE_NAME}_quick.bam" - 2>>"$SAMTOOLS_LOG"
         BWA_EXIT=$?
         set +o pipefail
 
         if [ $BWA_EXIT -ne 0 ]; then
-            echo "  ERROR: BWA mapping failed with exit code $BWA_EXIT"
-            echo "  See log file: $LOG_FILE"
-            tail -20 "$LOG_FILE"
+            echo "  ERROR: Mapping pipeline failed with exit code $BWA_EXIT"
+            echo "  BWA log:"
+            tail -10 "$BWA_LOG"
+            echo "  Samtools log:"
+            tail -10 "$SAMTOOLS_LOG"
         else
             echo "  ✓ Mapping complete"
+            # Show summary from logs
+            if [ -s "$BWA_LOG" ]; then
+                echo "  BWA summary:"
+                grep -E "Processed|aligned" "$BWA_LOG" | tail -3
+            fi
         fi
     else
         # Conda run execution
