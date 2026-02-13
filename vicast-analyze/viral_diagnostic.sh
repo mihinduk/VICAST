@@ -146,7 +146,29 @@ fi
 
 # Index reference
 echo "Indexing reference genome..."
-$GENOMICS_CMD bwa index "${ACCESSION}.fasta"
+if [ -z "$GENOMICS_CMD" ]; then
+    bwa index "${ACCESSION}.fasta" 2>&1
+    INDEX_EXIT=$?
+else
+    $GENOMICS_CMD bwa index "${ACCESSION}.fasta"
+    INDEX_EXIT=$?
+fi
+
+if [ $INDEX_EXIT -ne 0 ]; then
+    echo "ERROR: BWA indexing failed with exit code $INDEX_EXIT"
+    echo "Reference: ${ACCESSION}.fasta"
+    ls -lh "${ACCESSION}.fasta" 2>&1
+    exit 1
+fi
+
+# Verify index files were created
+if [ ! -f "${ACCESSION}.fasta.bwt" ]; then
+    echo "ERROR: BWA index files not created"
+    echo "Expected: ${ACCESSION}.fasta.{amb,ann,bwt,pac,sa}"
+    ls -lh "${ACCESSION}.fasta"* 2>&1 || echo "No index files found"
+    exit 1
+fi
+echo "✓ BWA index complete"
 
 # Quick alignment for mapping stats using cleaned reads
 echo "Performing quick alignment for mapping statistics using cleaned reads..."
@@ -162,14 +184,24 @@ if [ -f "$CLEANED_R1" ] && [ -f "$CLEANED_R2" ]; then
     if [ -z "$GENOMICS_CMD" ]; then
         # Direct execution (Docker/micromamba base environment)
         echo "  Running BWA mem + samtools (direct execution)..."
+        echo "  This may take several minutes for large datasets..."
+
+        # Save output to log file for debugging
+        LOG_FILE="${SAMPLE_NAME}_mapping.log"
+
         set -o pipefail  # Fail if any command in pipe fails
-        bwa mem -t $THREADS "${ACCESSION}.fasta" "$CLEANED_R1" "$CLEANED_R2" 2>&1 | \
-            samtools view -@ $THREADS -bS - 2>&1 | \
-            samtools sort -@ $THREADS -o "${SAMPLE_NAME}_quick.bam" - 2>&1
+        bwa mem -t $THREADS "${ACCESSION}.fasta" "$CLEANED_R1" "$CLEANED_R2" 2>&1 | tee -a "$LOG_FILE" | \
+            samtools view -@ $THREADS -bS - 2>&1 | tee -a "$LOG_FILE" | \
+            samtools sort -@ $THREADS -o "${SAMPLE_NAME}_quick.bam" - 2>&1 | tee -a "$LOG_FILE"
         BWA_EXIT=$?
         set +o pipefail
+
         if [ $BWA_EXIT -ne 0 ]; then
             echo "  ERROR: BWA mapping failed with exit code $BWA_EXIT"
+            echo "  See log file: $LOG_FILE"
+            tail -20 "$LOG_FILE"
+        else
+            echo "  ✓ Mapping complete"
         fi
     else
         # Conda run execution
