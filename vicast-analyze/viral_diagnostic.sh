@@ -623,6 +623,20 @@ fi
 if [ -s "${SAMPLE_NAME}_viral_blast.tsv" ] && [ $(tail -n +2 "${SAMPLE_NAME}_viral_blast.tsv" | wc -l) -gt 0 ]; then
     echo "VIRAL CONTAMINATION ANALYSIS:" >> "${SAMPLE_NAME}_diagnostic_report.txt"
     echo "" >> "${SAMPLE_NAME}_diagnostic_report.txt"
+else
+    # No viral hits found - add informative message
+    echo "VIRAL CONTAMINATION ANALYSIS:" >> "${SAMPLE_NAME}_diagnostic_report.txt"
+    echo "" >> "${SAMPLE_NAME}_diagnostic_report.txt"
+    echo "No viral contamination detected in assembled contigs." >> "${SAMPLE_NAME}_diagnostic_report.txt"
+    echo "" >> "${SAMPLE_NAME}_diagnostic_report.txt"
+    echo "This indicates:" >> "${SAMPLE_NAME}_diagnostic_report.txt"
+    echo "  ✓ Clean viral culture (expected result)" >> "${SAMPLE_NAME}_diagnostic_report.txt"
+    echo "  ✓ No detectable co-infection with other viruses" >> "${SAMPLE_NAME}_diagnostic_report.txt"
+    echo "  ✓ Assembly contigs match target reference genome" >> "${SAMPLE_NAME}_diagnostic_report.txt"
+    echo "" >> "${SAMPLE_NAME}_diagnostic_report.txt"
+fi
+
+if [ -s "${SAMPLE_NAME}_viral_blast.tsv" ] && [ $(tail -n +2 "${SAMPLE_NAME}_viral_blast.tsv" | wc -l) -gt 0 ]; then
     
     # Process viral BLAST results with coverage filtering
     # Read contig lengths and calculate query coverage for each viral hit
@@ -717,19 +731,24 @@ if [ -s "${SAMPLE_NAME}_viral_blast.tsv" ] && [ $(tail -n +2 "${SAMPLE_NAME}_vir
     echo "" >> "${SAMPLE_NAME}_diagnostic_report.txt"
 fi
 
-# Add file references
+# Add file references with full paths
+DIAG_DIR=$(pwd)
 cat >> "${SAMPLE_NAME}_diagnostic_report.txt" << EOF
 
 DETAILED RESULTS FILES:
-- Top hits summary: ${SAMPLE_NAME}_top_hits.tsv
-- All BLAST results: ${SAMPLE_NAME}_blast_all.tsv  
-- Viral BLAST results: ${SAMPLE_NAME}_viral_blast.tsv
-- Assembly contigs: assembly_${SAMPLE_NAME}/final.contigs.fa
+- Top hits summary: ${DIAG_DIR}/${SAMPLE_NAME}_top_hits.tsv
+- All BLAST results: ${DIAG_DIR}/${SAMPLE_NAME}_blast_all.tsv
+- Viral BLAST results: ${DIAG_DIR}/${SAMPLE_NAME}_viral_blast.tsv
+- Assembly contigs: ${DIAG_DIR}/assembly_${SAMPLE_NAME}/final.contigs.fa
+- HTML report: ${DIAG_DIR}/diagnostic_${SAMPLE_NAME}_presentation_ready_report.html
 EOF
 
 if [ ! -s "${SAMPLE_NAME}_blast_all.tsv" ] || [ $(wc -l < "${SAMPLE_NAME}_blast_all.tsv") -le 1 ]; then
     echo "" >> "${SAMPLE_NAME}_diagnostic_report.txt"
     echo "No significant BLAST hits found (E-value < 1e-10)" >> "${SAMPLE_NAME}_diagnostic_report.txt"
+    echo "This may indicate:" >> "${SAMPLE_NAME}_diagnostic_report.txt"
+    echo "  - Clean viral culture (no bacterial/fungal contamination)" >> "${SAMPLE_NAME}_diagnostic_report.txt"
+    echo "  - Low contig complexity or very small contigs" >> "${SAMPLE_NAME}_diagnostic_report.txt"
 fi
 
 # Add recommendations
@@ -821,28 +840,64 @@ echo ""
 echo "========================================="
 echo "DIAGNOSTIC ANALYSIS COMPLETE"
 echo "========================================="
-echo "Report saved to: ${DIAGNOSTIC_DIR}/${SAMPLE_NAME}_diagnostic_report.txt"
-echo "Key files generated:"
-echo "  - ${SAMPLE_NAME}_mapping_stats.txt (mapping statistics)"
-echo "  - ${SAMPLE_NAME}_fastp.html (read quality report)"
-echo "  - assembly_${SAMPLE_NAME}/final.contigs.fa (assembled contigs - sorted by size)"
-echo "  - ${SAMPLE_NAME}_top_hits.tsv (top hit per contig with kingdom classification)"
-echo "  - ${SAMPLE_NAME}_blast_all.tsv (all BLAST results with headers)"
-echo "  - ${SAMPLE_NAME}_viral_blast.tsv (viral BLAST results only)"
-echo "  - ${SAMPLE_NAME}_diagnostic_report.txt (comprehensive summary report)"
 echo ""
-echo "Quick Summary:"
-echo "  Mapping to $ACCESSION: ${MAPPING_PERCENT}%"
-echo "  Contigs assembled: $CONTIG_COUNT"
-echo "  Contigs BLASTed: $FILTERED_COUNT"
+echo "📊 REVIEW QC OUTPUTS:"
 echo ""
-
-# Display the report
+echo "1. HTML Report (open in browser):"
+echo "   ${DIAGNOSTIC_DIR}/diagnostic_${SAMPLE_NAME}_presentation_ready_report.html"
+echo ""
+echo "2. Text Report:"
+echo "   ${DIAGNOSTIC_DIR}/${SAMPLE_NAME}_diagnostic_report.txt"
+echo ""
+echo "3. BLAST Results:"
+echo "   ${DIAGNOSTIC_DIR}/${SAMPLE_NAME}_viral_blast.tsv"
+echo "   ${DIAGNOSTIC_DIR}/${SAMPLE_NAME}_top_hits.tsv"
+echo ""
+echo "4. Mapping Quality:"
+echo "   Deduplicated mapping: ${DEDUPLICATED_MAPPING_PERCENT}% (target: >70%)"
+echo "   Total contigs >1kb: ${FILTERED_COUNT}"
+echo ""
 echo "========================================="
-echo "DIAGNOSTIC REPORT PREVIEW"
+echo "📋 INTERPRETATION GUIDANCE"
 echo "========================================="
-cat "${SAMPLE_NAME}_diagnostic_report.txt"
-
+echo ""
+if (( $(awk "BEGIN {print ($DEDUPLICATED_MAPPING_PERCENT >= 70)}") )); then
+    echo "✅ GOOD QUALITY - Proceed with variant analysis"
+    echo ""
+    echo "Next step: Review HTML report and continue to annotation (Steps 7-9)"
+elif (( $(awk "BEGIN {print ($DEDUPLICATED_MAPPING_PERCENT >= 30)}") )); then
+    echo "⚠️  MODERATE QUALITY - Review recommended"
+    echo ""
+    echo "Action: Check BLAST results for mixed infection or contamination"
+    echo "        Consider manual review before proceeding"
+else
+    echo "❌ LOW QUALITY - Investigation required"
+    echo ""
+    echo "Action: Check BLAST results for organism identity"
+    echo "        May need different reference genome"
+    echo "        Review diagnostic report for details"
+fi
+echo ""
+echo "========================================="
+echo "🔬 CONTINUE TO ANNOTATION (Steps 7-9)"
+echo "========================================="
+echo ""
+echo "After reviewing QC results, run annotation workflow:"
+echo ""
+echo "Command:"
+echo "  cd .."
+echo "  bash ${PIPELINE_DIR}/viral_diagnostic.sh \\"
+echo "    ${R1} ${R2} ${ACCESSION} ${SAMPLE_NAME} ${THREADS}"
+echo ""
+echo "Or from parent directory:"
+echo "  run_vicast_analyze_annotate_only.sh ${R1} ${R2} ${ACCESSION}"
+echo ""
+echo "Variant filtering parameters (modify in viral_pipeline.py if needed):"
+echo "  Step 7 (high confidence): freq ≥1%, depth ≥200×, qual ≥1000"
+echo "  Step 8 (low frequency):   freq 0.5-5%, depth ≥200×, qual ≥1000"
+echo ""
+echo "========================================="
 echo ""
 echo "Diagnostic analysis completed at: $(date)"
-echo "========================================="
+echo ""
+echo "  - assembly_${SAMPLE_NAME}/final.contigs.fa (assembled contigs - sorted by size)"
