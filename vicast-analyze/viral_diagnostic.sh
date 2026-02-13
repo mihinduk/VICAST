@@ -5,6 +5,10 @@
 #SBATCH --job-name=viral_diagnostic
 #SBATCH --output=%x_%j.out
 
+# Suppress micromamba shell initialization warnings (Docker environment)
+export MAMBA_NO_BANNER=1
+export MAMBA_ROOT_PREFIX=/opt/conda 2>/dev/null || true
+
 # Viral Contamination Diagnostic Module
 # Runs mapping check, assembly, and viral BLAST for sample quality assessment
 # Usage: ./viral_diagnostic.sh <R1> <R2> <accession> <sample_name> [threads]
