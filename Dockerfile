@@ -157,6 +157,11 @@ ENV PS1="(vicast) \\w$ "
 # Switch back to regular user for runtime
 USER $MAMBA_USER
 
+# Custom entrypoint that suppresses micromamba warnings with --user
+RUN printf '#!/bin/bash\neval "$(micromamba shell hook --shell bash)" 2>/dev/null\nmicromamba activate base 2>/dev/null\nexec "$@"\n' > /usr/local/bin/vicast_entrypoint.sh && \
+    chmod +x /usr/local/bin/vicast_entrypoint.sh
+ENTRYPOINT ["/usr/local/bin/vicast_entrypoint.sh"]
+
 # Show welcome message on container start
 ENV BASH_ENV=/etc/profile.d/vicast_motd.sh
 

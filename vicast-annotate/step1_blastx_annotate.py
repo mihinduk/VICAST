@@ -712,6 +712,17 @@ NEXT STEPS:
     print("STEP 1 (Pathway 3): Model-based Homology Annotation")
     print("="*60)
 
+    # HOST_DIR allows displaying host paths when running inside Docker
+    host_dir = os.environ.get('HOST_DIR', '')
+    cwd = os.path.abspath('.')
+
+    def host_path(path):
+        """Replace container working dir with host_dir for display."""
+        p = os.path.abspath(path) if not os.path.isabs(path) else path
+        if host_dir and p.startswith(cwd):
+            return p.replace(cwd, host_dir, 1)
+        return p
+
     # Get script directory for Pathway 2 integration
     script_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -880,8 +891,8 @@ NEXT STEPS:
     print("NEXT STEPS:")
     print("="*60)
     print(f"\n1. REVIEW the annotation files:")
-    print(f"   TSV:     {output_tsv}")
-    print(f"   Proteins: {output_fasta}")
+    print(f"   TSV:      {host_path(output_tsv)}")
+    print(f"   Proteins: {host_path(output_fasta)}")
     print("\n   Use the protein FASTA to:")
     print("   - Verify protein sequences look correct")
     print("   - Check for premature stops (indicated by * in sequence)")
@@ -897,8 +908,8 @@ NEXT STEPS:
 
     print(f"\n3. SAVE your edited file (keep as TSV)")
 
-    print(f"\n4. RUN STEP 2 to add to SnpEff:")
-    print(f"   python3 step2_add_to_snpeff.py {subject_id} {output_tsv}")
+    print(f"\n4. RUN STEP 2 to add to SnpEff (inside Docker):")
+    print(f"   step2_add_to_snpeff.py {subject_id} {output_tsv}")
 
     print("\n" + "="*60)
 
