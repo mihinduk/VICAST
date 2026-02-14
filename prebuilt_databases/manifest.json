@@ -338,6 +338,21 @@
       ],
       "url": "https://github.com/shandley/VICAST/raw/main/prebuilt_databases/NC_001803.1.tar.gz",
       "md5": "01ad7c4537e85874619c59eba232d01b"
+    },
+    {
+      "accession": "OZ409268.1",
+      "name": "RSV-A-Ireland2025",
+      "description": "Human RSV-A isolate hRSV/A/Ireland/NVRL-GIRL00094362/2025",
+      "size_mb": 0.02,
+      "features": 20,
+      "tags": [
+        "paramyxovirus",
+        "respiratory",
+        "rsv",
+        "surveillance"
+      ],
+      "url": "https://github.com/shandley/VICAST/raw/main/prebuilt_databases/OZ409268.1.tar.gz",
+      "md5": "642eb512d34348692848296578ee5129"
     }
   ]
 }
