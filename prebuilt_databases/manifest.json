@@ -310,6 +310,20 @@
       ],
       "url": "https://github.com/shandley/VICAST/raw/main/prebuilt_databases/NC_002549.1.tar.gz",
       "md5": "7ab63f1321b8c2e3d5ba8f75216ee635"
+    },
+    {
+      "accession": "NC_004162.2",
+      "name": "CHIKV",
+      "description": "Chikungunya virus strain S27-African prototype",
+      "size_mb": 0.02,
+      "features": 18,
+      "tags": [
+        "alphavirus",
+        "arbovirus",
+        "mosquito-borne"
+      ],
+      "url": "https://github.com/shandley/VICAST/raw/main/prebuilt_databases/NC_004162.2.tar.gz",
+      "md5": "77909904dc7f9c3237ca8ddc9510662a"
     }
   ]
 }
