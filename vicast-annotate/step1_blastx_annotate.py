@@ -654,13 +654,13 @@ Use this pathway when NCBI has poor/no annotations for your virus.
 THREE MODES OF OPERATION:
 
 1. Model already in SnpEff:
-   python3 step1_blastx_annotate.py --subject NC_XXXXXX --model NC_001477
+   python3 /opt/vicast/vicast-annotate/step1_blastx_annotate.py --subject NC_XXXXXX --model NC_001477
 
 2. Add model to SnpEff first (auto-runs Pathway 2):
-   python3 step1_blastx_annotate.py --subject NC_XXXXXX --model NC_001477 --add-model
+   python3 /opt/vicast/vicast-annotate/step1_blastx_annotate.py --subject NC_XXXXXX --model NC_001477 --add-model
 
 3. Use custom model proteins:
-   python3 step1_blastx_annotate.py --subject NC_XXXXXX.fasta --model-proteins my_proteins.fa
+   python3 /opt/vicast/vicast-annotate/step1_blastx_annotate.py --subject NC_XXXXXX.fasta --model-proteins my_proteins.fa
 
 WORKFLOW:
   1. Check/prepare model virus
@@ -673,7 +673,7 @@ WORKFLOW:
 
 NEXT STEPS:
   After reviewing TSV, run step2 to add to SnpEff:
-    python3 step2_add_to_snpeff.py subject_id output.tsv
+    python3 /opt/vicast/vicast-annotate/step2_add_to_snpeff.py subject_id output.tsv
         """
     )
 
@@ -909,7 +909,7 @@ NEXT STEPS:
     print(f"\n3. SAVE your edited file (keep as TSV)")
 
     print(f"\n4. RUN STEP 2 to add to SnpEff (inside Docker):")
-    print(f"   step2_add_to_snpeff.py {subject_id} {output_tsv}")
+    print(f"   python3 /opt/vicast/vicast-annotate/step2_add_to_snpeff.py {subject_id} {output_tsv}")
 
     print("\n" + "="*60)
 

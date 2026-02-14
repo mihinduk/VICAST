@@ -552,16 +552,16 @@ Prerequisites:
 
 Examples:
   # Add new genome using edited TSV
-  python3 step2_add_to_snpeff.py NC_009942.1 NC_009942.1_no_polyprotein.tsv
+  python3 /opt/vicast/vicast-annotate/step2_add_to_snpeff.py NC_009942.1 NC_009942.1_no_polyprotein.tsv
 
   # Update existing genome (e.g., after adding missing proteins)
-  python3 step2_add_to_snpeff.py NC_038433.1 NC_038433.1_no_polyprotein.tsv --update
+  python3 /opt/vicast/vicast-annotate/step2_add_to_snpeff.py NC_038433.1 NC_038433.1_no_polyprotein.tsv --update
 
   # Skip validation (for polyproteins with expected codon warnings)
-  python3 step2_add_to_snpeff.py NC_027998.1 my_edited.tsv --no-validate
+  python3 /opt/vicast/vicast-annotate/step2_add_to_snpeff.py NC_027998.1 my_edited.tsv --no-validate
 
   # Non-interactive mode (for scripting/automation)
-  python3 step2_add_to_snpeff.py NC_009942.1 my_edited.tsv --force
+  python3 /opt/vicast/vicast-annotate/step2_add_to_snpeff.py NC_009942.1 my_edited.tsv --force
 
 After successful addition:
   You can use the genome for annotation:
@@ -599,7 +599,7 @@ After successful addition:
     fasta_file = args.fasta if args.fasta else f"{args.genome_id}.fasta"
     if not os.path.exists(fasta_file):
         print(f"Error: FASTA file not found: {fasta_file}")
-        print(f"\nMake sure you have run: python3 step1_parse_viral_genome.py {args.genome_id}")
+        print(f"\nMake sure you have run: python3 /opt/vicast/vicast-annotate/step1_parse_viral_genome.py {args.genome_id}")
         sys.exit(1)
 
     # Determine output GFF name
@@ -644,7 +644,7 @@ After successful addition:
             print("to update an existing genome.")
             print("\nOptions:")
             print(f"  1. Use --update to overwrite existing genome:")
-            print(f"     python3 step2_add_to_snpeff.py {args.genome_id} {args.tsv_file} --update")
+            print(f"     python3 /opt/vicast/vicast-annotate/step2_add_to_snpeff.py {args.genome_id} {args.tsv_file} --update")
             print(f"\n  2. Remove existing genome first:")
             print(f"     rm -rf {genome_dir}")
             print(f"\n  3. Use a different genome ID")
@@ -703,8 +703,8 @@ After successful addition:
         print("NEXT STEPS: Run variant calling pipeline")
         print("-"*60)
         print("\nTo analyze sequencing data with this database:")
-        print(f"  ./vicast-analyze/run_vicast_analyze_full.sh R1.fastq.gz R2.fastq.gz {args.genome_id} 4")
-        print("\nSee vicast-analyze/README.md for full documentation")
+        print(f"  /opt/vicast/vicast-analyze/run_vicast_analyze_full.sh R1.fastq.gz R2.fastq.gz {args.genome_id} 4")
+        print("\nSee /opt/vicast/vicast-analyze/README.md for full documentation")
         print("="*60)
     else:
         print("\n" + "="*60)

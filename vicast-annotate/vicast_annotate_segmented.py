@@ -656,23 +656,23 @@ This script handles segmented viruses (e.g., Influenza, Rotavirus, RVFV) by:
 Examples:
 
   # Rift Valley fever virus (3 segments: L, M, S)
-  python3 vicast_annotate_segmented.py rvfv \\
+  python3 /opt/vicast/vicast-annotate/vicast_annotate_segmented.py rvfv \\
     --segments NC_014395.1,NC_014396.1,NC_014397.1 \\
     --names L,M,S
 
   # Influenza A (H1N1) with 8 segments
-  python3 vicast_annotate_segmented.py influenza_h1n1_2009 \\
+  python3 /opt/vicast/vicast-annotate/vicast_annotate_segmented.py influenza_h1n1_2009 \\
     --segments CY121680,CY121681,CY121682,CY121683,CY121684,CY121685,CY121686,CY121687 \\
     --names PB2,PB1,PA,HA,NP,NA,M,NS
 
   # Use local files instead of downloading
-  python3 vicast_annotate_segmented.py my_virus \\
+  python3 /opt/vicast/vicast-annotate/vicast_annotate_segmented.py my_virus \\
     --fasta-files seg1.fasta,seg2.fasta,seg3.fasta \\
     --gb-files seg1.gb,seg2.gb,seg3.gb \\
     --names Seg1,Seg2,Seg3
 
   # Non-interactive mode (for Docker/scripting)
-  python3 vicast_annotate_segmented.py rvfv \\
+  python3 /opt/vicast/vicast-annotate/vicast_annotate_segmented.py rvfv \\
     --segments NC_014395.1,NC_014396.1,NC_014397.1 \\
     --names L,M,S --no-review
 
@@ -797,8 +797,10 @@ After successful completion:
         print("   - Add missing annotations")
         print("   - Correct any errors")
         print(f"\n2. SAVE your edits (keep as TSV format)")
+        # Build the re-run command with full path
+        script_path = os.path.abspath(__file__)
         print(f"\n3. Re-run with --no-review to build the SnpEff database:")
-        print(f"   python3 vicast_annotate_segmented.py {args.genome_id} \\")
+        print(f"   python3 {script_path} {args.genome_id} \\")
         if args.fasta_files and args.gb_files:
             print(f"     --fasta-files {args.fasta_files} \\")
             print(f"     --gb-files {args.gb_files} \\")
@@ -857,8 +859,8 @@ After successful completion:
         print("NEXT STEPS: Run variant calling pipeline")
         print("-" * 60)
         print(f"\nTo analyze sequencing data with this database:")
-        print(f"  run_vicast_analyze_full.sh R1.fastq.gz R2.fastq.gz {args.genome_id} 4")
-        print("\nSee vicast-analyze/README.md for full documentation")
+        print(f"  /opt/vicast/vicast-analyze/run_vicast_analyze_full.sh R1.fastq.gz R2.fastq.gz {args.genome_id} 4")
+        print("\nSee /opt/vicast/vicast-analyze/README.md for full documentation")
         print("=" * 60)
     else:
         print("\nFailed to add genome to SnpEff")

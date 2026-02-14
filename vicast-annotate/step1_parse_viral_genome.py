@@ -452,7 +452,7 @@ Output files:
 
 Next steps:
   1. Edit the TSV file to curate gene names and products
-  2. Run: step2_add_to_snpeff.py {accession} {accession}_no_polyprotein.tsv
+  2. Run: python3 /opt/vicast/vicast-annotate/step2_add_to_snpeff.py {accession} {accession}_no_polyprotein.tsv
         """
     )
 
@@ -573,10 +573,10 @@ Next steps:
         print(f"  {'='*56}")
         print(f"\n  1. USE PATHWAY 3 (recommended) - BLASTx with a related model:")
         print(f"     Find a related, well-annotated virus to transfer annotations.")
-        print(f"     step1_blastx_annotate.py --subject {accession} --model <MODEL_ACCESSION> --add-model")
+        print(f"     python3 /opt/vicast/vicast-annotate/step1_blastx_annotate.py --subject {accession} --model <MODEL_ACCESSION> --add-model")
         print(f"\n     Pre-built models available: install_prebuilt_database.sh --list")
         print(f"\n  2. KEEP POLYPROTEINS - rerun with --keep-polyprotein:")
-        print(f"     step1_parse_viral_genome.py {accession} --keep-polyprotein")
+        print(f"     python3 /opt/vicast/vicast-annotate/step1_parse_viral_genome.py {accession} --keep-polyprotein")
         print(f"     Then manually split polyproteins in the TSV using literature.")
         print(f"\n{'='*60}")
         sys.exit(1)
@@ -586,7 +586,7 @@ Next steps:
     print_curation_guide(host_path(tsv_path))
 
     print(f"When curation is complete, run step2 inside the container:")
-    print(f"  step2_add_to_snpeff.py {accession} {tsv_path}")
+    print(f"  python3 /opt/vicast/vicast-annotate/step2_add_to_snpeff.py {accession} {tsv_path}")
 
 
 if __name__ == '__main__':
