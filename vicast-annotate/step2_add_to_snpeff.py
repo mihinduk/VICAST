@@ -6,6 +6,7 @@ This script takes the edited TSV file, validates it, and adds the genome to snpE
 
 import sys
 import os
+import re
 import argparse
 import pandas as pd
 import subprocess
@@ -27,12 +28,10 @@ except ImportError:
 
 # Import validation functions if available
 try:
-    from vicast_validation import validate_gff_for_snpeff, generate_curation_report
+    from vicast.validation import validate_gff_for_snpeff
     VALIDATION_AVAILABLE = True
 except ImportError:
     VALIDATION_AVAILABLE = False
-    print("Note: vicast_validation module not found. Validation features disabled.")
-    print("      To enable, ensure vicast_validation.py is in the same directory.")
 
 
 def tsv_to_gff(tsv_file, output_gff, force=False):
@@ -108,6 +107,13 @@ def tsv_to_gff(tsv_file, output_gff, force=False):
                 # Generate sequential ID only if needed
                 unique_id = f"{row['type']}_{features_written + 1}"
 
+            # Check for notes (blastx TSV uses 'notes', step1 TSV uses 'note')
+            note_val = row.get('notes', '') or row.get('note', '')
+
+            # Detect join/spliced features
+            location_type = row.get('location_type', 'simple')
+            location_detail = row.get('location_detail', '')
+
             # For CDS features, create proper gene -> mRNA -> CDS hierarchy
             if row['type'] == 'CDS':
                 # Write mRNA feature first (parent of CDS)
@@ -123,7 +129,31 @@ def tsv_to_gff(tsv_file, output_gff, force=False):
                 f.write(mrna_line)
                 features_written += 1
 
-                # Now write CDS with Parent pointing to mRNA
+                # Handle join/spliced features: multiple CDS lines (one per exon)
+                if location_type == 'join' and pd.notna(location_detail) and location_detail:
+                    exon_parts = []
+                    for part in str(location_detail).split(','):
+                        part = part.strip()
+                        match = re.match(r'(\d+)\.\.(\d+)', part)
+                        if match:
+                            exon_parts.append((int(match.group(1)), int(match.group(2))))
+
+                    if len(exon_parts) > 1:
+                        for exon_idx, (exon_start, exon_end) in enumerate(exon_parts, 1):
+                            cds_id = f"{unique_id}.cds.{exon_idx}"
+                            cds_attrs = [f"ID={cds_id}", f"Parent={mrna_id}"]
+                            if pd.notna(gene_name_val) and gene_name_val:
+                                cds_attrs.append(f"gene={gene_name_val}")
+                            if pd.notna(row.get('product', '')) and row['product']:
+                                cds_attrs.append(f"product={row['product']}")
+                            phase = '0' if exon_idx == 1 else '.'
+                            cds_line = (f"{row['seqid']}\t{row['source']}\tCDS\t{exon_start}\t{exon_end}\t.\t"
+                                        f"{row['strand']}\t{phase}\t{';'.join(cds_attrs)}\n")
+                            f.write(cds_line)
+                            features_written += 1
+                        continue  # Skip single-CDS write below
+
+                # Single CDS (non-join)
                 cds_id = f"{unique_id}.cds"
                 attributes.append(f"ID={cds_id}")
                 attributes.append(f"Parent={mrna_id}")
@@ -141,11 +171,11 @@ def tsv_to_gff(tsv_file, output_gff, force=False):
                 attributes.append(f"protein_id={protein_id_val}")
 
             # Add user notes if present
-            if pd.notna(row.get('notes', '')) and row['notes']:
-                attributes.append(f"Note={row['notes']}")
+            if pd.notna(note_val) and note_val:
+                attributes.append(f"Note={note_val}")
 
             # Write GFF line
-            gff_line = f"{row['seqid']}\t{row['source']}\t{row['type']}\t{row['start']}\t{row['end']}\t.\t{row['strand']}\t.\t{';'.join(attributes)}\n"
+            gff_line = f"{row['seqid']}\t{row['source']}\t{row['type']}\t{row['start']}\t{row['end']}\t.\t{row['strand']}\t0\t{';'.join(attributes)}\n"
             f.write(gff_line)
             features_written += 1
 
@@ -212,8 +242,26 @@ def generate_cds_protein_fasta(genome_fasta, tsv_file, genome_id, snpeff_data_di
         protein_id = row.get('protein_id', '')
         product = row.get('product', '')
 
-        # Extract CDS sequence
-        cds_seq = genome_seq[start:end]
+        # Handle join/spliced features: concatenate exon sequences
+        location_type = row.get('location_type', 'simple')
+        location_detail = row.get('location_detail', '')
+
+        if location_type == 'join' and pd.notna(location_detail) and location_detail:
+            exon_parts = []
+            for part in str(location_detail).split(','):
+                part = part.strip()
+                match = re.match(r'(\d+)\.\.(\d+)', part)
+                if match:
+                    exon_parts.append((int(match.group(1)), int(match.group(2))))
+            if len(exon_parts) > 1:
+                cds_seq = Seq('')
+                for exon_start, exon_end in exon_parts:
+                    cds_seq += genome_seq[exon_start - 1:exon_end]
+            else:
+                cds_seq = genome_seq[start:end]
+        else:
+            # Simple feature
+            cds_seq = genome_seq[start:end]
 
         # Reverse complement if on minus strand
         if strand == '-':
@@ -282,6 +330,36 @@ def generate_cds_protein_fasta(genome_fasta, tsv_file, genome_id, snpeff_data_di
     return cds_file, protein_file
 
 
+def create_custom_snpeff_config(snpeff_data_dir, snpeff_home):
+    """
+    Create or return a persistent snpEff.config in the data directory.
+
+    This config lives on the mounted volume so it persists across container runs.
+    """
+    config_file = os.path.join(snpeff_data_dir, 'snpEff.config')
+
+    if not os.path.exists(config_file):
+        print(f"  Creating persistent snpEff config: {config_file}")
+
+        # Read codon tables from base config
+        base_config = os.path.join(snpeff_home, 'snpEff.config')
+        codon_lines = []
+        if os.path.exists(base_config):
+            with open(base_config, 'r') as f:
+                for line in f:
+                    if line.startswith('codon.'):
+                        codon_lines.append(line)
+
+        with open(config_file, 'w') as f:
+            f.write(f"# VICAST custom snpEff configuration\n")
+            f.write(f"data.dir = {snpeff_data_dir}\n\n")
+            for line in codon_lines:
+                f.write(line)
+            f.write("\n# Genome entries (added by VICAST step2)\n")
+
+    return config_file
+
+
 def add_genome_to_snpeff(genome_id, fasta_file, gff_file, snpeff_data_dir=None,
                          validate=True, update=False, force=False):
     """
@@ -335,45 +413,29 @@ def add_genome_to_snpeff(genome_id, fasta_file, gff_file, snpeff_data_dir=None,
         elif not errors:
             print("\n[SUCCESS] GFF validation passed with warnings")
 
-    # Get configuration
-    if CONFIG_AVAILABLE:
-        config = get_config()
-        snpeff_home = str(config.snpeff_home) if config.snpeff_home else os.environ.get('SNPEFF_HOME')
-        java_home = str(config.java_home) if config.java_home else os.environ.get('JAVA_HOME')
-        snpeff_jar = str(config.snpeff_jar) if config.snpeff_jar else None
-    else:
-        snpeff_home = os.environ.get('SNPEFF_HOME')
-        java_home = os.environ.get('JAVA_HOME')
-        snpeff_jar = os.environ.get('SNPEFF_JAR')
+    # Get configuration - prefer environment variables (Docker-friendly)
+    snpeff_home = os.environ.get('SNPEFF_HOME')
+    snpeff_jar = os.environ.get('SNPEFF_JAR')
 
-    # Pre-flight environment check
+    if not snpeff_home and CONFIG_AVAILABLE:
+        config = get_config()
+        snpeff_home = str(config.snpeff_home) if config.snpeff_home else None
+        snpeff_jar = str(config.snpeff_jar) if config.snpeff_jar else None
+
     if not snpeff_home:
         print("\n" + "="*60)
         print("ERROR: SnpEff environment not configured")
         print("="*60)
-        print("\nThe SNPEFF_HOME environment variable is not set.")
-        print("\nTo configure VICAST, set the following environment variables:")
-        print("\n  export SNPEFF_HOME=/path/to/snpEff")
+        print("\nSet SNPEFF_HOME environment variable:")
+        print("  export SNPEFF_HOME=/path/to/snpEff")
         print("  export SNPEFF_JAR=${SNPEFF_HOME}/snpEff.jar")
-        print("  export SNPEFF_DATA=${SNPEFF_HOME}/data")
-        print("\nOr copy and configure the template:")
-        print("  cp vicast_config.template.sh ~/.vicast/config.sh")
-        print("  source ~/.vicast/config.sh")
-        print("\nSee README.md for detailed installation instructions.")
         print("="*60)
         return False
 
-    if not java_home:
-        print("\n" + "="*60)
-        print("WARNING: JAVA_HOME not set")
-        print("="*60)
-        print("\nJAVA_HOME is not set. Attempting to use system Java...")
-        print("If the build fails, please set JAVA_HOME:")
-        print("  export JAVA_HOME=/path/to/jdk-21")
-        print("="*60 + "\n")
-
+    # Resolve data directory: env var > arg > default
     if not snpeff_data_dir:
-        snpeff_data_dir = os.path.join(snpeff_home, 'data')
+        snpeff_data_dir = os.environ.get('SNPEFF_DATA',
+                                          os.path.join(snpeff_home, 'data'))
 
     # Create genome directory
     genome_dir = os.path.join(snpeff_data_dir, genome_id)
@@ -398,23 +460,22 @@ def add_genome_to_snpeff(genome_id, fasta_file, gff_file, snpeff_data_dir=None,
     print(f"  Sequences: {sequences_file}")
     print(f"  Annotations: {genes_file}")
 
-    # Update snpEff.config
-    config_file = os.path.join(os.path.dirname(snpeff_data_dir), 'snpEff.config')
+    # Create/update persistent snpEff.config on the data volume
+    config_file = create_custom_snpeff_config(snpeff_data_dir, snpeff_home)
 
     # Check if genome already in config
     genome_in_config = False
-    if os.path.exists(config_file):
-        with open(config_file, 'r') as f:
-            config_content = f.read()
-            if f"{genome_id}.genome" in config_content:
-                genome_in_config = True
+    with open(config_file, 'r') as f:
+        config_content = f.read()
+        if f"{genome_id}.genome" in config_content:
+            genome_in_config = True
 
     if not genome_in_config:
         print(f"\nAdding {genome_id} to snpEff configuration...")
         with open(config_file, 'a') as f:
             f.write(f"\n# {genome_id} - Added by VICAST-annotate\n")
             f.write(f"{genome_id}.genome : {genome_id}\n")
-        print(f"  Added {genome_id} to snpEff.config")
+        print(f"  Added {genome_id} to {config_file}")
     else:
         print(f"\n  {genome_id} already in snpEff.config")
 
@@ -422,87 +483,57 @@ def add_genome_to_snpeff(genome_id, fasta_file, gff_file, snpeff_data_dir=None,
     print(f"\nBuilding snpEff database for {genome_id}...")
     print("This may take a minute...")
 
-    try:
-        # Determine snpEff JAR path
-        if not snpeff_jar:
-            snpeff_jar = os.path.join(snpeff_home, 'snpEff.jar')
+    # Determine snpEff JAR path
+    if not snpeff_jar:
+        snpeff_jar = os.path.join(snpeff_home, 'snpEff.jar')
 
-        # Build base command
-        if java_home and os.path.exists(snpeff_jar):
-            java_cmd = os.path.join(java_home, 'bin', 'java')
-            if not os.path.exists(java_cmd):
-                java_cmd = 'java'  # Fall back to PATH
-            cmd = [java_cmd, '-jar', snpeff_jar, 'build', '-gff3', '-v']
-        else:
-            cmd = ['snpeff', 'build', '-gff3', '-v']
-
-        # Add validation skip flags if validation disabled
-        if not validate:
-            cmd.extend(['-noCheckProtein', '-noCheckCds'])
-
+    def run_snpeff_build(extra_flags=None):
+        """Run snpEff build command. Returns (success, result)."""
+        # SnpEff 5.x: -c flag must come AFTER the subcommand
+        cmd = ['java', '-jar', snpeff_jar, 'build',
+               '-c', config_file, '-gff3', '-v']
+        if extra_flags:
+            cmd.extend(extra_flags)
         cmd.append(genome_id)
-
+        print(f"  Running: {' '.join(cmd)}")
         result = subprocess.run(cmd, capture_output=True, text=True)
+        return result.returncode == 0, result
 
-        if result.returncode == 0:
+    try:
+        skip_validation = not validate
+        extra = ['-noCheckProtein', '-noCheckCds'] if skip_validation else None
+        success, result = run_snpeff_build(extra)
+
+        if success:
             print(f"\n[SUCCESS] Successfully built snpEff database for {genome_id}")
             return True
-        else:
-            print(f"\n[ERROR] Error building database:")
-            print(result.stderr)
 
-            stderr_lower = result.stderr.lower()
+        # Check for CDS/protein validation failure - auto-retry without validation
+        validation_keywords = [
+            "START codon errors", "STOP codon warnings",
+            "CDS sequences comparison failed", "Database check failed",
+            "Protein check", "codon"
+        ]
+        if not skip_validation and any(kw in result.stderr for kw in validation_keywords):
+            print("\n  CDS/protein validation failed (common for viral genomes)")
+            print("  Auto-retrying with -noCheckProtein -noCheckCds...")
+            success, result = run_snpeff_build(['-noCheckProtein', '-noCheckCds'])
+            if success:
+                print(f"\n[SUCCESS] Built snpEff database for {genome_id} (validation skipped)")
+                return True
 
-            if "outofmemoryerror" in stderr_lower:
-                print("\nTip: Try increasing memory allocation:")
-                print("  export _JAVA_OPTIONS='-Xmx4g'")
+        # Build failed
+        print(f"\n[ERROR] Error building database:")
+        print(result.stderr[-2000:] if len(result.stderr) > 2000 else result.stderr)
 
-            if any(keyword in result.stderr for keyword in [
-                "START codon errors",
-                "STOP codon warnings",
-                "CDS sequences comparison failed",
-                "Database check failed",
-                "Protein check",
-                "codon"
-            ]):
-                print("\n" + "="*60)
-                print("VALIDATION ERROR DETECTED")
-                print("="*60)
-                print("\nThis error typically occurs with:")
-                print("  - Polyprotein genomes (mat_peptide features)")
-                print("  - Genomes with non-standard START/STOP codons")
-                print("  - CDS features that don't have proper codon boundaries")
-                print("\nRECOMMENDED SOLUTION:")
-                print("  Rerun with --no-validate flag to skip CDS/protein validation:")
-                print(f"  python3 step2_add_to_snpeff.py {genome_id} <tsv_file> --no-validate")
-                if update:
-                    print(f"  python3 step2_add_to_snpeff.py {genome_id} <tsv_file> --update --no-validate")
-                print("\nThe --no-validate flag is safe for viral genomes where:")
-                print("  - Proteins are cleaved from polyproteins")
-                print("  - Individual CDS features don't have START/STOP codons")
-                print("  - Annotations come from mature peptide (mat_peptide) features")
-                print("="*60)
+        if "outofmemoryerror" in result.stderr.lower():
+            print("\nTip: Try increasing memory: export _JAVA_OPTIONS='-Xmx4g'")
 
-            return False
+        return False
 
     except Exception as e:
         print(f"\n[ERROR] Error running snpEff: {e}")
-
-        error_str = str(e).lower()
-        if "no such file" in error_str or "command not found" in error_str:
-            print("\n" + "="*60)
-            print("ENVIRONMENT ERROR: snpEff command not found")
-            print("="*60)
-            print("\nThe snpEff environment is not properly configured.")
-            print("\nPlease set the following environment variables:")
-            print("  export SNPEFF_HOME=/path/to/snpEff")
-            print("  export SNPEFF_JAR=${SNPEFF_HOME}/snpEff.jar")
-            print("  export JAVA_HOME=/path/to/jdk-21")
-            print("\nSee README.md for detailed setup instructions.")
-            print("="*60)
-        else:
-            print("\nMake sure snpEff environment is configured correctly.")
-            print("See README.md for setup instructions.")
+        print("Make sure snpEff environment is configured correctly.")
         return False
 
 
@@ -552,8 +583,6 @@ After successful addition:
                        help='snpEff data directory (default: auto-detect from SNPEFF_HOME)')
     parser.add_argument('--no-validate', action='store_true',
                        help='Skip GFF validation')
-    parser.add_argument('--report', action='store_true',
-                       help='Generate curation report')
     parser.add_argument('--update', action='store_true',
                        help='Allow updating/overwriting existing genome in SnpEff database')
     parser.add_argument('--force', '-f', action='store_true',
@@ -590,17 +619,18 @@ After successful addition:
     # Get configuration for snpEff data directory
     snpeff_data_dir = args.data_dir
     if not snpeff_data_dir:
+        snpeff_data_dir = os.environ.get('SNPEFF_DATA')
+    if not snpeff_data_dir:
         if CONFIG_AVAILABLE:
             config = get_config()
             if config.snpeff_data:
                 snpeff_data_dir = str(config.snpeff_data)
-
-        if not snpeff_data_dir:
-            snpeff_home = os.environ.get('SNPEFF_HOME')
-            if snpeff_home:
-                snpeff_data_dir = os.path.join(snpeff_home, 'data')
-            else:
-                snpeff_data_dir = 'data'
+    if not snpeff_data_dir:
+        snpeff_home = os.environ.get('SNPEFF_HOME')
+        if snpeff_home:
+            snpeff_data_dir = os.path.join(snpeff_home, 'data')
+        else:
+            snpeff_data_dir = 'data'
 
     genome_dir = os.path.join(snpeff_data_dir, args.genome_id)
 
@@ -638,20 +668,6 @@ After successful addition:
     if not success:
         print("Failed to convert TSV to GFF")
         sys.exit(1)
-
-    # Generate curation report if requested
-    if args.report and VALIDATION_AVAILABLE:
-        print("\n" + "-"*40)
-        print("Generating curation report...")
-        print("-"*40)
-
-        gb_file = args.gb if args.gb else f"{args.genome_id}.gb"
-        if not os.path.exists(gb_file):
-            print(f"Warning: GenBank file not found for report: {gb_file}")
-            print("Skipping detailed report generation")
-        else:
-            report_file = f"{args.genome_id}_curation_report.txt"
-            generate_curation_report(gb_file, args.tsv_file, gff_file, report_file)
 
     # Generate CDS and protein FASTA files
     print("\n" + "-"*40)

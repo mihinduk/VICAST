@@ -74,6 +74,7 @@ RUN find ${VICAST_HOME}/vicast-annotate -name "*.py" -exec chmod +x {} \; && \
 
 # Create wrapper scripts for easy access
 RUN printf '#!/bin/bash\npython /opt/vicast/vicast-annotate/step1_parse_viral_genome.py "$@"\n' > /usr/local/bin/step1_parse_viral_genome.py && \
+    printf '#!/bin/bash\npython /opt/vicast/vicast-annotate/step1_blastx_annotate.py "$@"\n' > /usr/local/bin/step1_blastx_annotate.py && \
     printf '#!/bin/bash\npython /opt/vicast/vicast-annotate/step2_add_to_snpeff.py "$@"\n' > /usr/local/bin/step2_add_to_snpeff.py && \
     printf '#!/bin/bash\npython /opt/vicast/vicast-annotate/step0_check_snpeff.py "$@"\n' > /usr/local/bin/step0_check_snpeff.py && \
     chmod +x /usr/local/bin/step*.py
