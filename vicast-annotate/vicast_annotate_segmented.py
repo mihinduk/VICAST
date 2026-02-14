@@ -517,7 +517,8 @@ def create_custom_snpeff_config(snpeff_data_dir, snpeff_home):
     return config_file
 
 
-def add_to_snpeff(genome_id, fasta_file, gff_file, snpeff_data_dir=None, validate=True):
+def add_to_snpeff(genome_id, fasta_file, gff_file, snpeff_data_dir=None, validate=True,
+                  segment_names=None):
     """
     Add combined segmented genome to SnpEff.
     Docker-compatible with persistent config and auto-retry.
@@ -585,6 +586,15 @@ def add_to_snpeff(genome_id, fasta_file, gff_file, snpeff_data_dir=None, validat
         with open(config_file, 'a') as f:
             f.write(f"\n# {genome_id} - Segmented virus genome\n")
             f.write(f"{genome_id}.genome : {genome_id}\n")
+            # SnpEff interprets chromosome names like M, MT as mitochondrial
+            # and expects a mitochondrial codon table. For viral segments,
+            # force Standard codon table on any ambiguous names.
+            if segment_names:
+                mito_names = {'M', 'MT', 'Mt', 'mt', 'mito', 'MITO'}
+                for seg_name in segment_names:
+                    if seg_name in mito_names:
+                        f.write(f"{genome_id}.{seg_name}.codonTable : Standard\n")
+                        print(f"  Set codon table for segment '{seg_name}' to Standard (not mitochondrial)")
         print(f"  Added {genome_id} to {config_file}")
     else:
         print(f"\n  {genome_id} already in snpEff.config")
@@ -833,7 +843,8 @@ After successful completion:
 
     # Add to SnpEff
     success = add_to_snpeff(args.genome_id, combined_fasta, combined_gff,
-                            snpeff_data_dir, validate=(not args.no_validate))
+                            snpeff_data_dir, validate=(not args.no_validate),
+                            segment_names=segment_names)
 
     if success:
         print("\n" + "=" * 60)
