@@ -154,13 +154,14 @@ ENV PATH="${VICAST_HOME}/vicast-annotate:${VICAST_HOME}/vicast-analyze:${PATH}"
 # Set friendly prompt for when running with --user flag
 ENV PS1="(vicast) \\w$ "
 
-# Switch back to regular user for runtime
-USER $MAMBA_USER
-
 # Custom entrypoint that suppresses micromamba warnings with --user
+USER root
 RUN printf '#!/bin/bash\neval "$(micromamba shell hook --shell bash)" 2>/dev/null\nmicromamba activate base 2>/dev/null\nexec "$@"\n' > /usr/local/bin/vicast_entrypoint.sh && \
     chmod +x /usr/local/bin/vicast_entrypoint.sh
 ENTRYPOINT ["/usr/local/bin/vicast_entrypoint.sh"]
+
+# Switch back to regular user for runtime
+USER $MAMBA_USER
 
 # Show welcome message on container start
 ENV BASH_ENV=/etc/profile.d/vicast_motd.sh
