@@ -113,9 +113,92 @@ def is_polyprotein(feature):
     return False
 
 
+def extract_feature(feature, seqid, source='NCBI'):
+    """
+    Extract annotation info from a BioPython feature into a dict.
+
+    Args:
+        feature: BioPython SeqFeature
+        seqid: Sequence ID
+        source: Source annotation (default: NCBI)
+
+    Returns:
+        dict with feature information
+    """
+    gene_name = feature.qualifiers.get('gene', [''])[0]
+    protein_id = feature.qualifiers.get('protein_id', [''])[0]
+    note = '; '.join(feature.qualifiers.get('note', []))
+    db_xref = '; '.join(feature.qualifiers.get('db_xref', []))
+
+    # Set product and type based on feature type
+    if feature.type == "5'UTR":
+        product = feature.qualifiers.get('product', ["5' untranslated region"])[0]
+        feat_type = "5UTR"
+        if not gene_name:
+            gene_name = "5UTR"
+    elif feature.type == "3'UTR":
+        product = feature.qualifiers.get('product', ["3' untranslated region"])[0]
+        feat_type = "3UTR"
+        if not gene_name:
+            gene_name = "3UTR"
+    elif feature.type == "mat_peptide":
+        product = feature.qualifiers.get('product', ['hypothetical protein'])[0]
+        feat_type = "CDS"
+        if not gene_name:
+            gene_name = product.replace(' ', '_')[:20]
+    else:
+        product = feature.qualifiers.get('product', ['hypothetical protein'])[0]
+        feat_type = "CDS"
+
+    # Handle location
+    strand = '+' if feature.location.strand == 1 else '-'
+
+    if hasattr(feature.location, 'parts') and len(feature.location.parts) > 1:
+        start = min(int(p.start) + 1 for p in feature.location.parts)
+        end = max(int(p.end) for p in feature.location.parts)
+        location_type = 'join'
+        parts_str = ','.join(
+            f"{int(p.start)+1}..{int(p.end)}" for p in feature.location.parts
+        )
+    else:
+        start = int(feature.location.start) + 1  # Convert to 1-based
+        end = int(feature.location.end)
+        location_type = 'simple'
+        parts_str = f"{start}..{end}"
+
+    # Generate gene name if missing
+    if not gene_name:
+        gene_name = product.replace(' ', '_')[:20]
+
+    # Clean gene name for GFF3 compatibility
+    gene_name_clean = re.sub(r'[^a-zA-Z0-9_-]', '_', gene_name)
+
+    return {
+        'seqid': seqid,
+        'source': source,
+        'type': feat_type,
+        'start': start,
+        'end': end,
+        'strand': strand,
+        'gene_name': gene_name_clean,
+        'product': product,
+        'protein_id': protein_id,
+        'location_type': location_type,
+        'location_detail': parts_str,
+        'note': note,
+        'db_xref': db_xref,
+        'action': 'KEEP',
+    }
+
+
 def parse_genbank_to_tsv(gb_path, output_tsv, keep_polyprotein=False, verbose=False):
     """
     Parse GenBank file and create editable TSV with CDS features.
+
+    When polyproteins are skipped (default), automatically extracts mat_peptide
+    features as individual protein annotations. This handles viruses like Dengue,
+    HCV, and coronaviruses where individual proteins are annotated as mature
+    peptides within a polyprotein.
 
     Args:
         gb_path: Path to GenBank file
@@ -128,9 +211,10 @@ def parse_genbank_to_tsv(gb_path, output_tsv, keep_polyprotein=False, verbose=Fa
     """
     features = []
     skipped = 0
+    mat_peptide_count = 0
 
     # Feature types to extract
-    feature_types = {"CDS", "5'UTR", "3'UTR"}
+    feature_types = {"CDS", "5'UTR", "3'UTR", "mat_peptide"}
 
     for record in SeqIO.parse(gb_path, "genbank"):
         seqid = record.id
@@ -144,6 +228,17 @@ def parse_genbank_to_tsv(gb_path, output_tsv, keep_polyprotein=False, verbose=Fa
             if feature.type not in feature_types:
                 continue
 
+            # Handle mat_peptide features
+            if feature.type == "mat_peptide":
+                if not keep_polyprotein:
+                    # Extract mat_peptides as CDS when polyproteins are skipped
+                    feat_dict = extract_feature(feature, seqid, source='NCBI_mat_peptide')
+                    features.append(feat_dict)
+                    mat_peptide_count += 1
+                    if verbose:
+                        print(f"  mat_peptide -> CDS: {feat_dict['gene_name']} ({feat_dict['product']})")
+                continue
+
             # Check for polyprotein (CDS only)
             if feature.type == "CDS" and not keep_polyprotein and is_polyprotein(feature):
                 product = feature.qualifiers.get('product', ['unknown'])[0]
@@ -152,68 +247,12 @@ def parse_genbank_to_tsv(gb_path, output_tsv, keep_polyprotein=False, verbose=Fa
                 skipped += 1
                 continue
 
-            # Extract feature information
-            gene_name = feature.qualifiers.get('gene', [''])[0]
-            protein_id = feature.qualifiers.get('protein_id', [''])[0]
-            note = '; '.join(feature.qualifiers.get('note', []))
-            db_xref = '; '.join(feature.qualifiers.get('db_xref', []))
+            # Extract standard feature
+            feat_dict = extract_feature(feature, seqid)
+            features.append(feat_dict)
 
-            # Set product and type based on feature type
-            if feature.type == "5'UTR":
-                product = feature.qualifiers.get('product', ["5' untranslated region"])[0]
-                feat_type = "5UTR"
-                if not gene_name:
-                    gene_name = "5UTR"
-            elif feature.type == "3'UTR":
-                product = feature.qualifiers.get('product', ["3' untranslated region"])[0]
-                feat_type = "3UTR"
-                if not gene_name:
-                    gene_name = "3UTR"
-            else:
-                product = feature.qualifiers.get('product', ['hypothetical protein'])[0]
-                feat_type = "CDS"
-
-            # Handle location
-            strand = '+' if feature.location.strand == 1 else '-'
-
-            if hasattr(feature.location, 'parts') and len(feature.location.parts) > 1:
-                # Spliced feature - use overall start/end
-                start = min(int(p.start) + 1 for p in feature.location.parts)
-                end = max(int(p.end) for p in feature.location.parts)
-                location_type = 'join'
-                # Build detailed location string
-                parts_str = ','.join(
-                    f"{int(p.start)+1}..{int(p.end)}" for p in feature.location.parts
-                )
-            else:
-                start = int(feature.location.start) + 1  # Convert to 1-based
-                end = int(feature.location.end)
-                location_type = 'simple'
-                parts_str = f"{start}..{end}"
-
-            # Generate gene name if missing
-            if not gene_name:
-                gene_name = product.replace(' ', '_')[:20]
-
-            # Clean gene name for GFF3 compatibility
-            gene_name_clean = re.sub(r'[^a-zA-Z0-9_-]', '_', gene_name)
-
-            features.append({
-                'seqid': seqid,
-                'source': 'NCBI',
-                'type': feat_type,
-                'start': start,
-                'end': end,
-                'strand': strand,
-                'gene_name': gene_name_clean,
-                'product': product,
-                'protein_id': protein_id,
-                'location_type': location_type,
-                'location_detail': parts_str,
-                'note': note,
-                'db_xref': db_xref,
-                'action': 'KEEP',
-            })
+    if mat_peptide_count > 0:
+        print(f"  Extracted {mat_peptide_count} mature peptide(s) from polyprotein(s)")
 
     # Write TSV
     header = [
@@ -519,9 +558,27 @@ Next steps:
     print(f"  TSV:     {host_path(tsv_path)}")
 
     if feature_count == 0:
-        print(f"\nWarning: No CDS features found in {accession}")
-        print("This genome may need Pathway 3 (BLASTx annotation)")
-        print(f"  Run: step1_blastx_annotate.py {host_path(os.path.join(output_dir, accession + '.fasta'))}")
+        print(f"\n{'='*60}")
+        print(f"NO INDIVIDUAL PROTEIN FEATURES FOUND")
+        print(f"{'='*60}")
+        if skipped_count > 0:
+            print(f"\n  {skipped_count} polyprotein(s) were skipped and no mat_peptide")
+            print(f"  features exist to define individual protein boundaries.")
+            print(f"\n  This is common for alphaviruses, picornaviruses, and other")
+            print(f"  viruses where NCBI has not annotated individual mature peptides.")
+        else:
+            print(f"\n  No CDS or mat_peptide features found in {accession}.")
+
+        print(f"\n  OPTIONS:")
+        print(f"  {'='*56}")
+        print(f"\n  1. USE PATHWAY 3 (recommended) - BLASTx with a related model:")
+        print(f"     Find a related, well-annotated virus to transfer annotations.")
+        print(f"     step1_blastx_annotate.py --subject {accession} --model <MODEL_ACCESSION> --add-model")
+        print(f"\n     Pre-built models available: install_prebuilt_database.sh --list")
+        print(f"\n  2. KEEP POLYPROTEINS - rerun with --keep-polyprotein:")
+        print(f"     step1_parse_viral_genome.py {accession} --keep-polyprotein")
+        print(f"     Then manually split polyproteins in the TSV using literature.")
+        print(f"\n{'='*60}")
         sys.exit(1)
 
     # Step 4: Print curation guide
