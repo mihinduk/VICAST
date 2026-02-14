@@ -60,6 +60,11 @@ def tsv_to_gff(tsv_file, output_gff, force=False):
         if deleted_count > 0:
             print(f"  Removed {deleted_count} features marked for deletion")
 
+    # Handle column name aliases (segmented pipeline uses 'segment' instead of 'seqid')
+    if 'segment' in df.columns and 'seqid' not in df.columns:
+        df = df.rename(columns={'segment': 'seqid'})
+        print("  Mapped column 'segment' -> 'seqid'")
+
     # Validate required columns
     required_cols = ['seqid', 'source', 'type', 'start', 'end', 'strand']
     missing_cols = [col for col in required_cols if col not in df.columns]
@@ -78,11 +83,12 @@ def tsv_to_gff(tsv_file, output_gff, force=False):
         # Write header
         f.write("##gff-version 3\n")
 
-        # Get sequence ID and length
+        # Write sequence-region headers (one per unique seqid)
         if not df.empty:
-            seqid = df.iloc[0]['seqid']
-            max_end = df['end'].max()
-            f.write(f"##sequence-region {seqid} 1 {max_end}\n")
+            for seqid in df['seqid'].unique():
+                seg_df = df[df['seqid'] == seqid]
+                max_end = seg_df['end'].max()
+                f.write(f"##sequence-region {seqid} 1 {max_end}\n")
 
         features_written = 0
         for _, row in df.iterrows():
@@ -215,14 +221,26 @@ def generate_cds_protein_fasta(genome_fasta, tsv_file, genome_id, snpeff_data_di
     Returns:
         tuple: (cds_file, protein_file) paths
     """
-    # Load genome sequence
-    genome_record = SeqIO.read(genome_fasta, "fasta")
-    genome_seq = genome_record.seq
+    # Load genome sequence(s) - supports both single and multi-segment genomes
+    genome_seqs = {}
+    for record in SeqIO.parse(genome_fasta, "fasta"):
+        genome_seqs[record.id] = record.seq
 
-    print(f"  Extracting CDS sequences from genome ({len(genome_seq)} bp)")
+    if len(genome_seqs) == 1:
+        # Single-segment: also store with empty key for backward compat
+        genome_seq = list(genome_seqs.values())[0]
+        print(f"  Extracting CDS sequences from genome ({len(genome_seq)} bp)")
+    else:
+        genome_seq = None
+        total_bp = sum(len(s) for s in genome_seqs.values())
+        print(f"  Extracting CDS sequences from {len(genome_seqs)} segments ({total_bp} bp)")
 
     # Load TSV annotations
     df = pd.read_csv(tsv_file, sep='\t')
+
+    # Handle column name aliases (segmented pipeline uses 'segment' instead of 'seqid')
+    if 'segment' in df.columns and 'seqid' not in df.columns:
+        df = df.rename(columns={'segment': 'seqid'})
 
     # Filter for CDS features that are marked KEEP
     cds_df = df[(df['type'] == 'CDS') & (df.get('action', 'KEEP') != 'DELETE')]
@@ -242,6 +260,16 @@ def generate_cds_protein_fasta(genome_fasta, tsv_file, genome_id, snpeff_data_di
         protein_id = row.get('protein_id', '')
         product = row.get('product', '')
 
+        # Resolve the correct sequence for this feature
+        seqid = row.get('seqid', '')
+        if len(genome_seqs) > 1 and seqid and seqid in genome_seqs:
+            feat_seq = genome_seqs[seqid]
+        elif genome_seq is not None:
+            feat_seq = genome_seq
+        else:
+            print(f"    Warning: Sequence '{seqid}' not found in FASTA, skipping")
+            continue
+
         # Handle join/spliced features: concatenate exon sequences
         location_type = row.get('location_type', 'simple')
         location_detail = row.get('location_detail', '')
@@ -256,12 +284,12 @@ def generate_cds_protein_fasta(genome_fasta, tsv_file, genome_id, snpeff_data_di
             if len(exon_parts) > 1:
                 cds_seq = Seq('')
                 for exon_start, exon_end in exon_parts:
-                    cds_seq += genome_seq[exon_start - 1:exon_end]
+                    cds_seq += feat_seq[exon_start - 1:exon_end]
             else:
-                cds_seq = genome_seq[start:end]
+                cds_seq = feat_seq[start:end]
         else:
             # Simple feature
-            cds_seq = genome_seq[start:end]
+            cds_seq = feat_seq[start:end]
 
         # Reverse complement if on minus strand
         if strand == '-':
