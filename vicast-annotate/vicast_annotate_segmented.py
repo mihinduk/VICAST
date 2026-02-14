@@ -656,19 +656,36 @@ def main():
         description='VICAST-annotate for segmented viruses',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
+Pathway 4: Segmented Virus Annotation
+
 This script handles segmented viruses (e.g., Influenza, Rotavirus, RVFV) by:
 1. Downloading all segments from NCBI
 2. Combining sequences into single multi-sequence FASTA
 3. Combining annotations into single multi-feature GFF3
-4. Creating editable TSV for review
-5. Building a unified SnpEff database
+4. Creating editable TSV for review (first run)
+5. Converting edited TSV back to GFF3 (re-run with --no-review)
+6. Building a unified SnpEff database
 
-Examples:
+TWO-STEP WORKFLOW:
 
-  # Rift Valley fever virus (3 segments: L, M, S)
-  python3 /opt/vicast/vicast-annotate/vicast_annotate_segmented.py rvfv \\
-    --segments NC_014395.1,NC_014396.1,NC_014397.1 \\
-    --names L,M,S
+  Step 1 - Download & generate TSV for review (no --no-review):
+
+    python3 /opt/vicast/vicast-annotate/vicast_annotate_segmented.py rvfv \\
+      --segments NC_014395.1,NC_014396.1,NC_014397.1 \\
+      --names L,M,S
+
+    -> Downloads segments, creates rvfv_annotations.tsv for manual curation
+    -> Edit the TSV: fix gene names, mark rows DELETE, add notes
+
+  Step 2 - Build SnpEff database from edited TSV (--no-review):
+
+    python3 /opt/vicast/vicast-annotate/vicast_annotate_segmented.py rvfv \\
+      --segments NC_014395.1,NC_014396.1,NC_014397.1 \\
+      --names L,M,S --no-review
+
+    -> Reads your edited TSV, converts to GFF3, builds SnpEff database
+
+MORE EXAMPLES:
 
   # Influenza A (H1N1) with 8 segments
   python3 /opt/vicast/vicast-annotate/vicast_annotate_segmented.py influenza_h1n1_2009 \\
@@ -681,10 +698,10 @@ Examples:
     --gb-files seg1.gb,seg2.gb,seg3.gb \\
     --names Seg1,Seg2,Seg3
 
-  # Non-interactive mode (for Docker/scripting)
+  # Update existing database after re-editing TSV
   python3 /opt/vicast/vicast-annotate/vicast_annotate_segmented.py rvfv \\
     --segments NC_014395.1,NC_014396.1,NC_014397.1 \\
-    --names L,M,S --no-review
+    --names L,M,S --no-review --update
 
 After successful completion:
   snpeff -c /path/to/snpEff.config rvfv variants.vcf > annotated.vcf
@@ -767,32 +784,57 @@ After successful completion:
         print("\nError: Must provide either --segments OR (--fasta-files AND --gb-files)")
         sys.exit(1)
 
-    # Combine FASTA files
+    # Define output paths
     combined_fasta = os.path.join(args.output_dir, f"{args.genome_id}_combined.fasta")
-    num_seqs = combine_fastas(fasta_files, combined_fasta, segment_names)
-
-    if num_seqs == 0:
-        print("\nError: No sequences to combine")
-        sys.exit(1)
-
-    # Combine GFF files
     combined_gff = os.path.join(args.output_dir, f"{args.genome_id}_combined.gff3")
-    num_features = combine_gffs(gb_files, combined_gff, args.skip_polyprotein, segment_names)
-
-    if num_features == 0:
-        print("\nError: No features to combine")
-        sys.exit(1)
-
-    # Create segment-to-accession mapping for TSV
-    segment_to_accession = {}
-    if segment_names and args.segments:
-        accessions = [acc.strip() for acc in args.segments.split(',')]
-        if len(segment_names) == len(accessions):
-            segment_to_accession = dict(zip(segment_names, accessions))
-
-    # Generate TSV for manual review
     combined_tsv = os.path.join(args.output_dir, f"{args.genome_id}_annotations.tsv")
-    gff_to_tab_delimited(combined_gff, combined_tsv, segment_to_accession)
+
+    # When --no-review is set AND the TSV already exists, use the edited TSV
+    # instead of regenerating from GenBank (user may have curated it)
+    if args.no_review and os.path.exists(combined_tsv) and os.path.exists(combined_fasta):
+        print(f"\nUsing existing edited TSV: {host_path(combined_tsv)}")
+        print(f"Using existing FASTA: {host_path(combined_fasta)}")
+
+        # Import step2's tsv_to_gff to convert edited TSV back to GFF3
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        sys.path.insert(0, script_dir)
+        from step2_add_to_snpeff import tsv_to_gff
+
+        print("\n" + "-" * 40)
+        print("Converting edited TSV to GFF3...")
+        print("-" * 40)
+        success, feature_count, feature_summary = tsv_to_gff(
+            combined_tsv, combined_gff, force=True)
+
+        if not success or feature_count == 0:
+            print("Error: Failed to convert TSV to GFF3")
+            sys.exit(1)
+    else:
+        # First run: generate everything from GenBank files
+
+        # Combine FASTA files
+        num_seqs = combine_fastas(fasta_files, combined_fasta, segment_names)
+
+        if num_seqs == 0:
+            print("\nError: No sequences to combine")
+            sys.exit(1)
+
+        # Combine GFF files
+        num_features = combine_gffs(gb_files, combined_gff, args.skip_polyprotein, segment_names)
+
+        if num_features == 0:
+            print("\nError: No features to combine")
+            sys.exit(1)
+
+        # Create segment-to-accession mapping for TSV
+        segment_to_accession = {}
+        if segment_names and args.segments:
+            accessions = [acc.strip() for acc in args.segments.split(',')]
+            if len(segment_names) == len(accessions):
+                segment_to_accession = dict(zip(segment_names, accessions))
+
+        # Generate TSV for manual review
+        gff_to_tab_delimited(combined_gff, combined_tsv, segment_to_accession)
 
     # Check if review is needed
     if not args.no_review:
@@ -840,6 +882,17 @@ After successful completion:
             print(f"  {genome_dir}")
             print(f"\nUse --update to overwrite existing genome.")
             sys.exit(1)
+
+    # Generate CDS/protein FASTA for SnpEff validation
+    print("\n" + "-" * 40)
+    print("Generating CDS and protein FASTA files...")
+    print("-" * 40)
+    try:
+        generate_cds_protein_fasta(combined_fasta, combined_gff, args.genome_id,
+                                   snpeff_data_dir or os.environ.get('SNPEFF_DATA', 'data'))
+    except Exception as e:
+        print(f"  Warning: Could not generate CDS/protein files: {e}")
+        print("  Continuing without validation files...")
 
     # Add to SnpEff
     success = add_to_snpeff(args.genome_id, combined_fasta, combined_gff,
