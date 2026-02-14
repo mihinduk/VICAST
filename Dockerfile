@@ -77,7 +77,9 @@ RUN printf '#!/bin/bash\npython /opt/vicast/vicast-annotate/step1_parse_viral_ge
     printf '#!/bin/bash\npython /opt/vicast/vicast-annotate/step1_blastx_annotate.py "$@"\n' > /usr/local/bin/step1_blastx_annotate.py && \
     printf '#!/bin/bash\npython /opt/vicast/vicast-annotate/step2_add_to_snpeff.py "$@"\n' > /usr/local/bin/step2_add_to_snpeff.py && \
     printf '#!/bin/bash\npython /opt/vicast/vicast-annotate/step0_check_snpeff.py "$@"\n' > /usr/local/bin/step0_check_snpeff.py && \
-    chmod +x /usr/local/bin/step*.py
+    printf '#!/bin/bash\npython /opt/vicast/vicast-annotate/vicast_annotate_segmented.py "$@"\n' > /usr/local/bin/vicast_annotate_segmented.py && \
+    chmod +x /usr/local/bin/step*.py && \
+    chmod +x /usr/local/bin/vicast_annotate_segmented.py
 
 # Create wrappers for analyze scripts
 RUN printf '#!/bin/bash\nbash /opt/vicast/vicast-analyze/run_vicast_analyze_full.sh "$@"\n' > /usr/local/bin/run_vicast_analyze_full.sh && \
