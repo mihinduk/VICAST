@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "last_updated": "2026-02-13",
+  "last_updated": "2026-02-15",
   "databases": [
     {
       "accession": "HM440560.1",
@@ -353,6 +353,20 @@
       ],
       "url": "https://github.com/shandley/VICAST/raw/main/prebuilt_databases/OZ409268.1.tar.gz",
       "md5": "642eb512d34348692848296578ee5129"
+    },
+    {
+      "accession": "rvfv",
+      "name": "RVFV",
+      "description": "Rift Valley fever virus (3 segments: L, M, S)",
+      "size_mb": 0.02,
+      "features": 12,
+      "tags": [
+        "bunyavirus",
+        "segmented",
+        "arbovirus"
+      ],
+      "url": "https://github.com/shandley/VICAST/raw/main/prebuilt_databases/rvfv.tar.gz",
+      "md5": "582ea744ac61250ab254772ce524a349"
     }
   ]
 }
