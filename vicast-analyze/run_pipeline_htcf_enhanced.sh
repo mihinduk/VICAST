@@ -15,7 +15,7 @@ usage() {
     echo "  --large-files : Optional flag for large file handling"
     echo ""
     echo "Prerequisites:"
-    echo "  Activate conda before running: source $CONDA_BASE/bin/activate (or your conda installation)"
+    echo "  Ensure conda/micromamba is activated with required tools in PATH"
     echo ""
     echo "Configuration:"
     echo "  Create pipeline_config.sh from pipeline_config.template.sh to customize paths"
@@ -90,18 +90,19 @@ if [ ! -f "$CONSOLIDATED_PIPELINE" ]; then
     fi
 fi
 
-# Check if conda is available
-if ! command -v conda &> /dev/null; then
-    echo "❌ Error: conda not found in PATH"
-    echo ""
-    echo "Please activate conda first:"
-    echo "  source $CONDA_BASE/bin/activate (or your conda installation)"
-    echo ""
-    echo "Then re-run this script."
-    exit 1
+# Check if conda/micromamba is available
+CONDA_AVAILABLE=false
+if command -v conda &> /dev/null; then
+    CONDA_AVAILABLE=true
+elif command -v micromamba &> /dev/null; then
+    CONDA_AVAILABLE=true
 fi
 
-# Set up HTCF environment
+if [ "$CONDA_AVAILABLE" = false ]; then
+    echo "Warning: conda/micromamba not found - assuming tools are in PATH"
+fi
+
+# Set up environment
 echo "========================================="
 echo "Enhanced Viral Pipeline - Module 1"
 echo "========================================="

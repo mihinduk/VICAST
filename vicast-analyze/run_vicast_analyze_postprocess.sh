@@ -72,7 +72,7 @@ while [[ $# -gt 0 ]]; do
             echo "  2. Generate realistic haplotypes & consensus (generate_realistic_haplotype_consensus.py)"
             echo ""
             echo "PREREQUISITES:"
-            echo "  Run annotation workflow first: ./run_vicast_analyze_annotate_only.sh <R1> <R2> <accession>"
+            echo "  Run annotation workflow first: run_vicast_analyze_annotate_only.sh <R1> <R2> <accession>"
             exit 0
             ;;
         *)
@@ -92,28 +92,64 @@ if [ -z "$SAMPLE_NAME" ] || [ -z "$ACCESSION" ]; then
     exit 1
 fi
 
-# Source configuration file if it exists
+# =============================================================================
+# Configuration Loading
+# =============================================================================
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-CONFIG_FILE="${SCRIPT_DIR}/pipeline_config.sh"
+VICAST_HOME="$( cd "${SCRIPT_DIR}/.." && pwd )"
 
-if [ -f "$CONFIG_FILE" ]; then
-    source "$CONFIG_FILE"
+# Source user configuration if it exists
+if [ -f "$HOME/.vicast/config.sh" ]; then
+    source "$HOME/.vicast/config.sh"
+elif [ -f "${VICAST_HOME}/vicast_config.template.sh" ]; then
+    source "${VICAST_HOME}/vicast_config.template.sh"
+fi
+
+# Source local pipeline config if it exists
+if [ -f "${SCRIPT_DIR}/pipeline_config.sh" ]; then
+    source "${SCRIPT_DIR}/pipeline_config.sh"
+fi
+
+# =============================================================================
+# Environment Detection
+# =============================================================================
+
+# Detect SnpEff paths (needed for auto_add_virus_to_json.py)
+if [ -z "$SNPEFF_DIR" ]; then
+    if [ -n "$SNPEFF_HOME" ]; then
+        SNPEFF_DIR="${SNPEFF_HOME}"
+    fi
+fi
+
+# Detect conda environment
+VICAST_CONDA_ENV="${VICAST_CONDA_ENV:-vicast_analyze}"
+
+# Check if conda/micromamba is available (optional in Docker)
+CONDA_AVAILABLE=false
+if command -v conda &> /dev/null; then
+    CONDA_AVAILABLE=true
+    CONDA_CMD="conda"
+elif command -v micromamba &> /dev/null; then
+    CONDA_AVAILABLE=true
+    CONDA_CMD="micromamba"
+    VICAST_CONDA_ENV="base"
+fi
+
+# Activate conda/micromamba environment if available
+if [ "$CONDA_AVAILABLE" = true ]; then
+    if [ "$CONDA_CMD" = "conda" ]; then
+        eval "$(conda shell.bash hook)"
+        if conda activate "$VICAST_CONDA_ENV" 2>/dev/null; then
+            echo "Activated conda environment: $VICAST_CONDA_ENV"
+        else
+            echo "Warning: Could not activate conda environment '$VICAST_CONDA_ENV'"
+        fi
+    elif [ "$CONDA_CMD" = "micromamba" ]; then
+        echo "Detected micromamba (Docker environment) - using current environment"
+    fi
 else
-    MAMBA_CMD="conda run -n viral_genomics"
-    SNPEFF_DIR="${SNPEFF_DIR:-/ref/sahlab/software/snpEff}"  # Use env var or default
+    echo "Warning: conda/micromamba not found - assuming tools are in PATH"
 fi
-
-# Check if conda is available
-if ! command -v conda &> /dev/null; then
-    echo "❌ Error: conda not found in PATH"
-    echo "Please activate conda first:"
-    echo "  source $CONDA_BASE/bin/activate (or your conda installation)"
-    exit 1
-fi
-
-# Activate conda environment
-eval "$(conda shell.bash hook)"
-conda activate vicast_analyze
 
 echo "============================================="
 echo "VICAST-ANALYZE: POST-PROCESSING (Chunk 3)"
@@ -137,7 +173,7 @@ if [ ! -f "$TSV_FILE" ]; then
     echo "❌ ERROR: Annotation TSV not found: $TSV_FILE"
     echo ""
     echo "Please run annotation workflow first:"
-    echo "  ./run_vicast_analyze_annotate_only.sh <R1> <R2> $ACCESSION"
+    echo "  run_vicast_analyze_annotate_only.sh <R1> <R2> $ACCESSION"
     exit 1
 fi
 

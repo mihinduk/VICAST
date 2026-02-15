@@ -184,9 +184,17 @@ echo "Started: $(date)"
 echo "========================================="
 echo ""
 
-# Activate conda environment (HTCF has no module system)
-echo "Activating conda..."
-source $CONDA_BASE/bin/activate (or your conda installation)
+# Activate conda/micromamba environment
+echo "Activating environment..."
+if command -v micromamba &> /dev/null; then
+    echo "Detected micromamba (Docker environment) - using current environment"
+elif command -v conda &> /dev/null; then
+    eval "\$(conda shell.bash hook)"
+    conda activate vicast_analyze 2>/dev/null || echo "Using current environment"
+elif [ -n "\$CONDA_BASE" ] && [ -f "\$CONDA_BASE/bin/activate" ]; then
+    source "\$CONDA_BASE/bin/activate"
+    conda activate vicast_analyze 2>/dev/null || echo "Using current environment"
+fi
 echo ""
 
 bash PIPELINE_SCRIPT_PLACEHOLDER \

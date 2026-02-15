@@ -420,7 +420,7 @@ echo "Filtered contigs for BLAST: $FILTERED_COUNT"
 
 if [ "$FILTERED_COUNT" -gt 0 ]; then
     # Check for local contamination database first
-    LOCAL_DB_PATH="${BLAST_DB:-/ref/sahlab/data/microbes_db/microbial_contaminants}"
+    LOCAL_DB_PATH="${BLAST_DB:-}"
     
     # Add header to BLAST results
     echo -e "Query_ID\tSubject_ID\tPercent_Identity\tAlignment_Length\tMismatches\tGap_Opens\tQuery_Start\tQuery_End\tSubject_Start\tSubject_End\tE_value\tBit_Score\tSubject_Title" > "${SAMPLE_NAME}_blast_all.tsv"
@@ -428,7 +428,7 @@ if [ "$FILTERED_COUNT" -gt 0 ]; then
     # BLAST is available in current environment (no separate activation needed in Docker)
     echo "Running BLAST analysis..."
     
-    if [ -f "${LOCAL_DB_PATH}.nhr" ] || [ -f "${LOCAL_DB_PATH}.00.nhr" ]; then
+    if [ -n "$LOCAL_DB_PATH" ] && { [ -f "${LOCAL_DB_PATH}.nhr" ] || [ -f "${LOCAL_DB_PATH}.00.nhr" ]; }; then
         echo "Using local contamination database for fast BLAST..."
         echo "Note: Contigs are sorted by size (largest first) for priority analysis"
         

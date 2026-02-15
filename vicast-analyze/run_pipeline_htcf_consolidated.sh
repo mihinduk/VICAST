@@ -1,27 +1,32 @@
 #!/bin/bash
-# Consolidated viral pipeline for HTCF
+# =============================================================================
+# VICAST-Analyze: Consolidated Pipeline
+# =============================================================================
 # Requires snpEff database to be pre-configured via VICAST-annotate
+#
+# Prerequisites:
+#   - SNPEFF_HOME or SNPEFF_JAR environment variable set
+#   - Conda environment with required tools (bwa, samtools, lofreq, fastp)
+#   - Target genome added to SnpEff database via VICAST-annotate
+# =============================================================================
+
+set -e  # Exit on error
 
 # Check arguments
 if [ $# -lt 3 ]; then
     echo "Usage: $0 <R1_fastq> <R2_fastq> <accession> [threads] [--large-files|--extremely-large-files]"
     echo "Example: $0 sample_R1.fastq.gz sample_R2.fastq.gz GQ433359.1 4"
     echo "Example: $0 sample_R1.fastq.gz sample_R2.fastq.gz GQ433359.1 4 --large-files"
-    echo "Example: $0 sample_R1.fastq.gz sample_R2.fastq.gz GQ433359.1 4 --extremely-large-files"
-    echo ""
-    echo "Prerequisites:"
-    echo "  Activate conda before running (if not already active)"
-    echo "  Or set CONDA_BASE environment variable"
-    echo ""
-    echo "Configuration:"
-    echo "  Create pipeline_config.sh from pipeline_config.template.sh to customize paths"
     echo ""
     echo "This script will:"
     echo "  1. Verify snpEff database exists for the accession (must be pre-configured)"
     echo "  2. Run the complete viral genomics pipeline"
     echo ""
-    echo "Note: Use VICAST-annotate to add new genomes to snpEff database:"
-    echo "  python3 vicast_annotate.py <accession>"
+    echo "Environment variables (set before running):"
+    echo "  SNPEFF_HOME     - Path to SnpEff installation"
+    echo "  SNPEFF_JAR      - Path to snpEff.jar (optional if SNPEFF_HOME set)"
+    echo ""
+    echo "Note: Use VICAST-annotate to add new genomes to snpEff database"
     exit 1
 fi
 
@@ -45,43 +50,74 @@ elif [ $# -ge 5 ] && [ "$5" == "--extremely-large-files" ]; then
     LARGE_FILES_FLAG="--extremely-large-files"
 fi
 
-# Source configuration file if it exists, with fallbacks
+# =============================================================================
+# Configuration Loading
+# =============================================================================
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-CONFIG_FILE="${SCRIPT_DIR}/pipeline_config.sh"
+VICAST_HOME="$( cd "${SCRIPT_DIR}/.." && pwd )"
 
-if [ -f "$CONFIG_FILE" ]; then
-    echo "Loading configuration from: $CONFIG_FILE"
-    source "$CONFIG_FILE"
-else
-    echo "⚠️  No configuration file found. Using environment variables or defaults."
-    # Fallback defaults - use environment variables if set
-    MAMBA_CMD="${MAMBA_CMD:-conda run -n viral_genomics}"
-    SNPEFF_DIR="${SNPEFF_DIR:-}"
-    if [ -z "$SNPEFF_DIR" ] && [ -d "/ref/sahlab/software/snpEff" ]; then
-    SNPEFF_DIR="${SNPEFF_DIR:-/ref/sahlab/software/snpEff}"  # Use env var or default
-    fi
-    SNPEFF_JAR="${SNPEFF_DIR}/snpEff.jar"
-    JAVA_PATH="${JAVA_PATH:-java}"
+# Source user configuration if it exists
+if [ -f "$HOME/.vicast/config.sh" ]; then
+    echo "Loading user configuration from: $HOME/.vicast/config.sh"
+    source "$HOME/.vicast/config.sh"
+elif [ -f "${VICAST_HOME}/vicast_config.template.sh" ]; then
+    source "${VICAST_HOME}/vicast_config.template.sh"
 fi
 
-# Check if conda is available
-if ! command -v conda &> /dev/null; then
-    echo "❌ Error: conda not found in PATH"
-    echo ""
-    echo "Please activate conda first:"
-    if [ -n "$CONDA_ACTIVATE" ]; then
-        echo "  $CONDA_ACTIVATE"
+# Source local pipeline config if it exists
+if [ -f "${SCRIPT_DIR}/pipeline_config.sh" ]; then
+    echo "Loading pipeline configuration from: ${SCRIPT_DIR}/pipeline_config.sh"
+    source "${SCRIPT_DIR}/pipeline_config.sh"
+fi
+
+# =============================================================================
+# Environment Detection
+# =============================================================================
+
+# Detect SnpEff paths
+if [ -z "$SNPEFF_JAR" ]; then
+    if [ -n "$SNPEFF_HOME" ]; then
+        SNPEFF_JAR="${SNPEFF_HOME}/snpEff.jar"
+        SNPEFF_DIR="${SNPEFF_HOME}"
+    elif [ -n "$SNPEFF_DIR" ]; then
+        SNPEFF_JAR="${SNPEFF_DIR}/snpEff.jar"
     else
-        echo "  source <path-to-conda>/bin/activate"
-        echo "  Or set CONDA_BASE environment variable"
+        echo ""
+        echo "ERROR: SnpEff not configured"
+        echo "Please set SNPEFF_HOME or SNPEFF_JAR environment variable"
+        exit 1
     fi
-    echo ""
-    echo "Then re-run this script."
-    exit 1
+else
+    SNPEFF_DIR="$(dirname "$SNPEFF_JAR")"
 fi
 
-# Set up environment
-echo "Setting up HTCF environment..."
+# Set SNPEFF_DATA if not set
+if [ -z "$SNPEFF_DATA" ]; then
+    SNPEFF_DATA="${SNPEFF_DIR}/data"
+fi
+
+# Detect Java
+if [ -z "$JAVA_PATH" ]; then
+    if [ -n "$JAVA_HOME" ]; then
+        JAVA_PATH="${JAVA_HOME}/bin/java"
+    else
+        JAVA_PATH="java"
+    fi
+fi
+
+# Detect conda environment
+VICAST_CONDA_ENV="${VICAST_CONDA_ENV:-vicast_analyze}"
+
+# Check if conda/micromamba is available (optional in Docker)
+CONDA_AVAILABLE=false
+if command -v conda &> /dev/null; then
+    CONDA_AVAILABLE=true
+    CONDA_CMD="conda"
+elif command -v micromamba &> /dev/null; then
+    CONDA_AVAILABLE=true
+    CONDA_CMD="micromamba"
+    VICAST_CONDA_ENV="base"
+fi
 
 # Set paths
 PIPELINE_DIR="$(cd "$(dirname "$0")"; pwd)"
@@ -116,41 +152,42 @@ echo "Pre-flight check: snpEff database"
 echo "========================================="
 echo "Checking if $ACCESSION is in snpEff database..."
 
-# Activate conda environment for snpEff check
-eval "$(conda shell.bash hook)"
-conda activate vicast_analyze
-
-if java -jar "$SNPEFF_JAR" databases 2>/dev/null | grep -q "$ACCESSION"; then
-    echo "✓ snpEff database found for $ACCESSION in config"
-
-    # Verify the database is actually built (has snpEffectPredictor.bin)
-    if [ -f "$SNPEFF_DIR/data/$ACCESSION/snpEffectPredictor.bin" ]; then
-        echo "✓ Database is built and ready"
-        echo ""
-    else
-        echo ""
-        echo "❌ ERROR: Database exists in config but is not built!"
-        echo ""
-        echo "Please use VICAST-annotate to properly build the database:"
-        echo "  cd /path/to/VICAST/vicast-annotate"
-        echo "  python3 vicast_annotate.py $ACCESSION"
-        echo ""
-        exit 1
+# Activate conda/micromamba environment if available
+if [ "$CONDA_AVAILABLE" = true ]; then
+    if [ "$CONDA_CMD" = "conda" ]; then
+        eval "$(conda shell.bash hook)"
+        if conda activate "$VICAST_CONDA_ENV" 2>/dev/null; then
+            echo "Activated conda environment: $VICAST_CONDA_ENV"
+        else
+            echo "Warning: Could not activate conda environment '$VICAST_CONDA_ENV'"
+            echo "Attempting to continue with current environment..."
+        fi
+    elif [ "$CONDA_CMD" = "micromamba" ]; then
+        echo "Detected micromamba (Docker environment) - using current environment"
     fi
 else
+    echo "Warning: conda/micromamba not found - assuming tools are in PATH"
+fi
+
+# Check for database files directly (works offline, faster)
+if [ -f "$SNPEFF_DATA/$ACCESSION/snpEffectPredictor.bin" ]; then
+    echo "✓ Database found: $SNPEFF_DATA/$ACCESSION/"
+    echo "✓ Database is built and ready"
     echo ""
-    echo "❌ ERROR: Genome $ACCESSION not found in snpEff database!"
+else
     echo ""
-    echo "This pipeline requires the snpEff database to be set up first."
-    echo "Please use VICAST-annotate to add this genome:"
+    echo "❌ ERROR: Genome $ACCESSION database not found!"
     echo ""
-    echo "  cd /path/to/VICAST/vicast-annotate"
-    echo "  python3 vicast_annotate.py $ACCESSION"
+    echo "Checked location: $SNPEFF_DATA/$ACCESSION/"
     echo ""
-    echo "This will:"
-    echo "  - Download the reference genome and GenBank annotation"
-    echo "  - Add the genome to snpEff configuration"
-    echo "  - Build the snpEff database with viral-friendly settings"
+    echo "Please install the database first:"
+    echo "  Option 1 (pre-built database):"
+    echo "    install_prebuilt_database.sh --install $ACCESSION"
+    echo ""
+    echo "  Option 2 (custom annotation):"
+    echo "    python3 /opt/vicast/vicast-annotate/step1_parse_viral_genome.py $ACCESSION"
+    echo "    # Edit the TSV file, then:"
+    echo "    python3 /opt/vicast/vicast-annotate/step2_add_to_snpeff.py $ACCESSION ${ACCESSION}.tsv"
     echo ""
     exit 1
 fi

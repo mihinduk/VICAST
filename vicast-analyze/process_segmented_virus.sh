@@ -64,9 +64,51 @@ fi
 
 KNOWN_VIRUSES="${PIPELINE_DIR}/known_viruses.json"
 
+# =============================================================================
+# Environment Detection
+# =============================================================================
+
+# Detect SnpEff paths
+if [ -z "$SNPEFF_JAR" ]; then
+    if [ -n "$SNPEFF_HOME" ]; then
+        SNPEFF_JAR="${SNPEFF_HOME}/snpEff.jar"
+        SNPEFF_DIR="${SNPEFF_HOME}"
+    elif [ -n "$SNPEFF_DIR" ]; then
+        SNPEFF_JAR="${SNPEFF_DIR}/snpEff.jar"
+    else
+        echo "ERROR: SnpEff not configured. Set SNPEFF_HOME or SNPEFF_JAR."
+        exit 1
+    fi
+else
+    SNPEFF_DIR="$(dirname "$SNPEFF_JAR")"
+fi
+
+JAVA_PATH="${JAVA_PATH:-java}"
+
+# Detect conda environment
+VICAST_CONDA_ENV="${VICAST_CONDA_ENV:-vicast_analyze}"
+
 # Activate environment
-source $CONDA_BASE/bin/activate (or your conda installation)
-conda activate vicast_analyze
+CONDA_AVAILABLE=false
+if command -v conda &> /dev/null; then
+    CONDA_AVAILABLE=true
+    CONDA_CMD="conda"
+elif command -v micromamba &> /dev/null; then
+    CONDA_AVAILABLE=true
+    CONDA_CMD="micromamba"
+    VICAST_CONDA_ENV="base"
+fi
+
+if [ "$CONDA_AVAILABLE" = true ]; then
+    if [ "$CONDA_CMD" = "conda" ]; then
+        eval "$(conda shell.bash hook)"
+        conda activate "$VICAST_CONDA_ENV" 2>/dev/null || echo "Using current environment"
+    elif [ "$CONDA_CMD" = "micromamba" ]; then
+        echo "Detected micromamba (Docker environment) - using current environment"
+    fi
+else
+    echo "Warning: conda/micromamba not found - assuming tools are in PATH"
+fi
 
 # Extract segment information
 python3 << PYEOF
@@ -90,8 +132,10 @@ if "segment_accessions" not in virus_data:
 segment_accessions = virus_data["segment_accessions"]
 print(f"Found {len(segment_accessions)} segments:", list(segment_accessions.keys()))
 
-# Write segment file
-with open("/tmp/segments_$VIRUS_ID.txt", 'w') as out:
+# Write segment file to output dir
+import os
+os.makedirs("$OUTPUT_DIR", exist_ok=True)
+with open("$OUTPUT_DIR/segments_$VIRUS_ID.txt", 'w') as out:
     for seg_name, accession in segment_accessions.items():
         out.write(f"{seg_name}\t{accession}\n")
 PYEOF
@@ -210,7 +254,7 @@ PYEOF
     
     # Annotate with SnpEff (using influenza_pr8 database, not individual accessions)
     echo "  Annotating variants..."
-    java -jar /ref/sahlab/software/snpEff/snpEff.jar -noStats ${VIRUS_ID} "${seg_name}/${seg_name}_renamed.vcf" \
+    java -jar "$SNPEFF_JAR" -noStats ${VIRUS_ID} "${seg_name}/${seg_name}_renamed.vcf" \
         > "${seg_name}/${seg_name}.ann.vcf" 2>&1
     
     # Generate consensus directly from annotated VCF
@@ -226,7 +270,7 @@ PYEOF
         echo "  ✗ Consensus generation failed"
     fi
     
-done < /tmp/segments_${VIRUS_ID}.txt
+done < "segments_${VIRUS_ID}.txt"
 
 # Step 3: Consolidate results
 echo ""

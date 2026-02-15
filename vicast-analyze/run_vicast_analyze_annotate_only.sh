@@ -1,8 +1,17 @@
 #!/bin/bash
+# =============================================================================
 # VICAST-Analyze: Annotation Workflow Only (Steps 7-9)
+# =============================================================================
 # Runs: variant filtering, snpEff annotation, and parsing
 # REQUIRES: QC workflow must be run first
-# NEW: Uses --resume-from-vcf for true efficiency - no work is duplicated!
+# Uses --resume-from-vcf for true efficiency - no work is duplicated!
+#
+# Prerequisites:
+#   - SNPEFF_HOME or SNPEFF_JAR environment variable set
+#   - QC workflow completed (run_vicast_analyze_qc_only.sh)
+# =============================================================================
+
+set -e  # Exit on error
 
 # Check arguments
 if [ $# -lt 3 ]; then
@@ -10,14 +19,18 @@ if [ $# -lt 3 ]; then
     echo "Example: $0 sample_R1.fastq.gz sample_R2.fastq.gz GQ433359.1 4"
     echo ""
     echo "PREREQUISITES:"
-    echo "  Run QC workflow first: ./run_vicast_analyze_qc_only.sh <R1> <R2> <accession>"
+    echo "  Run QC workflow first: run_vicast_analyze_qc_only.sh <R1> <R2> <accession>"
     echo ""
     echo "This script runs annotation workflow (Steps 7-9) EFFICIENTLY:"
-    echo "  ✓ Discovers existing VCF files from previous QC run (--resume-from-vcf)"
-    echo "  ✓ Skips Steps 1-6 completely - no duplication of work!"
+    echo "  Discovers existing VCF files from previous QC run (--resume-from-vcf)"
+    echo "  Skips Steps 1-6 completely - no duplication of work!"
     echo "  7. Filter variants"
     echo "  8. Annotate variants with snpEff"
     echo "  9. Parse annotations"
+    echo ""
+    echo "Environment variables (set before running):"
+    echo "  SNPEFF_HOME     - Path to SnpEff installation"
+    echo "  SNPEFF_JAR      - Path to snpEff.jar (optional if SNPEFF_HOME set)"
     exit 1
 fi
 
@@ -41,37 +54,67 @@ elif [ $# -ge 5 ] && [ "$5" == "--extremely-large-files" ]; then
     LARGE_FILES_FLAG="--extremely-large-files"
 fi
 
-# Source configuration file if it exists
+# =============================================================================
+# Configuration Loading
+# =============================================================================
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-CONFIG_FILE="${SCRIPT_DIR}/pipeline_config.sh"
+VICAST_HOME="$( cd "${SCRIPT_DIR}/.." && pwd )"
 
-if [ -f "$CONFIG_FILE" ]; then
-    source "$CONFIG_FILE"
+# Source user configuration if it exists
+if [ -f "$HOME/.vicast/config.sh" ]; then
+    echo "Loading user configuration from: $HOME/.vicast/config.sh"
+    source "$HOME/.vicast/config.sh"
+elif [ -f "${VICAST_HOME}/vicast_config.template.sh" ]; then
+    source "${VICAST_HOME}/vicast_config.template.sh"
+fi
+
+# Source local pipeline config if it exists
+if [ -f "${SCRIPT_DIR}/pipeline_config.sh" ]; then
+    source "${SCRIPT_DIR}/pipeline_config.sh"
+fi
+
+# =============================================================================
+# Environment Detection
+# =============================================================================
+
+# Detect SnpEff paths
+if [ -z "$SNPEFF_JAR" ]; then
+    if [ -n "$SNPEFF_HOME" ]; then
+        SNPEFF_JAR="${SNPEFF_HOME}/snpEff.jar"
+        SNPEFF_DIR="${SNPEFF_HOME}"
+    elif [ -n "$SNPEFF_DIR" ]; then
+        SNPEFF_JAR="${SNPEFF_DIR}/snpEff.jar"
+    else
+        echo ""
+        echo "ERROR: SnpEff not configured"
+        echo "Please set SNPEFF_HOME or SNPEFF_JAR environment variable"
+        exit 1
+    fi
 else
-    MAMBA_CMD="conda run -n viral_genomics"
-    SNPEFF_DIR="${SNPEFF_DIR:-/ref/sahlab/software/snpEff}"  # Use env var or default
-    SNPEFF_JAR="${SNPEFF_DIR}/snpEff.jar"
-    JAVA_PATH="java"
+    SNPEFF_DIR="$(dirname "$SNPEFF_JAR")"
 fi
 
-# Initialize conda (required for SLURM jobs)
-# Try common conda installation locations
-if [ -n "$CONDA_BASE" ] && [ -f "$CONDA_BASE/bin/activate" ]; then
-    source "$CONDA_BASE/bin/activate"
-elif [ -f "/ref/sahlab/software/anaconda3/bin/activate" ]; then
-    source /ref/sahlab/software/anaconda3/bin/activate
-elif [ -f "$HOME/anaconda3/bin/activate" ]; then
-    source "$HOME/anaconda3/bin/activate"
-elif [ -f "$HOME/miniconda3/bin/activate" ]; then
-    source "$HOME/miniconda3/bin/activate"
+# Detect Java
+if [ -z "$JAVA_PATH" ]; then
+    if [ -n "$JAVA_HOME" ]; then
+        JAVA_PATH="${JAVA_HOME}/bin/java"
+    else
+        JAVA_PATH="java"
+    fi
 fi
 
-# Check if conda is available
-if ! command -v conda &> /dev/null; then
-    echo "❌ Error: conda not found in PATH"
-    echo "Please activate conda first or set CONDA_BASE environment variable"
-    echo "Example: source /path/to/conda/bin/activate"
-    exit 1
+# Detect conda environment
+VICAST_CONDA_ENV="${VICAST_CONDA_ENV:-vicast_analyze}"
+
+# Check if conda/micromamba is available (optional in Docker)
+CONDA_AVAILABLE=false
+if command -v conda &> /dev/null; then
+    CONDA_AVAILABLE=true
+    CONDA_CMD="conda"
+elif command -v micromamba &> /dev/null; then
+    CONDA_AVAILABLE=true
+    CONDA_CMD="micromamba"
+    VICAST_CONDA_ENV="base"
 fi
 
 PIPELINE_DIR="$(cd "$(dirname "$0")"; pwd)"
@@ -105,7 +148,7 @@ if [ ! -d "./cleaned_seqs/variants" ]; then
     echo ""
     echo "❌ ERROR: variants directory not found!"
     echo "Please run QC workflow first:"
-    echo "  ./run_vicast_analyze_qc_only.sh $R1 $R2 $ACCESSION"
+    echo "  run_vicast_analyze_qc_only.sh $R1 $R2 $ACCESSION"
     exit 1
 fi
 
@@ -115,7 +158,7 @@ if [ "$VCF_COUNT" -eq 0 ]; then
     echo ""
     echo "❌ ERROR: No VCF files found in ./cleaned_seqs/variants/"
     echo "Please run QC workflow first:"
-    echo "  ./run_vicast_analyze_qc_only.sh $R1 $R2 $ACCESSION"
+    echo "  run_vicast_analyze_qc_only.sh $R1 $R2 $ACCESSION"
     exit 1
 fi
 
@@ -123,11 +166,20 @@ echo "✓ Found $VCF_COUNT VCF file(s) from QC workflow"
 echo ""
 
 # Activate conda/micromamba environment if available
-if command -v conda &> /dev/null; then
-    eval "$(conda shell.bash hook)"
-    conda activate vicast_analyze 2>/dev/null || echo "Using current environment"
-elif command -v micromamba &> /dev/null; then
-    echo "Detected micromamba (Docker environment) - using current environment"
+if [ "$CONDA_AVAILABLE" = true ]; then
+    if [ "$CONDA_CMD" = "conda" ]; then
+        eval "$(conda shell.bash hook)"
+        if conda activate "$VICAST_CONDA_ENV" 2>/dev/null; then
+            echo "Activated conda environment: $VICAST_CONDA_ENV"
+        else
+            echo "Warning: Could not activate conda environment '$VICAST_CONDA_ENV'"
+            echo "Attempting to continue with current environment..."
+        fi
+    elif [ "$CONDA_CMD" = "micromamba" ]; then
+        echo "Detected micromamba (Docker environment) - using current environment"
+    fi
+else
+    echo "Warning: conda/micromamba not found - assuming tools are in PATH"
 fi
 
 # Set PYTHONUNBUFFERED for real-time output

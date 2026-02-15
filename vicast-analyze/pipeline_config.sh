@@ -1,53 +1,46 @@
 #!/bin/bash
 # Viral Genomics Pipeline Configuration
 # Created from pipeline_config.template.sh
-# This file contains HTCF-specific paths
+# Works in Docker, conda, and standalone environments
 
 # =============================================================================
 # CONDA/MAMBA ENVIRONMENT
 # =============================================================================
 # Conda run command for running tools in the viral genomics environment
 #
-# HTCF users can use the existing shared environment:
+# Options:
 #   MAMBA_CMD="conda run -n vicast_analyze"
-#
-# OR create the dedicated viral_genomics_analyze environment:
-#   1. Run: bash setup_environment.sh
-#   2. Update this line to: MAMBA_CMD="conda run -n viral_genomics_analyze"
-#
-# For custom prefix installations:
+#   MAMBA_CMD="conda run -n viral_genomics_analyze"
 #   MAMBA_CMD="conda run --prefix /path/to/envs/viral_genomics_analyze"
 
-# Current configuration (using existing HTCF shared environment):
-MAMBA_CMD="conda run -n vicast_analyze"
+# Default configuration:
+MAMBA_CMD="${MAMBA_CMD:-conda run -n vicast_analyze}"
 
 # =============================================================================
 # SNPEFF CONFIGURATION
 # =============================================================================
 # Directory where snpEff is installed
-# Supports both Docker (SNPEFF_HOME from conda) and HTCF (SNPEFF_DIR)
+# Supports Docker (SNPEFF_HOME from conda), env var (SNPEFF_DIR), or auto-detect
 
-# First, check if we're in a Docker/conda environment with SNPEFF_HOME
+# Detect SnpEff paths using fallback chain (no hardcoded paths)
 if [ -n "$SNPEFF_HOME" ]; then
-    # Docker environment - use conda SnpEff
+    # Docker/conda environment - SNPEFF_HOME set by container
     SNPEFF_DIR="$SNPEFF_HOME"
 elif [ -z "$SNPEFF_DIR" ]; then
-    # HTCF environment - use shared installation
-    if [ -d "/ref/sahlab/software/snpEff" ]; then
-        SNPEFF_DIR="/ref/sahlab/software/snpEff"
-    else
-        echo "ERROR: Neither SNPEFF_HOME nor SNPEFF_DIR is set."
-        echo "Please set SNPEFF_HOME (Docker) or SNPEFF_DIR (HTCF) environment variable"
-        echo "or source vicast_paths.env on HTCF"
-        exit 1
-    fi
+    echo "ERROR: Neither SNPEFF_HOME nor SNPEFF_DIR is set."
+    echo ""
+    echo "Please set one of the following environment variables:"
+    echo "  export SNPEFF_HOME=/path/to/snpEff"
+    echo "  export SNPEFF_DIR=/path/to/snpEff"
+    echo ""
+    exit 1
 fi
 
 # snpEff JAR file (in the snpEff directory)
-SNPEFF_JAR="${SNPEFF_DIR}/snpEff.jar"
+SNPEFF_JAR="${SNPEFF_JAR:-${SNPEFF_DIR}/snpEff.jar}"
 
 # Java executable
-JAVA_PATH="java"
+JAVA_PATH="${JAVA_PATH:-java}"
 
 # =============================================================================
 # PIPELINE PATHS
