@@ -151,7 +151,8 @@ for group_name, dbs in groups.items():
         print(fmt.format(acc, virus, abbr, balt, gtype, notes))
         seg_accs = db.get('segment_accessions', [])
         if seg_accs:
-            print(f'                      NCBI segments: {', '.join(seg_accs)}')
+            joined = ', '.join(seg_accs)
+            print(f'                      NCBI segments: {joined}')
 
 print()
 print('  Install a database:  install_prebuilt_database.sh --install <ACCESSION>')
