@@ -105,28 +105,56 @@ get_manifest() {
 
 # List available databases
 list_databases() {
-    echo -e "${BLUE}=== Available Pre-built Databases ===${NC}\n"
+    echo -e "${BLUE}=== VICAST Pre-built Databases ===${NC}\n"
 
     local manifest
     manifest=$(get_manifest) || exit 1
 
-    # Parse JSON and display (requires jq or python)
-    if command -v jq &> /dev/null; then
-        jq -r '.databases[] | "\(.accession)\t\(.name)\t\(.description)\t\(.size_mb)MB\t[\(.tags | join(", "))]"' "$manifest" | \
-        column -t -s $'\t' -N "ACCESSION,NAME,DESCRIPTION,SIZE,TAGS"
-    else
-        # Fallback: basic parsing with python
-        python3 -c "
+    # Use python for rich table display with new metadata fields
+    python3 -c "
 import json, sys
+
 with open('$manifest') as f:
     data = json.load(f)
-    print('{:<15} {:<12} {:<40} {:<8} {}'.format('ACCESSION', 'NAME', 'DESCRIPTION', 'SIZE', 'TAGS'))
-    print('-' * 100)
-    for db in data['databases']:
-        tags = ', '.join(db.get('tags', []))
-        print('{:<15} {:<12} {:<40} {}MB   {}'.format(db['accession'], db['name'], db['description'], db['size_mb'], tags))
+
+total = len(data['databases'])
+print(f'  {total} genomes available (manifest v{data.get(\"version\", \"1.0\")})')
+print(f'  Last updated: {data.get(\"last_updated\", \"unknown\")}')
+print()
+
+# Column headers
+fmt = '  {:<18} {:<40} {:<14} {:<8} {:<22} {}'
+print(fmt.format('ACCESSION', 'VIRUS NAME', 'ABBREVIATION', 'BALT.', 'GENOME TYPE', 'NOTES'))
+print('  ' + '-' * 120)
+
+# Group by Baltimore classification for organized display
+from collections import OrderedDict
+groups = OrderedDict()
+for db in data['databases']:
+    balt = db.get('baltimore', '?')
+    key = {'II': 'Group II  - ssDNA',
+           'III': 'Group III - dsRNA',
+           'IV': 'Group IV  - (+)ssRNA',
+           'V': 'Group V   - (-)ssRNA'}.get(balt, f'Group {balt}')
+    groups.setdefault(key, []).append(db)
+
+for group_name, dbs in groups.items():
+    print(f'\n  {group_name}')
+    print('  ' + '~' * 120)
+    for db in dbs:
+        acc = db['accession']
+        virus = db.get('virus_name', db.get('description', ''))[:40]
+        abbr = db.get('name', '')[:14]
+        balt = db.get('baltimore', '?')
+        gtype = db.get('genome_type', '')[:22]
+        notes = db.get('notes', '')
+        print(fmt.format(acc, virus, abbr, balt, gtype, notes))
+
+print()
+print('  Install a database:  install_prebuilt_database.sh --install <ACCESSION>')
+print('  Show installed:      install_prebuilt_database.sh --installed')
+print()
 "
-    fi
 
     rm -f "$manifest"
 }

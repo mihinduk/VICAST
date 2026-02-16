@@ -1,384 +1,382 @@
 {
-  "version": "1.0",
+  "version": "1.1",
   "last_updated": "2026-02-16",
   "databases": [
     {
-      "accession": "HM440560.1",
-      "name": "POWV-DTVWiA08",
-      "description": "Powassan virus isolate DTVWiA08",
-      "size_mb": 0.06,
-      "features": 10,
-      "tags": [
-        "flavivirus",
-        "tick-borne",
-        "encephalitis"
-      ],
-      "url": "https://github.com/mihinduk/VICAST/raw/publication-prep-fixed/prebuilt_databases/HM440560.1.tar.gz",
-      "md5": "8802f340d8ce72de2de320966215e5ff"
-    },
-    {
-      "accession": "HM440561.1",
-      "name": "POWV-DTVWiB08",
-      "description": "Powassan virus isolate DTVWiB08",
-      "size_mb": 0.04,
-      "features": 10,
-      "tags": [
-        "flavivirus",
-        "tick-borne",
-        "encephalitis"
-      ],
-      "url": "https://github.com/mihinduk/VICAST/raw/publication-prep-fixed/prebuilt_databases/HM440561.1.tar.gz",
-      "md5": "d611d909f5f028abfd8a24a383ce5d44"
-    },
-    {
-      "accession": "HM440562.1",
-      "name": "POWV-DTVWiC08",
-      "description": "Powassan virus isolate DTVWiC08",
-      "size_mb": 0.04,
-      "features": 10,
-      "tags": [
-        "flavivirus",
-        "tick-borne",
-        "encephalitis"
-      ],
-      "url": "https://github.com/mihinduk/VICAST/raw/publication-prep-fixed/prebuilt_databases/HM440562.1.tar.gz",
-      "md5": "176c1c717f55a9456035c2ac88d22523"
-    },
-    {
-      "accession": "AY532665.1",
-      "name": "WNV-B956",
-      "description": "West Nile virus strain B956",
-      "size_mb": 0.06,
-      "features": 10,
-      "tags": [
-        "flavivirus",
-        "arbovirus",
-        "mosquito-borne"
-      ],
-      "url": "https://github.com/mihinduk/VICAST/raw/publication-prep-fixed/prebuilt_databases/AY532665.1.tar.gz",
-      "md5": "8167c7dfc2b7b8005bfec206f331f70b"
-    },
-    {
-      "accession": "influenza_pr8",
-      "name": "Influenza-A-PR8",
-      "description": "Influenza A virus A/Puerto Rico/8/1934 (H1N1) - 8 segments",
-      "size_mb": 0.05,
-      "features": 33,
-      "tags": [
-        "influenza",
-        "orthomyxovirus",
-        "segmented",
-        "respiratory"
-      ],
-      "url": "https://github.com/mihinduk/VICAST/raw/publication-prep-fixed/prebuilt_databases/influenza_pr8.tar.gz",
-      "md5": "b698538e3e7feb517ce255932130bfd9"
-    },
-    {
-      "accession": "NC_038433.1",
-      "name": "TDAV",
-      "description": "Theiler's disease-associated virus",
-      "size_mb": 0.03,
-      "features": 3,
-      "tags": [
-        "parvovirus",
-        "equine",
-        "hepatitis"
-      ],
-      "url": "https://github.com/mihinduk/VICAST/raw/publication-prep-fixed/prebuilt_databases/NC_038433.1.tar.gz",
-      "md5": "acb65a42a6b3c2ae36fec75fb30239b2"
-    },
-    {
-      "accession": "GQ433359.1",
-      "name": "RRV",
-      "description": "Ross River virus strain T48",
-      "size_mb": 0.07,
-      "features": 9,
-      "tags": [
-        "alphavirus",
-        "arbovirus",
-        "mosquito-borne"
-      ],
-      "url": "https://github.com/mihinduk/VICAST/raw/publication-prep-fixed/prebuilt_databases/GQ433359.1.tar.gz",
-      "md5": "3001816fba41a0a5b9d2214cc103a27a"
-    },
-    {
-      "accession": "J02363.1",
-      "name": "SINV-HRsp",
-      "description": "Sindbis virus strain HRsp",
-      "size_mb": 0.04,
-      "features": 9,
-      "tags": [
-        "alphavirus",
-        "arbovirus",
-        "mosquito-borne"
-      ],
-      "url": "https://github.com/mihinduk/VICAST/raw/publication-prep-fixed/prebuilt_databases/J02363.1.tar.gz",
-      "md5": "02a4a0b9f6a5ee8a71cb728b0b17c032"
-    },
-    {
-      "accession": "OR882082.1",
-      "name": "SINV-TR339",
-      "description": "Sindbis virus strain TR339",
-      "size_mb": 0.06,
-      "features": 9,
-      "tags": [
-        "alphavirus",
-        "arbovirus",
-        "mosquito-borne"
-      ],
-      "url": "https://github.com/mihinduk/VICAST/raw/publication-prep-fixed/prebuilt_databases/OR882082.1.tar.gz",
-      "md5": "7d4ddb3ef60026da47cb4e94cf88815f"
-    },
-    {
-      "accession": "PP889333.1",
-      "name": "SINV-SE",
-      "description": "Sindbis virus isolate SE_JM231060",
-      "size_mb": 0.04,
-      "features": 9,
-      "tags": [
-        "alphavirus",
-        "arbovirus",
-        "mosquito-borne"
-      ],
-      "url": "https://github.com/mihinduk/VICAST/raw/publication-prep-fixed/prebuilt_databases/PP889333.1.tar.gz",
-      "md5": "5eb974c51b4820503b5d615c8bd4c192"
-    },
-    {
-      "accession": "NC_075022.1",
-      "name": "VEEV",
-      "description": "Venezuelan equine encephalitis virus",
-      "size_mb": 0.05,
-      "features": 9,
-      "tags": [
-        "alphavirus",
-        "arbovirus",
-        "equine"
-      ],
-      "url": "https://github.com/mihinduk/VICAST/raw/publication-prep-fixed/prebuilt_databases/NC_075022.1.tar.gz",
-      "md5": "8b04a13ea247dffa61ca9f03d5a83887"
-    },
-    {
-      "accession": "NC_009942.1",
-      "name": "WNV-NY99",
-      "description": "West Nile virus (New York 1999)",
-      "size_mb": 0.05,
-      "features": 10,
-      "tags": [
-        "flavivirus",
-        "arbovirus",
-        "mosquito-borne"
-      ],
-      "url": "https://github.com/mihinduk/VICAST/raw/publication-prep-fixed/prebuilt_databases/NC_009942.1.tar.gz",
-      "md5": "2ea3ac70f593bec50ad39dbf773bb139"
-    },
-    {
-      "accession": "NC_001563.2",
-      "name": "WNV-Kunjin",
-      "description": "West Nile virus Kunjin strain",
-      "size_mb": 0.07,
-      "features": 10,
-      "tags": [
-        "flavivirus",
-        "arbovirus",
-        "mosquito-borne"
-      ],
-      "url": "https://github.com/mihinduk/VICAST/raw/publication-prep-fixed/prebuilt_databases/NC_001563.2.tar.gz",
-      "md5": "616840271364bd59ec6f5c13e80e21a4"
-    },
-    {
-      "accession": "OP713603.1",
-      "name": "WNV-Spain2020",
-      "description": "West Nile virus isolate Spain/2020/Cadiz",
-      "size_mb": 0.04,
-      "features": 10,
-      "tags": [
-        "flavivirus",
-        "arbovirus",
-        "mosquito-borne"
-      ],
-      "url": "https://github.com/mihinduk/VICAST/raw/publication-prep-fixed/prebuilt_databases/OP713603.1.tar.gz",
-      "md5": "296077d0daef551201ba0e37f44a8346"
-    },
-    {
-      "accession": "KU955591.1",
-      "name": "ZIKV",
-      "description": "Zika virus isolate 41525-DAK (Senegal 1984)",
-      "size_mb": 0.06,
-      "features": 10,
-      "tags": [
-        "flavivirus",
-        "arbovirus",
-        "mosquito-borne"
-      ],
-      "url": "https://github.com/mihinduk/VICAST/raw/publication-prep-fixed/prebuilt_databases/KU955591.1.tar.gz",
-      "md5": "616bb1d63ad30df673ae5bcb5a22c676"
-    },
-    {
-      "accession": "NC_027998.1",
-      "name": "HPgV-2",
-      "description": "Human pegivirus 2 isolate ABT0029A",
-      "size_mb": 0.03,
-      "features": 3,
-      "tags": [
-        "pegivirus",
-        "flaviviridae",
-        "human"
-      ],
-      "url": "https://github.com/mihinduk/VICAST/raw/publication-prep-fixed/prebuilt_databases/NC_027998.1.tar.gz",
-      "md5": "fd1ab20ebda5b6480005db0c9eaaa0fd"
-    },
-    {
-      "accession": "NC_045512.2",
-      "name": "SARS-CoV-2",
-      "description": "SARS-CoV-2 isolate Wuhan-Hu-1",
-      "size_mb": 0.09,
-      "features": 12,
-      "tags": [
-        "coronavirus",
-        "sarbecovirus",
-        "respiratory"
-      ],
-      "url": "https://github.com/mihinduk/VICAST/raw/publication-prep-fixed/prebuilt_databases/NC_045512.2.tar.gz",
-      "md5": "88918794460876fbc873a067ee6af2fc"
+      "accession": "NC_001474.2",
+      "name": "DENV-2",
+      "virus_name": "Dengue virus type 2",
+      "description": "Dengue virus type 2",
+      "baltimore": "IV",
+      "genome_type": "(+)ssRNA, linear",
+      "notes": "~10.7 kb; polyprotein processed into 10 mature proteins",
+      "size_mb": 0.02,
+      "features": 31,
+      "tags": ["flavivirus", "arbovirus", "mosquito-borne", "dengue"],
+      "url": "https://github.com/shandley/VICAST/raw/main/prebuilt_databases/NC_001474.2.tar.gz",
+      "md5": "554a26c4048734773149a26fc44d8993"
     },
     {
       "accession": "NC_001477.1",
       "name": "DENV-1",
+      "virus_name": "Dengue virus type 1",
       "description": "Dengue virus type 1",
+      "baltimore": "IV",
+      "genome_type": "(+)ssRNA, linear",
+      "notes": "~10.7 kb; polyprotein processed into 10 mature proteins",
       "size_mb": 0.03,
       "features": 10,
-      "tags": [
-        "dengue",
-        "flavivirus",
-        "arbovirus"
-      ],
+      "tags": ["dengue", "flavivirus", "arbovirus"],
       "url": "https://github.com/mihinduk/VICAST/raw/publication-prep-fixed/prebuilt_databases/NC_001477.1.tar.gz",
       "md5": "50b3b902b8cbee21a357482cdadbee1d"
     },
     {
       "accession": "ON109597.1",
       "name": "DENV-1-ICIDR92",
+      "virus_name": "Dengue virus type 1 isolate ICIDR92",
       "description": "Dengue virus type 1 isolate ICIDR92",
+      "baltimore": "IV",
+      "genome_type": "(+)ssRNA, linear",
+      "notes": "~10.7 kb",
       "size_mb": 0.04,
       "features": 10,
-      "tags": [
-        "dengue",
-        "flavivirus",
-        "arbovirus"
-      ],
+      "tags": ["dengue", "flavivirus", "arbovirus"],
       "url": "https://github.com/mihinduk/VICAST/raw/publication-prep-fixed/prebuilt_databases/ON109597.1.tar.gz",
       "md5": "4a7971bf6c3840ea584c65d236ac92d0"
     },
     {
       "accession": "ON123646.1",
       "name": "DENV-1-THSTI",
+      "virus_name": "Dengue virus type 1 isolate THSTI-TRC-DENV1-01",
       "description": "Dengue virus type 1 isolate THSTI-TRC-DENV1-01",
+      "baltimore": "IV",
+      "genome_type": "(+)ssRNA, linear",
+      "notes": "~10.7 kb",
       "size_mb": 0.04,
       "features": 10,
-      "tags": [
-        "dengue",
-        "flavivirus",
-        "arbovirus"
-      ],
+      "tags": ["dengue", "flavivirus", "arbovirus"],
       "url": "https://github.com/mihinduk/VICAST/raw/publication-prep-fixed/prebuilt_databases/ON123646.1.tar.gz",
       "md5": "1c35d992844362a7e2f406313377df10"
     },
     {
-      "accession": "NC_001474.2",
-      "name": "DENV-2",
-      "description": "Dengue virus type 2",
-      "size_mb": 0.02,
-      "features": 31,
-      "tags": [
-        "flavivirus",
-        "arbovirus",
-        "mosquito-borne"
-      ],
-      "url": "https://github.com/shandley/VICAST/raw/main/prebuilt_databases/NC_001474.2.tar.gz",
-      "md5": "554a26c4048734773149a26fc44d8993"
+      "accession": "KU955591.1",
+      "name": "ZIKV",
+      "virus_name": "Zika virus",
+      "description": "Zika virus isolate 41525-DAK (Senegal 1984)",
+      "baltimore": "IV",
+      "genome_type": "(+)ssRNA, linear",
+      "notes": "~10.8 kb; polyprotein processed into 10 mature proteins",
+      "size_mb": 0.06,
+      "features": 10,
+      "tags": ["flavivirus", "arbovirus", "mosquito-borne"],
+      "url": "https://github.com/mihinduk/VICAST/raw/publication-prep-fixed/prebuilt_databases/KU955591.1.tar.gz",
+      "md5": "616bb1d63ad30df673ae5bcb5a22c676"
     },
     {
-      "accession": "NC_002549.1",
-      "name": "Ebola-Zaire",
-      "description": "Zaire ebolavirus isolate Mayinga",
+      "accession": "AY532665.1",
+      "name": "WNV-B956",
+      "virus_name": "West Nile virus",
+      "description": "West Nile virus strain B956",
+      "baltimore": "IV",
+      "genome_type": "(+)ssRNA, linear",
+      "notes": "~11.0 kb",
+      "size_mb": 0.06,
+      "features": 10,
+      "tags": ["flavivirus", "arbovirus", "mosquito-borne"],
+      "url": "https://github.com/mihinduk/VICAST/raw/publication-prep-fixed/prebuilt_databases/AY532665.1.tar.gz",
+      "md5": "8167c7dfc2b7b8005bfec206f331f70b"
+    },
+    {
+      "accession": "NC_009942.1",
+      "name": "WNV-NY99",
+      "virus_name": "West Nile virus",
+      "description": "West Nile virus (New York 1999)",
+      "baltimore": "IV",
+      "genome_type": "(+)ssRNA, linear",
+      "notes": "~11.0 kb",
+      "size_mb": 0.05,
+      "features": 10,
+      "tags": ["flavivirus", "arbovirus", "mosquito-borne"],
+      "url": "https://github.com/mihinduk/VICAST/raw/publication-prep-fixed/prebuilt_databases/NC_009942.1.tar.gz",
+      "md5": "2ea3ac70f593bec50ad39dbf773bb139"
+    },
+    {
+      "accession": "NC_001563.2",
+      "name": "WNV-Kunjin",
+      "virus_name": "West Nile virus",
+      "description": "West Nile virus Kunjin strain",
+      "baltimore": "IV",
+      "genome_type": "(+)ssRNA, linear",
+      "notes": "~11.0 kb",
+      "size_mb": 0.07,
+      "features": 10,
+      "tags": ["flavivirus", "arbovirus", "mosquito-borne"],
+      "url": "https://github.com/mihinduk/VICAST/raw/publication-prep-fixed/prebuilt_databases/NC_001563.2.tar.gz",
+      "md5": "616840271364bd59ec6f5c13e80e21a4"
+    },
+    {
+      "accession": "OP713603.1",
+      "name": "WNV-Spain2020",
+      "virus_name": "West Nile virus",
+      "description": "West Nile virus isolate Spain/2020/Cadiz",
+      "baltimore": "IV",
+      "genome_type": "(+)ssRNA, linear",
+      "notes": "~11.0 kb",
+      "size_mb": 0.04,
+      "features": 10,
+      "tags": ["flavivirus", "arbovirus", "mosquito-borne"],
+      "url": "https://github.com/mihinduk/VICAST/raw/publication-prep-fixed/prebuilt_databases/OP713603.1.tar.gz",
+      "md5": "296077d0daef551201ba0e37f44a8346"
+    },
+    {
+      "accession": "HM440560.1",
+      "name": "POWV-DTVWiA08",
+      "virus_name": "Powassan virus (Deer tick virus)",
+      "description": "Powassan virus isolate DTVWiA08",
+      "baltimore": "IV",
+      "genome_type": "(+)ssRNA, linear",
+      "notes": "~10.8 kb; tick-borne flavivirus",
+      "size_mb": 0.06,
+      "features": 10,
+      "tags": ["flavivirus", "tick-borne", "encephalitis"],
+      "url": "https://github.com/mihinduk/VICAST/raw/publication-prep-fixed/prebuilt_databases/HM440560.1.tar.gz",
+      "md5": "8802f340d8ce72de2de320966215e5ff"
+    },
+    {
+      "accession": "HM440561.1",
+      "name": "POWV-DTVWiB08",
+      "virus_name": "Powassan virus (Deer tick virus)",
+      "description": "Powassan virus isolate DTVWiB08",
+      "baltimore": "IV",
+      "genome_type": "(+)ssRNA, linear",
+      "notes": "~10.8 kb; tick-borne flavivirus",
+      "size_mb": 0.04,
+      "features": 10,
+      "tags": ["flavivirus", "tick-borne", "encephalitis"],
+      "url": "https://github.com/mihinduk/VICAST/raw/publication-prep-fixed/prebuilt_databases/HM440561.1.tar.gz",
+      "md5": "d611d909f5f028abfd8a24a383ce5d44"
+    },
+    {
+      "accession": "HM440562.1",
+      "name": "POWV-DTVWiC08",
+      "virus_name": "Powassan virus (Deer tick virus)",
+      "description": "Powassan virus isolate DTVWiC08",
+      "baltimore": "IV",
+      "genome_type": "(+)ssRNA, linear",
+      "notes": "~10.8 kb; tick-borne flavivirus",
+      "size_mb": 0.04,
+      "features": 10,
+      "tags": ["flavivirus", "tick-borne", "encephalitis"],
+      "url": "https://github.com/mihinduk/VICAST/raw/publication-prep-fixed/prebuilt_databases/HM440562.1.tar.gz",
+      "md5": "176c1c717f55a9456035c2ac88d22523"
+    },
+    {
+      "accession": "NC_027998.1",
+      "name": "HPgV-2",
+      "virus_name": "Human pegivirus 2",
+      "description": "Human pegivirus 2 isolate ABT0029A",
+      "baltimore": "IV",
+      "genome_type": "(+)ssRNA, linear",
+      "notes": "~9.4 kb; Flaviviridae family",
       "size_mb": 0.03,
-      "features": 22,
-      "tags": [
-        "filovirus",
-        "hemorrhagic",
-        "BSL4"
-      ],
-      "url": "https://github.com/shandley/VICAST/raw/main/prebuilt_databases/NC_002549.1.tar.gz",
-      "md5": "7ab63f1321b8c2e3d5ba8f75216ee635"
+      "features": 3,
+      "tags": ["pegivirus", "flaviviridae", "human"],
+      "url": "https://github.com/mihinduk/VICAST/raw/publication-prep-fixed/prebuilt_databases/NC_027998.1.tar.gz",
+      "md5": "fd1ab20ebda5b6480005db0c9eaaa0fd"
+    },
+    {
+      "accession": "NC_045512.2",
+      "name": "SARS-CoV-2",
+      "virus_name": "Severe acute respiratory syndrome coronavirus 2",
+      "description": "SARS-CoV-2 isolate Wuhan-Hu-1",
+      "baltimore": "IV",
+      "genome_type": "(+)ssRNA, linear",
+      "notes": "~29.9 kb; largest known RNA virus genome",
+      "size_mb": 0.09,
+      "features": 12,
+      "tags": ["coronavirus", "sarbecovirus", "respiratory"],
+      "url": "https://github.com/mihinduk/VICAST/raw/publication-prep-fixed/prebuilt_databases/NC_045512.2.tar.gz",
+      "md5": "88918794460876fbc873a067ee6af2fc"
+    },
+    {
+      "accession": "GQ433359.1",
+      "name": "RRV",
+      "virus_name": "Ross River virus",
+      "description": "Ross River virus strain T48",
+      "baltimore": "IV",
+      "genome_type": "(+)ssRNA, linear",
+      "notes": "~11.9 kb; alphavirus",
+      "size_mb": 0.07,
+      "features": 9,
+      "tags": ["alphavirus", "arbovirus", "mosquito-borne"],
+      "url": "https://github.com/mihinduk/VICAST/raw/publication-prep-fixed/prebuilt_databases/GQ433359.1.tar.gz",
+      "md5": "3001816fba41a0a5b9d2214cc103a27a"
+    },
+    {
+      "accession": "J02363.1",
+      "name": "SINV-HRsp",
+      "virus_name": "Sindbis virus",
+      "description": "Sindbis virus strain HRsp",
+      "baltimore": "IV",
+      "genome_type": "(+)ssRNA, linear",
+      "notes": "~11.7 kb; alphavirus",
+      "size_mb": 0.04,
+      "features": 9,
+      "tags": ["alphavirus", "arbovirus", "mosquito-borne"],
+      "url": "https://github.com/mihinduk/VICAST/raw/publication-prep-fixed/prebuilt_databases/J02363.1.tar.gz",
+      "md5": "02a4a0b9f6a5ee8a71cb728b0b17c032"
+    },
+    {
+      "accession": "OR882082.1",
+      "name": "SINV-TR339",
+      "virus_name": "Sindbis virus",
+      "description": "Sindbis virus strain TR339",
+      "baltimore": "IV",
+      "genome_type": "(+)ssRNA, linear",
+      "notes": "~11.7 kb; alphavirus",
+      "size_mb": 0.06,
+      "features": 9,
+      "tags": ["alphavirus", "arbovirus", "mosquito-borne"],
+      "url": "https://github.com/mihinduk/VICAST/raw/publication-prep-fixed/prebuilt_databases/OR882082.1.tar.gz",
+      "md5": "7d4ddb3ef60026da47cb4e94cf88815f"
+    },
+    {
+      "accession": "PP889333.1",
+      "name": "SINV-SE",
+      "virus_name": "Sindbis virus",
+      "description": "Sindbis virus isolate SE_JM231060",
+      "baltimore": "IV",
+      "genome_type": "(+)ssRNA, linear",
+      "notes": "~11.7 kb; alphavirus",
+      "size_mb": 0.04,
+      "features": 9,
+      "tags": ["alphavirus", "arbovirus", "mosquito-borne"],
+      "url": "https://github.com/mihinduk/VICAST/raw/publication-prep-fixed/prebuilt_databases/PP889333.1.tar.gz",
+      "md5": "5eb974c51b4820503b5d615c8bd4c192"
+    },
+    {
+      "accession": "NC_075022.1",
+      "name": "VEEV",
+      "virus_name": "Venezuelan equine encephalitis virus",
+      "description": "Venezuelan equine encephalitis virus",
+      "baltimore": "IV",
+      "genome_type": "(+)ssRNA, linear",
+      "notes": "~11.4 kb; alphavirus",
+      "size_mb": 0.05,
+      "features": 9,
+      "tags": ["alphavirus", "arbovirus", "equine"],
+      "url": "https://github.com/mihinduk/VICAST/raw/publication-prep-fixed/prebuilt_databases/NC_075022.1.tar.gz",
+      "md5": "8b04a13ea247dffa61ca9f03d5a83887"
     },
     {
       "accession": "NC_004162.2",
       "name": "CHIKV",
+      "virus_name": "Chikungunya virus",
       "description": "Chikungunya virus strain S27-African prototype",
+      "baltimore": "IV",
+      "genome_type": "(+)ssRNA, linear",
+      "notes": "~11.8 kb; alphavirus",
       "size_mb": 0.02,
       "features": 18,
-      "tags": [
-        "alphavirus",
-        "arbovirus",
-        "mosquito-borne"
-      ],
+      "tags": ["alphavirus", "arbovirus", "mosquito-borne"],
       "url": "https://github.com/shandley/VICAST/raw/main/prebuilt_databases/NC_004162.2.tar.gz",
       "md5": "77909904dc7f9c3237ca8ddc9510662a"
     },
     {
+      "accession": "NC_002549.1",
+      "name": "Ebola-Zaire",
+      "virus_name": "Zaire ebolavirus",
+      "description": "Zaire ebolavirus isolate Mayinga",
+      "baltimore": "V",
+      "genome_type": "(-)ssRNA, linear",
+      "notes": "~18.9 kb; non-segmented",
+      "size_mb": 0.03,
+      "features": 22,
+      "tags": ["filovirus", "hemorrhagic", "BSL4"],
+      "url": "https://github.com/shandley/VICAST/raw/main/prebuilt_databases/NC_002549.1.tar.gz",
+      "md5": "7ab63f1321b8c2e3d5ba8f75216ee635"
+    },
+    {
       "accession": "NC_001803.1",
       "name": "RSV-A",
+      "virus_name": "Human respiratory syncytial virus A",
       "description": "Human respiratory syncytial virus strain Long",
+      "baltimore": "V",
+      "genome_type": "(-)ssRNA, linear",
+      "notes": "~15.2 kb; non-segmented",
       "size_mb": 0.02,
       "features": 20,
-      "tags": [
-        "paramyxovirus",
-        "respiratory",
-        "rsv"
-      ],
+      "tags": ["paramyxovirus", "respiratory", "rsv"],
       "url": "https://github.com/shandley/VICAST/raw/main/prebuilt_databases/NC_001803.1.tar.gz",
       "md5": "01ad7c4537e85874619c59eba232d01b"
     },
     {
       "accession": "OZ409268.1",
       "name": "RSV-A-Ireland2025",
+      "virus_name": "Human respiratory syncytial virus A",
       "description": "Human RSV-A isolate hRSV/A/Ireland/NVRL-GIRL00094362/2025",
+      "baltimore": "V",
+      "genome_type": "(-)ssRNA, linear",
+      "notes": "~15.2 kb; non-segmented; 2025 surveillance isolate",
       "size_mb": 0.02,
       "features": 20,
-      "tags": [
-        "paramyxovirus",
-        "respiratory",
-        "rsv",
-        "surveillance"
-      ],
+      "tags": ["paramyxovirus", "respiratory", "rsv", "surveillance"],
       "url": "https://github.com/shandley/VICAST/raw/main/prebuilt_databases/OZ409268.1.tar.gz",
       "md5": "642eb512d34348692848296578ee5129"
     },
     {
+      "accession": "NC_038433.1",
+      "name": "TDAV",
+      "virus_name": "Theiler's disease-associated virus",
+      "description": "Theiler's disease-associated virus",
+      "baltimore": "II",
+      "genome_type": "ssDNA, linear",
+      "notes": "~5.7 kb; equine parvovirus; hepatitis-associated",
+      "size_mb": 0.03,
+      "features": 3,
+      "tags": ["parvovirus", "equine", "hepatitis"],
+      "url": "https://github.com/mihinduk/VICAST/raw/publication-prep-fixed/prebuilt_databases/NC_038433.1.tar.gz",
+      "md5": "acb65a42a6b3c2ae36fec75fb30239b2"
+    },
+    {
+      "accession": "influenza_pr8",
+      "name": "IAV-PR8",
+      "virus_name": "Influenza A virus (H1N1)",
+      "description": "Influenza A virus A/Puerto Rico/8/1934 (H1N1) - 8 segments",
+      "baltimore": "V",
+      "genome_type": "(-)ssRNA, segmented",
+      "notes": "8 segments; ~13.6 kb total",
+      "size_mb": 0.05,
+      "features": 33,
+      "tags": ["influenza", "orthomyxovirus", "segmented", "respiratory"],
+      "url": "https://github.com/mihinduk/VICAST/raw/publication-prep-fixed/prebuilt_databases/influenza_pr8.tar.gz",
+      "md5": "b698538e3e7feb517ce255932130bfd9"
+    },
+    {
       "accession": "rvfv",
       "name": "RVFV",
+      "virus_name": "Rift Valley fever virus",
       "description": "Rift Valley fever virus (3 segments: L, M, S)",
+      "baltimore": "V",
+      "genome_type": "(-)ssRNA, segmented",
+      "notes": "3 segments (L, M, S); ~12.0 kb total; ambisense S segment",
       "size_mb": 0.02,
       "features": 12,
-      "tags": [
-        "bunyavirus",
-        "segmented",
-        "arbovirus"
-      ],
+      "tags": ["bunyavirus", "segmented", "arbovirus"],
       "url": "https://github.com/shandley/VICAST/raw/main/prebuilt_databases/rvfv.tar.gz",
       "md5": "582ea744ac61250ab254772ce524a349"
     },
     {
       "accession": "rotavirus_a",
       "name": "RVA",
+      "virus_name": "Human Rotavirus A",
       "description": "Human Rotavirus A (11 segments, MT339194-MT339204)",
+      "baltimore": "III",
+      "genome_type": "dsRNA, segmented",
+      "notes": "11 segments; ~18.6 kb total",
       "size_mb": 0.03,
       "features": 24,
-      "tags": [
-        "reovirus",
-        "segmented",
-        "enteric"
-      ],
+      "tags": ["reovirus", "segmented", "enteric"],
       "url": "https://github.com/shandley/VICAST/raw/main/prebuilt_databases/rotavirus_a.tar.gz",
       "md5": "94169d14fbe2a9c2ed011d96ae81b27e"
     }
