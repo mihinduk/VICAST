@@ -491,9 +491,10 @@ if [ "$FILTERED_COUNT" -gt 0 ]; then
                     split(contig_id, id_parts, " ");
                     contig_id = id_parts[1];
                     
-                    # Extract length from len= field
-                    if (match(line, /len=([0-9]+)/, len_match)) {
-                        contig_lengths[contig_id] = len_match[1];
+                    # Extract length from len= field (POSIX awk compatible)
+                    n = match(line, /len=[0-9]+/);
+                    if (n > 0) {
+                        contig_lengths[contig_id] = substr(line, RSTART+4, RLENGTH-4);
                     }
                 }
             }
@@ -653,8 +654,9 @@ if [ -s "${SAMPLE_NAME}_viral_blast.tsv" ] && [ $(tail -n +2 "${SAMPLE_NAME}_vir
                 contig_id = substr(line, 2);
                 split(contig_id, id_parts, " ");
                 contig_id = id_parts[1];
-                if (match(line, /len=([0-9]+)/, len_match)) {
-                    contig_lengths[contig_id] = len_match[1];
+                n = match(line, /len=[0-9]+/);
+                if (n > 0) {
+                    contig_lengths[contig_id] = substr(line, RSTART+4, RLENGTH-4);
                 }
             }
         }
