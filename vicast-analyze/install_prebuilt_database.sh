@@ -149,6 +149,9 @@ for group_name, dbs in groups.items():
         gtype = db.get('genome_type', '')[:22]
         notes = db.get('notes', '')
         print(fmt.format(acc, virus, abbr, balt, gtype, notes))
+        seg_accs = db.get('segment_accessions', [])
+        if seg_accs:
+            print(f'                      NCBI segments: {', '.join(seg_accs)}')
 
 print()
 print('  Install a database:  install_prebuilt_database.sh --install <ACCESSION>')
