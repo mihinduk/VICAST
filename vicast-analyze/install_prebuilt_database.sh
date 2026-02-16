@@ -260,12 +260,31 @@ with open('$manifest') as f:
     rm -f "$temp_file"
 
     # Add genome to SnpEff config if not already there
-    local snpeff_config="${SNPEFF_HOME}/snpEff.config"
-    if [[ -f "$snpeff_config" ]]; then
+    # Check custom config first (mounted volume), then built-in config
+    local snpeff_config=""
+    local custom_config="${SNPEFF_DATA}/snpEff.config"
+    local builtin_config="${SNPEFF_HOME}/snpEff.config"
+
+    if [[ -f "$custom_config" ]]; then
+        snpeff_config="$custom_config"
+    elif [[ -f "${SNPEFF_CONFIG_CUSTOM:-}" ]]; then
+        snpeff_config="$SNPEFF_CONFIG_CUSTOM"
+    elif [[ -f "$builtin_config" ]]; then
+        snpeff_config="$builtin_config"
+    fi
+
+    if [[ -n "$snpeff_config" ]]; then
         if ! grep -q "^${accession}.genome" "$snpeff_config"; then
-            echo "Adding $accession to SnpEff config..."
-            echo "${accession}.genome : ${name}" >> "$snpeff_config"
+            echo "Adding $accession to SnpEff config: $snpeff_config"
+            echo "" >> "$snpeff_config"
+            echo "# ${accession} - Installed by install_prebuilt_database.sh" >> "$snpeff_config"
+            echo "${accession}.genome : ${accession}" >> "$snpeff_config"
+        else
+            echo "Config entry for $accession already exists in $snpeff_config"
         fi
+    else
+        echo -e "${YELLOW}Warning: No SnpEff config file found to add genome entry${NC}"
+        echo "You may need to manually add: ${accession}.genome : ${accession}"
     fi
 
     echo -e "${GREEN}✓ Successfully installed $accession${NC}"
