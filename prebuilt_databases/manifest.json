@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "last_updated": "2026-02-15",
+  "last_updated": "2026-02-16",
   "databases": [
     {
       "accession": "HM440560.1",
@@ -287,15 +287,15 @@
       "accession": "NC_001474.2",
       "name": "DENV-2",
       "description": "Dengue virus type 2",
-      "size_mb": 0.04,
-      "features": 10,
+      "size_mb": 0.02,
+      "features": 31,
       "tags": [
-        "dengue",
         "flavivirus",
-        "arbovirus"
+        "arbovirus",
+        "mosquito-borne"
       ],
-      "url": "https://github.com/mihinduk/VICAST/raw/publication-prep-fixed/prebuilt_databases/NC_001474.2.tar.gz",
-      "md5": "acc0c6656a7c394f108d8b105b34c16e"
+      "url": "https://github.com/shandley/VICAST/raw/main/prebuilt_databases/NC_001474.2.tar.gz",
+      "md5": "554a26c4048734773149a26fc44d8993"
     },
     {
       "accession": "NC_002549.1",
