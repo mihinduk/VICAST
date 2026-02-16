@@ -367,6 +367,20 @@
       ],
       "url": "https://github.com/shandley/VICAST/raw/main/prebuilt_databases/rvfv.tar.gz",
       "md5": "582ea744ac61250ab254772ce524a349"
+    },
+    {
+      "accession": "rotavirus_a",
+      "name": "RVA",
+      "description": "Human Rotavirus A (11 segments, MT339194-MT339204)",
+      "size_mb": 0.03,
+      "features": 24,
+      "tags": [
+        "reovirus",
+        "segmented",
+        "enteric"
+      ],
+      "url": "https://github.com/shandley/VICAST/raw/main/prebuilt_databases/rotavirus_a.tar.gz",
+      "md5": "94169d14fbe2a9c2ed011d96ae81b27e"
     }
   ]
 }
