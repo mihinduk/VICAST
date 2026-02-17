@@ -14,6 +14,7 @@ Usage:
 """
 
 import argparse
+import os
 import sys
 
 
@@ -113,7 +114,7 @@ def main():
         if args.output:
             out.close()
 
-    dest = args.output if args.output else "stdout"
+    dest = os.path.abspath(args.output) if args.output else "stdout"
     n = len(records)
     print(f"Converted {n} variants with {len(expanded_keys)} INFO columns -> {dest}", file=sys.stderr)
 
