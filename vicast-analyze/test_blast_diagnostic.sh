@@ -233,13 +233,19 @@ echo "========================================="
 echo "TEST COMPLETE"
 echo "========================================="
 echo ""
+# Map Docker /data path to host path if HOST_PWD is set
+DISPLAY_DIR="$WORK_DIR"
+if [[ -n "${HOST_PWD:-}" ]] && [[ "$DISPLAY_DIR" == /data* ]]; then
+    DISPLAY_DIR="${HOST_PWD}${DISPLAY_DIR#/data}"
+fi
+
 echo "Output files:"
-echo "  ${WORK_DIR}/${SAMPLE_NAME}_blast_all.tsv      ($TOTAL_HITS total hits)"
-echo "  ${WORK_DIR}/${SAMPLE_NAME}_top_hits.tsv        (top hits with ties)"
-echo "  ${WORK_DIR}/${SAMPLE_NAME}_viral_blast.tsv     (viral hits only)"
-echo "  ${WORK_DIR}/${SAMPLE_NAME}_blast_report_section.txt"
+echo "  ${DISPLAY_DIR}/${SAMPLE_NAME}_blast_all.tsv      ($TOTAL_HITS total hits)"
+echo "  ${DISPLAY_DIR}/${SAMPLE_NAME}_top_hits.tsv        (top hits with ties)"
+echo "  ${DISPLAY_DIR}/${SAMPLE_NAME}_viral_blast.tsv     (viral hits only)"
+echo "  ${DISPLAY_DIR}/${SAMPLE_NAME}_blast_report_section.txt"
 if [[ "$CURRENT_DIR" == diagnostic_* ]]; then
-    echo "  ${WORK_DIR}/${CURRENT_DIR}_presentation_ready_report.html"
+    echo "  ${DISPLAY_DIR}/${CURRENT_DIR}_presentation_ready_report.html"
 fi
 echo ""
 echo "To re-run with different parameters, just run this script again."

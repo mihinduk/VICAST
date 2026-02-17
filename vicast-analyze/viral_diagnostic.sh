@@ -705,6 +705,15 @@ else
     echo "   Manual QC generation: python ${PIPELINE_DIR}/qc_with_simple_plots.py diagnostic_${SAMPLE_NAME}"
 fi
 
+# Map Docker /data path to host path if HOST_PWD is set
+DISPLAY_DIR="${DIAGNOSTIC_DIR}"
+if [[ -n "${HOST_PWD:-}" ]]; then
+    ABS_DIAG_DIR="$(cd "${DIAGNOSTIC_DIR}" 2>/dev/null && pwd || echo "${DIAGNOSTIC_DIR}")"
+    if [[ "$ABS_DIAG_DIR" == /data* ]]; then
+        DISPLAY_DIR="${HOST_PWD}${ABS_DIAG_DIR#/data}"
+    fi
+fi
+
 echo ""
 echo "========================================="
 echo "DIAGNOSTIC ANALYSIS COMPLETE"
@@ -713,14 +722,14 @@ echo ""
 echo "📊 REVIEW QC OUTPUTS:"
 echo ""
 echo "1. HTML Report (open in browser):"
-echo "   ${DIAGNOSTIC_DIR}/diagnostic_${SAMPLE_NAME}_presentation_ready_report.html"
+echo "   ${DISPLAY_DIR}/diagnostic_${SAMPLE_NAME}_presentation_ready_report.html"
 echo ""
 echo "2. Text Report:"
-echo "   ${DIAGNOSTIC_DIR}/${SAMPLE_NAME}_diagnostic_report.txt"
+echo "   ${DISPLAY_DIR}/${SAMPLE_NAME}_diagnostic_report.txt"
 echo ""
 echo "3. BLAST Results:"
-echo "   ${DIAGNOSTIC_DIR}/${SAMPLE_NAME}_viral_blast.tsv"
-echo "   ${DIAGNOSTIC_DIR}/${SAMPLE_NAME}_top_hits.tsv"
+echo "   ${DISPLAY_DIR}/${SAMPLE_NAME}_viral_blast.tsv"
+echo "   ${DISPLAY_DIR}/${SAMPLE_NAME}_top_hits.tsv"
 echo ""
 echo "4. Mapping Quality:"
 echo "   Deduplicated mapping: ${DEDUPLICATED_MAPPING_PERCENT}% (target: >70%)"
