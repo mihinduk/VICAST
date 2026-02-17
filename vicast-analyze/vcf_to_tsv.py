@@ -114,7 +114,14 @@ def main():
         if args.output:
             out.close()
 
-    dest = os.path.abspath(args.output) if args.output else "stdout"
+    if args.output:
+        dest = os.path.abspath(args.output)
+        # Map Docker container path back to host path if HOST_PWD is set
+        host_pwd = os.environ.get("HOST_PWD", "")
+        if host_pwd and dest.startswith("/data/"):
+            dest = host_pwd + dest[5:]  # replace /data with host_pwd
+    else:
+        dest = "stdout"
     n = len(records)
     print(f"Converted {n} variants with {len(expanded_keys)} INFO columns -> {dest}", file=sys.stderr)
 
