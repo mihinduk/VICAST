@@ -148,6 +148,7 @@ def parse_blast_results(blast_file, target_accession=None, target_virus_name=Non
                 idx_length = col.get('Contig_Length', 1)
                 idx_subject = col.get('Subject_ID', 2)
                 idx_pident = col.get('Percent_Identity', 3)
+                idx_qcov = col.get('Query_Coverage', None)
                 idx_kingdom = col.get('Kingdom/Type', -2)
                 idx_title = col.get('Subject_Title', -1)
                 idx_tied = col.get('Tied_Best', None)
@@ -168,6 +169,14 @@ def parse_blast_results(blast_file, target_accession=None, target_virus_name=Non
                         identity = float(parts[idx_pident].replace('%', ''))
                     except (ValueError, IndexError):
                         identity = 0
+
+                    # Parse query coverage (remove % symbol)
+                    coverage = 0
+                    if idx_qcov is not None and idx_qcov < len(parts):
+                        try:
+                            coverage = float(parts[idx_qcov].replace('%', ''))
+                        except (ValueError, IndexError):
+                            coverage = 0
 
                     contig_id = parts[idx_contig]
                     contig_len = parts[idx_length] if idx_length < len(parts) else 'Unknown'
@@ -190,6 +199,7 @@ def parse_blast_results(blast_file, target_accession=None, target_virus_name=Non
                             'accession': subject_id,
                             'organism': title[:80] if title else 'Unknown',
                             'identity': identity,
+                            'coverage': coverage,
                             'length': contig_len,
                         })
 
@@ -216,9 +226,12 @@ def parse_blast_results(blast_file, target_accession=None, target_virus_name=Non
 
                         contamination_data.append({
                             'contig_id': contig_id,
+                            'accession': subject_id,
                             'category': category,
                             'organism': title[:60] + '...' if len(title) > 60 else title if title else 'Unknown',
                             'identity': identity,
+                            'coverage': coverage,
+                            'length': contig_len,
                         })
 
         # Deduplicate target_data by contig_id (keep first/best entry per contig)
@@ -393,13 +406,14 @@ def create_simple_html_charts(samples_data, all_contamination, all_target_data, 
             # Detailed target genome table
             f.write('<h3>🎯 Target Genome Contigs</h3>')
             f.write('<table style="width: 100%; border-collapse: collapse; margin: 20px 0; border: 1px solid #ddd;">')
-            f.write('<tr style="background: #27ae60; color: white;"><th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Contig ID</th><th style="padding: 12px; border: 1px solid #ddd;">Accession</th><th style="padding: 12px; border: 1px solid #ddd;">Identity %</th><th style="padding: 12px; border: 1px solid #ddd;">Length (bp)</th><th style="padding: 12px; border: 1px solid #ddd;">Organism</th></tr>')
+            f.write('<tr style="background: #27ae60; color: white;"><th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Contig ID</th><th style="padding: 12px; border: 1px solid #ddd;">Accession</th><th style="padding: 12px; border: 1px solid #ddd;">Identity %</th><th style="padding: 12px; border: 1px solid #ddd;">Length (bp)</th><th style="padding: 12px; border: 1px solid #ddd;">% Coverage</th><th style="padding: 12px; border: 1px solid #ddd;">Organism</th></tr>')
 
             for i, target in enumerate(all_target_data):
                 bg_color = "#d5f4e6" if i % 2 == 0 else "#ffffff"
                 length_display = f"{target['length']:,}" if isinstance(target['length'], (int, float)) else target['length']
                 accession_display = target.get('accession', '')
-                f.write(f'<tr style="background: {bg_color};"><td style="padding: 12px; border: 1px solid #ddd;">{target["contig_id"]}</td><td style="text-align: center; padding: 12px; border: 1px solid #ddd;">{accession_display}</td><td style="text-align: center; padding: 12px; border: 1px solid #ddd;">{target["identity"]:.1f}%</td><td style="text-align: center; padding: 12px; border: 1px solid #ddd;">{length_display}</td><td style="padding: 12px; border: 1px solid #ddd;">{target["organism"][:80] + "..." if len(target["organism"]) > 80 else target["organism"]}</td></tr>')
+                coverage_display = f"{target.get('coverage', 0):.1f}%"
+                f.write(f'<tr style="background: {bg_color};"><td style="padding: 12px; border: 1px solid #ddd;">{target["contig_id"]}</td><td style="text-align: center; padding: 12px; border: 1px solid #ddd;">{accession_display}</td><td style="text-align: center; padding: 12px; border: 1px solid #ddd;">{target["identity"]:.1f}%</td><td style="text-align: center; padding: 12px; border: 1px solid #ddd;">{length_display}</td><td style="text-align: center; padding: 12px; border: 1px solid #ddd;">{coverage_display}</td><td style="padding: 12px; border: 1px solid #ddd;">{target["organism"][:80] + "..." if len(target["organism"]) > 80 else target["organism"]}</td></tr>')
             
             f.write('</table>')
         else:
@@ -407,6 +421,8 @@ def create_simple_html_charts(samples_data, all_contamination, all_target_data, 
         
         # Contamination breakdown
         if contamination_counts:
+            # Summary bar chart for all categories
+            f.write('<h3>Contamination Summary</h3>')
             f.write('<div class="bar-chart">')
             for category, count in sorted(contamination_counts.items()):
                 percentage = (count / total_contamination) * 100
@@ -418,6 +434,18 @@ def create_simple_html_charts(samples_data, all_contamination, all_target_data, 
                     </div>
                 </div>""")
             f.write('</div>')
+
+            # Detailed table for viral contaminants
+            viral_contam = [item for item in all_contamination if item['category'] == 'Virus']
+            if viral_contam:
+                f.write('<h3>Non-Target Viral Contigs</h3>')
+                f.write('<table style="width: 100%; border-collapse: collapse; margin: 20px 0; border: 1px solid #ddd;">')
+                f.write('<tr style="background: #c0392b; color: white;"><th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Contig ID</th><th style="padding: 12px; border: 1px solid #ddd;">Accession</th><th style="padding: 12px; border: 1px solid #ddd;">Identity %</th><th style="padding: 12px; border: 1px solid #ddd;">Length (bp)</th><th style="padding: 12px; border: 1px solid #ddd;">% Coverage</th><th style="padding: 12px; border: 1px solid #ddd;">Organism</th></tr>')
+                for i, item in enumerate(viral_contam):
+                    bg_color = "#fde8e8" if i % 2 == 0 else "#ffffff"
+                    length_display = f"{item['length']:,}" if isinstance(item['length'], (int, float)) else item['length']
+                    f.write(f'<tr style="background: {bg_color};"><td style="padding: 12px; border: 1px solid #ddd;">{item["contig_id"]}</td><td style="text-align: center; padding: 12px; border: 1px solid #ddd;">{item.get("accession", "")}</td><td style="text-align: center; padding: 12px; border: 1px solid #ddd;">{item["identity"]:.1f}%</td><td style="text-align: center; padding: 12px; border: 1px solid #ddd;">{length_display}</td><td style="text-align: center; padding: 12px; border: 1px solid #ddd;">{item.get("coverage", 0):.1f}%</td><td style="padding: 12px; border: 1px solid #ddd;">{item["organism"]}</td></tr>')
+                f.write('</table>')
         
         f.write("""
         <h2>📋 Detailed Sample Information</h2>""")
