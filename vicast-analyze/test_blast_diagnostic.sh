@@ -40,8 +40,11 @@ if [ "$SAMPLE_NAME" = "$BASENAME" ]; then
     SAMPLE_NAME="${BASENAME%.*}"
 fi
 
+# Resolve to absolute path before cd
+CONTIGS_FASTA="$(readlink -f "$CONTIGS_FASTA")"
+
 # Work in the same directory as the contigs file
-WORK_DIR=$(dirname "$(readlink -f "$CONTIGS_FASTA")")
+WORK_DIR=$(dirname "$CONTIGS_FASTA")
 cd "$WORK_DIR"
 
 # Find pipeline directory (where this script and parse_blast_results.py live)
