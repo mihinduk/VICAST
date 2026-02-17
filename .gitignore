@@ -88,6 +88,10 @@ data/processed/
 !examples/*.fna
 !examples/*.gbff
 
+# BLAST contamination database (downloaded separately, not in git)
+microbial_contaminants.tar.gz
+microbial_contaminants_info.txt
+
 # VADR installation
 vadr/
 vadr-models/
