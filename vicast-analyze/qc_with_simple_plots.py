@@ -124,73 +124,93 @@ def parse_diagnostic_report(report_file):
     return data
 
 def parse_blast_results(blast_file, target_accession=None, target_virus_name=None):
-    """Parse BLAST results to extract contamination and target genome information"""
+    """Parse BLAST top_hits.tsv to extract contamination and target genome information.
+
+    Header-aware: looks up columns by name to handle format changes.
+    """
     contamination_data = []
     target_data = []
-    
+
     try:
         if os.path.exists(blast_file) and os.path.getsize(blast_file) > 0:
             with open(blast_file, 'r') as f:
                 lines = f.readlines()
-            
-            if len(lines) > 1:  # Skip header
+
+            if len(lines) > 1:
+                # Parse header to find column indices by name
+                header = lines[0].strip().split('\t')
+                col = {name: i for i, name in enumerate(header)}
+
+                # Required columns (with fallback indices for old formats)
+                idx_contig = col.get('Contig_ID', 0)
+                idx_length = col.get('Contig_Length', 1)
+                idx_subject = col.get('Subject_ID', 2)
+                idx_pident = col.get('Percent_Identity', 3)
+                idx_kingdom = col.get('Kingdom/Type', -2)
+                idx_title = col.get('Subject_Title', -1)
+
                 for line in lines[1:]:
                     parts = line.strip().split('\t')
-                    if len(parts) >= 9:
-                        # Fix: properly parse percentage (remove % symbol)
-                        try:
-                            identity_str = parts[3].replace('%', '') if len(parts) > 3 else "0"
-                            identity = float(identity_str)
-                        except (ValueError, IndexError):
-                            identity = 0
-                        
-                        title = parts[8].lower() if len(parts) > 8 else ""
-                        accession = parts[1] if len(parts) > 1 else ""
-                        
-                        # Check if this matches target genome first
-                        is_target = False
-                        if target_accession and (target_accession.lower() in accession.lower() or 
-                                               target_accession.lower() in title):
-                            is_target = True
-                        # Also check if virus type matches target (flexible matching)
-                        elif target_virus_name and target_virus_name in title:
-                            is_target = True
-                            
-                        if is_target:
-                            target_data.append({
-                                'contig_id': parts[0],
-                                'accession': accession,
-                                'organism': parts[8] if len(parts) > 8 else 'Unknown',
-                                'identity': identity,
-                                'length': parts[1] if len(parts) > 1 else 'Unknown'  # Contig_Length is column 2 (index 1)
-                            })
-                        
-                        # If not target, categorize as contamination
-                        if not is_target:
-                            # Categorize organisms
-                            if 'virus' in title:
-                                category = 'Virus'
-                            elif any(x in title for x in ['mycoplasma', 'mesomycoplasma']):
-                                category = 'Mycoplasma'
-                            elif any(x in title for x in ['escherichia', 'e. coli']):
-                                category = 'E. coli'
-                            elif any(x in title for x in ['staphylococcus', 'staph']):
-                                category = 'Staphylococcus'
-                            elif any(x in title for x in ['pseudomonas']):
-                                category = 'Pseudomonas'
-                            elif any(x in title for x in ['candida']):
-                                category = 'Candida'
-                            elif any(x in title for x in ['saccharomyces']):
-                                category = 'Yeast'
-                            else:
-                                category = 'Other'
-                            
-                            contamination_data.append({
-                                'contig_id': parts[0],
-                                'category': category,
-                                'organism': parts[8][:60] + '...' if len(parts) > 8 and len(parts[8]) > 60 else parts[8] if len(parts) > 8 else 'Unknown',
-                                'identity': identity
-                            })
+                    if len(parts) < 4:
+                        continue
+
+                    # Parse percent identity (remove % symbol)
+                    try:
+                        identity = float(parts[idx_pident].replace('%', ''))
+                    except (ValueError, IndexError):
+                        identity = 0
+
+                    contig_id = parts[idx_contig]
+                    contig_len = parts[idx_length] if idx_length < len(parts) else 'Unknown'
+                    subject_id = parts[idx_subject] if idx_subject < len(parts) else ''
+                    title = parts[idx_title].strip('"') if abs(idx_title) <= len(parts) else ''
+                    kingdom = parts[idx_kingdom].strip('"') if abs(idx_kingdom) <= len(parts) else ''
+                    title_lower = title.lower()
+
+                    # Check if this matches target genome
+                    is_target = False
+                    if target_accession and (target_accession.lower() in subject_id.lower()
+                                             or target_accession.lower() in title_lower):
+                        is_target = True
+                    elif target_virus_name and target_virus_name in title_lower:
+                        is_target = True
+
+                    if is_target:
+                        target_data.append({
+                            'contig_id': contig_id,
+                            'accession': subject_id,
+                            'organism': title[:80] if title else 'Unknown',
+                            'identity': identity,
+                            'length': contig_len,
+                        })
+
+                    if not is_target:
+                        # Categorize organisms using kingdom column or title
+                        if kingdom == 'Virus' or 'virus' in title_lower:
+                            category = 'Virus'
+                        elif kingdom == 'Mycoplasma' or any(x in title_lower for x in ['mycoplasma', 'mesomycoplasma']):
+                            category = 'Mycoplasma'
+                        elif any(x in title_lower for x in ['escherichia', 'e. coli']):
+                            category = 'E. coli'
+                        elif any(x in title_lower for x in ['staphylococcus', 'staph']):
+                            category = 'Staphylococcus'
+                        elif any(x in title_lower for x in ['pseudomonas']):
+                            category = 'Pseudomonas'
+                        elif any(x in title_lower for x in ['candida']):
+                            category = 'Candida'
+                        elif any(x in title_lower for x in ['saccharomyces']):
+                            category = 'Yeast'
+                        elif any(x in title_lower for x in ['cryptococcus']):
+                            category = 'Cryptococcus'
+                        else:
+                            category = 'Other'
+
+                        contamination_data.append({
+                            'contig_id': contig_id,
+                            'category': category,
+                            'organism': title[:60] + '...' if len(title) > 60 else title if title else 'Unknown',
+                            'identity': identity,
+                        })
     except Exception as e:
         print(f"Warning: Could not parse {blast_file}: {e}")
         
