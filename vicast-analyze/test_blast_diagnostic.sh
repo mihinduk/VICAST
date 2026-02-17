@@ -89,7 +89,7 @@ fi
 echo "Database path: $LOCAL_DB_PATH"
 if [ -f "${LOCAL_DB_PATH}.nal" ] || [ -f "${LOCAL_DB_PATH}.nhr" ] || [ -f "${LOCAL_DB_PATH}.00.nhr" ]; then
     echo "Database found. Info:"
-    blastdbcmd -db "$LOCAL_DB_PATH" -info 2>&1 | head -5
+    blastdbcmd -db "$LOCAL_DB_PATH" -info 2>&1 | head -5 || true
     echo ""
 else
     echo "WARNING: Local database NOT found at $LOCAL_DB_PATH"
