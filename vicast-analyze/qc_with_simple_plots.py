@@ -127,6 +127,8 @@ def parse_blast_results(blast_file, target_accession=None, target_virus_name=Non
     """Parse BLAST top_hits.tsv to extract contamination and target genome information.
 
     Header-aware: looks up columns by name to handle format changes.
+    Only processes tied-best hits (Tied_Best=*) to avoid overcounting.
+    Deduplicates by contig_id: 1 entry per contig unless multiple tied-best hits exist.
     """
     contamination_data = []
     target_data = []
@@ -148,11 +150,18 @@ def parse_blast_results(blast_file, target_accession=None, target_virus_name=Non
                 idx_pident = col.get('Percent_Identity', 3)
                 idx_kingdom = col.get('Kingdom/Type', -2)
                 idx_title = col.get('Subject_Title', -1)
+                idx_tied = col.get('Tied_Best', None)
 
                 for line in lines[1:]:
                     parts = line.strip().split('\t')
                     if len(parts) < 4:
                         continue
+
+                    # Only process tied-best hits (marked with *)
+                    # If Tied_Best column exists, skip non-best hits
+                    if idx_tied is not None and idx_tied < len(parts):
+                        if parts[idx_tied].strip() != '*':
+                            continue
 
                     # Parse percent identity (remove % symbol)
                     try:
@@ -211,9 +220,28 @@ def parse_blast_results(blast_file, target_accession=None, target_virus_name=Non
                             'organism': title[:60] + '...' if len(title) > 60 else title if title else 'Unknown',
                             'identity': identity,
                         })
+
+        # Deduplicate target_data by contig_id (keep first/best entry per contig)
+        seen_target_contigs = set()
+        deduped_target = []
+        for entry in target_data:
+            if entry['contig_id'] not in seen_target_contigs:
+                seen_target_contigs.add(entry['contig_id'])
+                deduped_target.append(entry)
+        target_data = deduped_target
+
+        # Deduplicate contamination_data by contig_id (keep first/best entry per contig)
+        seen_contam_contigs = set()
+        deduped_contam = []
+        for entry in contamination_data:
+            if entry['contig_id'] not in seen_contam_contigs:
+                seen_contam_contigs.add(entry['contig_id'])
+                deduped_contam.append(entry)
+        contamination_data = deduped_contam
+
     except Exception as e:
         print(f"Warning: Could not parse {blast_file}: {e}")
-        
+
     return contamination_data, target_data
 
 def create_simple_html_charts(samples_data, all_contamination, all_target_data, target_accession, target_virus_name, output_dir):
@@ -289,7 +317,7 @@ def create_simple_html_charts(samples_data, all_contamination, all_target_data, 
             </div>
             <div class="stat-box">
                 <span class="stat-number">{total_contamination}</span>
-                Contamination Events
+                Contamination Contigs
             </div>
         </div>
         
@@ -365,12 +393,13 @@ def create_simple_html_charts(samples_data, all_contamination, all_target_data, 
             # Detailed target genome table
             f.write('<h3>🎯 Target Genome Contigs</h3>')
             f.write('<table style="width: 100%; border-collapse: collapse; margin: 20px 0; border: 1px solid #ddd;">')
-            f.write('<tr style="background: #27ae60; color: white;"><th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Contig ID</th><th style="padding: 12px; border: 1px solid #ddd;">Identity %</th><th style="padding: 12px; border: 1px solid #ddd;">Length (bp)</th><th style="padding: 12px; border: 1px solid #ddd;">Organism</th></tr>')
-            
+            f.write('<tr style="background: #27ae60; color: white;"><th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Contig ID</th><th style="padding: 12px; border: 1px solid #ddd;">Accession</th><th style="padding: 12px; border: 1px solid #ddd;">Identity %</th><th style="padding: 12px; border: 1px solid #ddd;">Length (bp)</th><th style="padding: 12px; border: 1px solid #ddd;">Organism</th></tr>')
+
             for i, target in enumerate(all_target_data):
                 bg_color = "#d5f4e6" if i % 2 == 0 else "#ffffff"
                 length_display = f"{target['length']:,}" if isinstance(target['length'], (int, float)) else target['length']
-                f.write(f'<tr style="background: {bg_color};"><td style="padding: 12px; border: 1px solid #ddd;">{target["contig_id"]}</td><td style="text-align: center; padding: 12px; border: 1px solid #ddd;">{target["identity"]:.1f}%</td><td style="text-align: center; padding: 12px; border: 1px solid #ddd;">{length_display}</td><td style="padding: 12px; border: 1px solid #ddd;">{target["organism"][:80] + "..." if len(target["organism"]) > 80 else target["organism"]}</td></tr>')
+                accession_display = target.get('accession', '')
+                f.write(f'<tr style="background: {bg_color};"><td style="padding: 12px; border: 1px solid #ddd;">{target["contig_id"]}</td><td style="text-align: center; padding: 12px; border: 1px solid #ddd;">{accession_display}</td><td style="text-align: center; padding: 12px; border: 1px solid #ddd;">{target["identity"]:.1f}%</td><td style="text-align: center; padding: 12px; border: 1px solid #ddd;">{length_display}</td><td style="padding: 12px; border: 1px solid #ddd;">{target["organism"][:80] + "..." if len(target["organism"]) > 80 else target["organism"]}</td></tr>')
             
             f.write('</table>')
         else:
