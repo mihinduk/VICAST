@@ -467,7 +467,11 @@ echo "Filtered contigs for BLAST: $FILTERED_COUNT"
 
 if [ "$FILTERED_COUNT" -gt 0 ]; then
     # Check for local contamination database first
-    LOCAL_DB_PATH="${BLAST_DB:-/opt/vicast/blast_db/microbial_contaminants}"
+    # Prefer vicast_combined alias (supports user extensions), fallback to base DB
+    LOCAL_DB_PATH="${BLAST_DB:-/opt/vicast/blast_db/vicast_combined}"
+    if [[ ! -f "${LOCAL_DB_PATH}.nal" ]] && [[ ! -f "${LOCAL_DB_PATH}.nhr" ]]; then
+        LOCAL_DB_PATH="${BLAST_DB_DIR:-/opt/vicast/blast_db}/microbial_contaminants"
+    fi
     
     # Add header to BLAST results
     echo -e "Query_ID\tSubject_ID\tPercent_Identity\tAlignment_Length\tMismatches\tGap_Opens\tQuery_Start\tQuery_End\tSubject_Start\tSubject_End\tE_value\tBit_Score\tSubject_Title" > "${SAMPLE_NAME}_blast_all.tsv"
@@ -475,7 +479,7 @@ if [ "$FILTERED_COUNT" -gt 0 ]; then
     # BLAST is available in current environment (no separate activation needed in Docker)
     echo "Running BLAST analysis..."
     
-    if [ -n "$LOCAL_DB_PATH" ] && { [ -f "${LOCAL_DB_PATH}.nhr" ] || [ -f "${LOCAL_DB_PATH}.00.nhr" ]; }; then
+    if [ -n "$LOCAL_DB_PATH" ] && { [ -f "${LOCAL_DB_PATH}.nal" ] || [ -f "${LOCAL_DB_PATH}.nhr" ] || [ -f "${LOCAL_DB_PATH}.00.nhr" ]; }; then
         echo "Using local contamination database for fast BLAST..."
         echo "Note: Contigs are sorted by size (largest first) for priority analysis"
         

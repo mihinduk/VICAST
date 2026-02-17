@@ -1,0 +1,57 @@
+{
+  "version": "1.0",
+  "description": "VICAST contamination screening database configuration",
+  "last_updated": "2026-02-17",
+  "viral_source": {
+    "type": "refseq_ftp",
+    "url": "https://ftp.ncbi.nlm.nih.gov/refseq/release/viral/viral.1.1.genomic.fna.gz",
+    "description": "NCBI RefSeq viral genomes"
+  },
+  "contaminants": [
+    {
+      "name": "Escherichia coli K-12 MG1655",
+      "category": "bacteria",
+      "accession": "U00096.3",
+      "notes": "Common lab contaminant, complete genome"
+    },
+    {
+      "name": "Pseudomonas aeruginosa PAO1",
+      "category": "bacteria",
+      "accession": "AE004091.2",
+      "notes": "Common environmental/lab contaminant"
+    },
+    {
+      "name": "Staphylococcus aureus NCTC 8325",
+      "category": "bacteria",
+      "accession": "CP000253.1",
+      "notes": "Common skin contaminant"
+    },
+    {
+      "name": "Mycoplasma hyorhinis",
+      "category": "mycoplasma",
+      "accession": "NZ_CP038034.1",
+      "notes": "Common cell culture contaminant"
+    },
+    {
+      "name": "Candida albicans SC5314",
+      "category": "fungi",
+      "accession_type": "assembly",
+      "accession": "GCF_000182965.3",
+      "notes": "Common fungal contaminant, multiple chromosomes"
+    },
+    {
+      "name": "Cryptococcus neoformans JEC21",
+      "category": "fungi",
+      "accession_type": "assembly",
+      "accession": "GCF_000149245.2",
+      "notes": "Environmental fungal contaminant, multiple chromosomes"
+    },
+    {
+      "name": "Saccharomyces cerevisiae S288C",
+      "category": "fungi",
+      "accession_type": "assembly",
+      "accession": "GCF_000146045.2",
+      "notes": "Common lab yeast, multiple chromosomes"
+    }
+  ]
+}

@@ -90,11 +90,73 @@ show_info() {
         echo ""
         echo "Database files:"
         ls -lh "${db_path}".* 2>/dev/null | awk '{printf "  %-40s %s\n", $NF, $5}'
+
+        # Show alias status
+        echo ""
+        if [[ -f "${db_dir}/vicast_combined.nal" ]]; then
+            echo -e "${GREEN}Alias: vicast_combined (active)${NC}"
+        else
+            echo -e "${YELLOW}Alias: not created (run setup_blast_db.sh to create)${NC}"
+        fi
+
+        # Show user extensions
+        if [[ -d "${db_dir}/user_extensions" ]]; then
+            local ext_count=0
+            for ext in "${db_dir}"/user_extensions/*.nhr; do
+                [[ -f "$ext" ]] && ext_count=$((ext_count + 1))
+            done
+            if [[ $ext_count -gt 0 ]]; then
+                echo "User extensions: ${ext_count} database(s)"
+                for ext in "${db_dir}"/user_extensions/*.nhr; do
+                    [[ -f "$ext" ]] || continue
+                    local ext_name
+                    ext_name=$(basename "$ext" .nhr)
+                    local seq_count
+                    seq_count=$(blastdbcmd -db "${db_dir}/user_extensions/${ext_name}" -info 2>/dev/null | grep -o '[0-9,]* sequences' | head -1 || echo "? sequences")
+                    echo "  - ${ext_name}: ${seq_count}"
+                done
+            fi
+        fi
     else
         echo -e "${YELLOW}Status: NOT INSTALLED${NC}"
         echo ""
         echo "Install with: $(basename "$0")"
     fi
+}
+
+# Create or update the vicast_combined alias DB
+# This alias wraps the base DB (and any user extensions) so all consumers
+# use a single consistent path: vicast_combined
+create_alias() {
+    local db_dir="$1"
+    local alias_name="vicast_combined"
+
+    if ! command -v blastdb_aliastool &> /dev/null; then
+        echo -e "${YELLOW}blastdb_aliastool not found, skipping alias creation${NC}"
+        return 0
+    fi
+
+    # Build list of databases: base DB + any user extensions
+    local db_list="${DB_NAME}"
+    if [[ -d "${db_dir}/user_extensions" ]]; then
+        for ext_db in "${db_dir}"/user_extensions/*.nhr; do
+            if [[ -f "$ext_db" ]]; then
+                local ext_name
+                ext_name=$(basename "$ext_db" .nhr)
+                db_list="${db_list} user_extensions/${ext_name}"
+            fi
+        done
+    fi
+
+    echo "Creating BLAST alias database: ${alias_name} -> [${db_list}]"
+    (cd "$db_dir" && blastdb_aliastool -dblist "${db_list}" \
+        -dbtype nucl \
+        -out "${alias_name}" \
+        -title "VICAST Combined BLAST DB") 2>/dev/null || {
+        echo -e "${YELLOW}Warning: Could not create alias DB${NC}"
+        return 0
+    }
+    echo -e "${GREEN}Alias database created: ${db_dir}/${alias_name}${NC}"
 }
 
 # Download and install database
@@ -171,6 +233,10 @@ install_db() {
     if [[ -f "${db_dir}/${DB_NAME}.nhr" ]] || [[ -f "${db_dir}/${DB_NAME}.00.nhr" ]]; then
         echo -e "${GREEN}Database installed successfully${NC}"
         echo "Location: ${db_dir}/${DB_NAME}"
+
+        # Create alias DB so all consumers use a consistent name (vicast_combined)
+        # This enables user extensions via extend_blast_db.sh
+        create_alias "$db_dir"
 
         # Show stats
         if command -v blastdbcmd &> /dev/null; then

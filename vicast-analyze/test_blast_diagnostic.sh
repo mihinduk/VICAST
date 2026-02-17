@@ -79,11 +79,15 @@ echo "Step 1: Running BLAST"
 echo "========================================="
 
 # Check for local contamination database
-LOCAL_DB_PATH="${BLAST_DB:-/opt/vicast/blast_db/microbial_contaminants}"
+# Prefer vicast_combined alias (supports user extensions), fallback to base DB
+LOCAL_DB_PATH="${BLAST_DB:-/opt/vicast/blast_db/vicast_combined}"
+if [[ ! -f "${LOCAL_DB_PATH}.nal" ]] && [[ ! -f "${LOCAL_DB_PATH}.nhr" ]]; then
+    LOCAL_DB_PATH="${BLAST_DB_DIR:-/opt/vicast/blast_db}/microbial_contaminants"
+fi
 
 # Database diagnostics
 echo "Database path: $LOCAL_DB_PATH"
-if [ -f "${LOCAL_DB_PATH}.nhr" ] || [ -f "${LOCAL_DB_PATH}.00.nhr" ]; then
+if [ -f "${LOCAL_DB_PATH}.nal" ] || [ -f "${LOCAL_DB_PATH}.nhr" ] || [ -f "${LOCAL_DB_PATH}.00.nhr" ]; then
     echo "Database found. Info:"
     blastdbcmd -db "$LOCAL_DB_PATH" -info 2>&1 | head -5
     echo ""
@@ -97,7 +101,7 @@ fi
 # Add header to BLAST results
 echo -e "Query_ID\tSubject_ID\tPercent_Identity\tAlignment_Length\tMismatches\tGap_Opens\tQuery_Start\tQuery_End\tSubject_Start\tSubject_End\tE_value\tBit_Score\tSubject_Title" > "${SAMPLE_NAME}_blast_all.tsv"
 
-if [ -f "${LOCAL_DB_PATH}.nhr" ] || [ -f "${LOCAL_DB_PATH}.00.nhr" ]; then
+if [ -f "${LOCAL_DB_PATH}.nal" ] || [ -f "${LOCAL_DB_PATH}.nhr" ] || [ -f "${LOCAL_DB_PATH}.00.nhr" ]; then
     echo "Running local BLAST with $THREADS threads..."
     blastn -query "$CONTIGS_FASTA" \
            -db "$LOCAL_DB_PATH" \
