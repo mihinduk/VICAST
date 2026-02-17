@@ -11,12 +11,19 @@ export MAMBA_ROOT_PREFIX=/opt/conda 2>/dev/null || true
 
 # Viral Contamination Diagnostic Module
 # Runs mapping check, assembly, and viral BLAST for sample quality assessment
-# Usage: ./viral_diagnostic.sh <R1> <R2> <accession> <sample_name> [threads]
+# Usage: ./viral_diagnostic.sh <R1> <R2> <accession> [threads]
+#    or: ./viral_diagnostic.sh <R1> <R2> <accession> <sample_name> [threads]
+# Sample name is auto-derived from R1 filename if not provided.
 
 # Check arguments
-if [ $# -lt 4 ]; then
-    echo "Usage: $0 <R1_fastq> <R2_fastq> <accession> <sample_name> [threads]"
+if [ $# -lt 3 ]; then
+    echo "Usage: $0 <R1_fastq> <R2_fastq> <accession> [threads]"
+    echo "   or: $0 <R1_fastq> <R2_fastq> <accession> <sample_name> [threads]"
+    echo ""
+    echo "Example: $0 SRR5992153_1.fastq.gz SRR5992153_2.fastq.gz NC_001474.2 8"
     echo "Example: $0 sample_R1.fastq.gz sample_R2.fastq.gz GQ433359.1 SMS_14 4"
+    echo ""
+    echo "If sample_name is omitted, it is derived from the R1 filename."
     echo ""
     echo "This diagnostic script will:"
     echo "  1. Check mapping statistics to reference"
@@ -30,12 +37,39 @@ fi
 R1=$1
 R2=$2
 ACCESSION=$3
-SAMPLE_NAME=$4
-THREADS=${5:-4}
+
+# Smart argument parsing: detect whether $4 is sample_name or threads
+# If $4 is purely numeric and there is no $5, treat $4 as threads
+if [ $# -eq 3 ]; then
+    # Only 3 args: auto-derive sample name, default threads
+    SAMPLE_NAME=""
+    THREADS=4
+elif [ $# -eq 4 ] && [[ "$4" =~ ^[0-9]+$ ]]; then
+    # 4 args with numeric $4: treat as threads, auto-derive sample name
+    SAMPLE_NAME=""
+    THREADS=$4
+elif [ $# -eq 4 ]; then
+    # 4 args with non-numeric $4: treat as sample name
+    SAMPLE_NAME=$4
+    THREADS=4
+else
+    # 5+ args: explicit sample name and threads
+    SAMPLE_NAME=$4
+    THREADS=${5:-4}
+fi
+
+# Auto-derive sample name from R1 if not provided
+if [ -z "$SAMPLE_NAME" ]; then
+    R1_BASE=$(basename "$R1")
+    # Remove _R1/_R2/_1/_2 suffixes, _001, and .fastq.gz extension
+    # Matches viral_pipeline.py logic: re.sub(r'(_R?[12])?(_001)?\.fastq\.gz$', '', r1_base)
+    SAMPLE_NAME=$(echo "$R1_BASE" | sed -E 's/(_R?[12])?(_001)?\.fastq\.gz$//')
+fi
+
 EXTREME_MEMORY_FLAG=""
 
-# Check for extreme memory flag
-if [[ "$6" == "--extremely-large-files" ]] || [[ "$*" == *"--extremely-large-files"* ]]; then
+# Check for extreme memory flag (can appear in any position)
+if [[ "$*" == *"--extremely-large-files"* ]]; then
     EXTREME_MEMORY_FLAG="--extremely-large-files"
     echo "EXTREME MEMORY MODE: Using high memory settings for large files"
 fi
