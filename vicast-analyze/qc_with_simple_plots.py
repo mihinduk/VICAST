@@ -419,17 +419,7 @@ def create_simple_html_charts(samples_data, all_contamination, all_target_data, 
                 </div>""")
             f.write('</div>')
         
-        f.write(f"""
-        <h2>🎉 Pipeline Success Metrics</h2>
-        <div class="alert alert-success">
-            <strong>Major Improvements Validated:</strong><br>
-            ✅ Processing ALL contigs >1000bp (vs previous ~10)<br>
-            ✅ Local contamination database working<br>
-            ✅ Mycoplasma detection functional<br>
-            ✅ Fixed contig length parsing<br>
-            ✅ Eliminated remote BLAST timeouts
-        </div>
-        
+        f.write("""
         <h2>📋 Detailed Sample Information</h2>""")
         
         # Detailed sample table
