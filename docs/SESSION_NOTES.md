@@ -251,6 +251,6 @@ for e in errs: print(f'  {e}')
 
 ## Next Steps
 
-1. **Performance benchmarks**: Quantitative comparison with VADR
+1. **Performance benchmarks**: Quantitative runtime and accuracy profiling
 2. **Manuscript**: Start Bioinformatics Application Note draft
 3. **Additional validation**: HCV or Picornavirus for another polyprotein example

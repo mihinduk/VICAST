@@ -96,14 +96,12 @@ Reference sequences downloaded from NCBI RefSeq:
 3. **SnpEff Compatible**: GFF3 passes validation ✓
 4. **Multi-Segment VCF**: Variants across segments in one file ✓
 
-## Comparison with Other Tools
+## Key Features Demonstrated
 
-| Feature | VICAST | VADR | Other |
-|---------|--------|------|-------|
-| Unified multi-segment DB | ✓ | Model-dependent | Often requires per-segment |
-| Spliced gene annotation | ✓ | ✓ | Varies |
-| SnpEff integration | Native | Requires conversion | Varies |
-| Custom curation | Built-in | Post-processing | Varies |
+- **Unified multi-segment database**: All 8 segments in a single SnpEff database
+- **Spliced gene annotation**: M2, NEP, PA-X properly represented
+- **Native SnpEff integration**: Direct variant annotation without conversion
+- **Built-in curation**: Custom database building from GenBank
 
 ## Citation
 

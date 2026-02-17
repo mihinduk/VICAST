@@ -26,8 +26,7 @@ This roadmap outlines completed work, items under review, and planned future enh
 - [x] **CLI improvements** - Replaced interactive prompts with command-line flags (`--auto`, `--skip-curation`)
 - [x] **Script portability** - Updated shell scripts to use `#!/usr/bin/env bash` and portable paths
 
-### Documentation & Benchmarking
-- [x] **VADR benchmark framework** - Created `benchmarks/` directory with comparison tools
+### Documentation
 - [x] **Feature documentation** - Comprehensive comparison highlighting VICAST strengths:
   - Polyprotein annotation (mature peptide splitting)
   - Contamination screening pipeline
@@ -47,7 +46,7 @@ The `publication-prep` branch contains all completed work above and is ready for
 3. Add comprehensive pytest test suites
 4. Add example dataset and validation module
 5. Add logging module for standardized output
-6. Add VADR benchmark comparison framework
+6. Add feature documentation
 
 ---
 
@@ -88,7 +87,7 @@ The `publication-prep` branch contains all completed work above and is ready for
   - Active site proximity scoring
 
 - [ ] **Performance benchmarks** - Quantitative comparisons
-  - Runtime comparisons with VADR
+  - Runtime profiling
   - Memory usage profiling
   - Scalability testing with large datasets
 
@@ -132,7 +131,6 @@ pytest tests/ -v
   - Portable infrastructure
   - Comprehensive testing
   - Docker/Singularity support
-  - VADR benchmark comparison
 
 - **v2.1.x** - Previous versions (HTCF-specific)
 

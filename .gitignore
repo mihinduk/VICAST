@@ -92,7 +92,5 @@ data/processed/
 microbial_contaminants.tar.gz
 microbial_contaminants_info.txt
 
-# VADR installation
-vadr/
-vadr-models/
+# Local tool installations
 tools/snpEff/

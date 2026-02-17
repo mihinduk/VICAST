@@ -130,14 +130,12 @@ Reference genome downloaded from NCBI RefSeq:
 3. **Spike mutations**: Known variants correctly positioned
 4. **VCF validation**: REF bases match reference genome
 
-## Comparison with Other Tools
+## Key Features Demonstrated
 
-| Feature | VICAST | VADR | Other |
-|---------|--------|------|-------|
-| Polyprotein/mature peptides | Yes | Partial | Varies |
-| Custom database building | Yes | Model-based | Varies |
-| VCF REF validation | Yes | No | Rare |
-| SnpEff integration | Native | Requires conversion | Varies |
+- **Polyprotein/mature peptide annotation**: All 16 nsps properly represented in GFF3
+- **Custom database building**: One-command SnpEff genome setup from GenBank
+- **VCF REF base validation**: Prevents silent annotation errors
+- **Native SnpEff integration**: Direct variant annotation without conversion
 
 ## Citation
 

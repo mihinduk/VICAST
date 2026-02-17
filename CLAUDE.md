@@ -35,7 +35,6 @@ vicast/
 │   ├── influenza_validation/  # 8-segment Influenza A dataset
 │   ├── sars_cov2_validation/  # Polyprotein validation dataset
 │   └── data/                  # Dengue test data
-├── benchmarks/              # VADR comparison framework
 ├── ROADMAP.md               # Development roadmap
 └── pyproject.toml           # Python packaging
 ```
@@ -83,7 +82,7 @@ vicast/
 
 ### Phase 2 (Medium-term)
 - [ ] Structural context integration (BFVD)
-- [ ] Performance benchmarks vs VADR
+- [ ] Performance benchmarks
 - [ ] Batch processing mode
 
 ### Phase 3 (Publication)
