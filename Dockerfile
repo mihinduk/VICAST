@@ -93,7 +93,9 @@ RUN printf '#!/bin/bash\nbash /opt/vicast/vicast-analyze/run_vicast_analyze_full
     chmod +x /usr/local/bin/download_sra_data.sh && \
     chmod +x /usr/local/bin/install_prebuilt_database.sh && \
     chmod +x /usr/local/bin/setup_blast_db.sh && \
-    chmod +x /usr/local/bin/build_contamination_db.sh
+    chmod +x /usr/local/bin/build_contamination_db.sh && \
+    printf '#!/bin/bash\npython /opt/vicast/vicast-analyze/vcf_to_tsv.py "$@"\n' > /usr/local/bin/vcf_to_tsv.py && \
+    chmod +x /usr/local/bin/vcf_to_tsv.py
 
 # Create snpeff wrapper script
 RUN printf '#!/bin/bash\njava -jar %s "$@"\n' "${SNPEFF_JAR}" > /usr/local/bin/snpeff && \
