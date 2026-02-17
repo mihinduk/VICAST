@@ -192,7 +192,7 @@ install_db() {
         # Found local copy in VICAST directory (bundled in Docker build context)
         echo "Found local database archive in VICAST directory"
         temp_file="${VICAST_HOME:-/opt/vicast}/microbial_contaminants.tar.gz"
-        from_file="$temp_file"  # Mark as local so we don't delete it
+        # Don't set from_file — allow cleanup after extraction to save image space
     else
         # Download from GitHub Release
         temp_file="/tmp/microbial_contaminants_$$.tar.gz"
