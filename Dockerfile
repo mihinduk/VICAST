@@ -98,10 +98,14 @@ RUN printf '#!/bin/bash\nbash /opt/vicast/vicast-analyze/run_vicast_analyze_full
     printf '#!/bin/bash\nbash /opt/vicast/vicast-analyze/run_vicast_analyze_postprocess.sh "$@"\n' > /usr/local/bin/run_vicast_analyze_postprocess.sh && \
     printf '#!/bin/bash\npython /opt/vicast/vicast-analyze/parse_snpeff_tsv.py "$@"\n' > /usr/local/bin/parse_snpeff_tsv.py && \
     printf '#!/bin/bash\npython /opt/vicast/vicast-analyze/generate_realistic_haplotype_consensus.py "$@"\n' > /usr/local/bin/generate_realistic_haplotype_consensus.py && \
+    printf '#!/bin/bash\npython /opt/vicast/vicast-analyze/parse_blast_results.py "$@"\n' > /usr/local/bin/parse_blast_results.py && \
+    printf '#!/bin/bash\nbash /opt/vicast/vicast-analyze/test_blast_diagnostic.sh "$@"\n' > /usr/local/bin/test_blast_diagnostic.sh && \
     chmod +x /usr/local/bin/vcf_to_tsv.py && \
     chmod +x /usr/local/bin/run_vicast_analyze_postprocess.sh && \
     chmod +x /usr/local/bin/parse_snpeff_tsv.py && \
-    chmod +x /usr/local/bin/generate_realistic_haplotype_consensus.py
+    chmod +x /usr/local/bin/generate_realistic_haplotype_consensus.py && \
+    chmod +x /usr/local/bin/parse_blast_results.py && \
+    chmod +x /usr/local/bin/test_blast_diagnostic.sh
 
 # Create snpeff wrapper script
 RUN printf '#!/bin/bash\njava -jar %s "$@"\n' "${SNPEFF_JAR}" > /usr/local/bin/snpeff && \

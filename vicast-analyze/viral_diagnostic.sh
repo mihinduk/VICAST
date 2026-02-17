@@ -40,6 +40,19 @@ if [[ "$6" == "--extremely-large-files" ]] || [[ "$*" == *"--extremely-large-fil
     echo "EXTREME MEMORY MODE: Using high memory settings for large files"
 fi
 
+# Resolve pipeline directory (where this script and helper scripts live)
+# Must handle SLURM path resolution (SLURM copies scripts to temp locations)
+if [ -n "${SLURM_JOB_ID:-}" ]; then
+    ORIGINAL_SCRIPT=$(scontrol show job $SLURM_JOB_ID | grep -oP 'Command=\K[^ ]+' || echo "")
+    if [ -n "$ORIGINAL_SCRIPT" ]; then
+        PIPELINE_DIR="$(dirname "$ORIGINAL_SCRIPT")"
+    else
+        PIPELINE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    fi
+else
+    PIPELINE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+fi
+
 # Set up environment and paths
 echo "========================================="
 echo "VIRAL CONTAMINATION DIAGNOSTIC MODULE"
@@ -461,88 +474,24 @@ if [ "$FILTERED_COUNT" -gt 0 ]; then
         rm -f "${SAMPLE_NAME}_top20_contigs.fa"
     fi
     
-    # Filter for viral hits from the results
-    echo "Filtering BLAST results for viral sequences..."
-    if [ -s "${SAMPLE_NAME}_blast_all.tsv" ]; then
-        # Add header to viral BLAST results
-        echo -e "Query_ID\tSubject_ID\tPercent_Identity\tAlignment_Length\tMismatches\tGap_Opens\tQuery_Start\tQuery_End\tSubject_Start\tSubject_End\tE_value\tBit_Score\tSubject_Title" > "${SAMPLE_NAME}_viral_blast.tsv"
-        
-        # Filter for viral hits (skip header line)
-        tail -n +2 "${SAMPLE_NAME}_blast_all.tsv" | grep -i -E "(virus|viral|phage|viroid)" >> "${SAMPLE_NAME}_viral_blast.tsv" || true
-        
-        VIRAL_HITS=$(tail -n +2 "${SAMPLE_NAME}_viral_blast.tsv" | wc -l)
-        echo "Found $VIRAL_HITS viral hits"
-        
-        # Create a top hits summary (best hit per contig, sorted by contig order)
-        echo "Creating top hits summary..."
-        echo -e "Contig_ID\tContig_Length\tSubject_ID\tPercent_Identity\tAlignment_Length\tQuery_Coverage\tE_value\tKingdom/Type\tSubject_Title" > "${SAMPLE_NAME}_top_hits.tsv"
-        
-        # For each contig, get the best hit and calculate query coverage
-        # Parse contig lengths directly from MEGAHIT headers (e.g., ">k141_237 flag=1 multi=588.0000 len=12809")
-        tail -n +2 "${SAMPLE_NAME}_blast_all.tsv" | \
-        awk -F'\t' '
-        BEGIN {
-            # Read contig lengths from the filtered fasta file
-            while ((getline line < "'${SAMPLE_NAME}_contigs_filtered.fa'") > 0) {
-                if (line ~ /^>/) {
-                    # Extract contig ID and length from MEGAHIT header
-                    # Format: >k141_237 flag=1 multi=588.0000 len=12809
-                    contig_id = substr(line, 2);
-                    split(contig_id, id_parts, " ");
-                    contig_id = id_parts[1];
-                    
-                    # Extract length from len= field (POSIX awk compatible)
-                    n = match(line, /len=[0-9]+/);
-                    if (n > 0) {
-                        contig_lengths[contig_id] = substr(line, RSTART+4, RLENGTH-4);
-                    }
-                }
-            }
-            close("'${SAMPLE_NAME}_contigs_filtered.fa'");
-        }
-        {
-            if (!seen[$1] || $11 < best_eval[$1]) {
-                seen[$1] = 1;
-                best_eval[$1] = $11;
-                best_line[$1] = $0;
-            }
-        } 
-        END {
-            for (contig in best_line) {
-                split(best_line[contig], fields, "\t");
-                query_start = fields[7];
-                query_end = fields[8];
-                alignment_length = fields[4];
-                coverage_length = query_end - query_start + 1;
-                
-                # Get contig length from parsed headers
-                contig_length = contig_lengths[contig];
-                if (contig_length == "") contig_length = "Unknown";
-                
-                # Calculate query coverage percentage
-                if (contig_length != "Unknown" && contig_length > 0) {
-                    query_coverage = sprintf("%.1f%%", coverage_length * 100 / contig_length);
-                } else {
-                    query_coverage = "Unknown";
-                }
-                
-                desc = fields[13];
-                kingdom = "Unknown";
-                if (match(desc, "virus") || match(desc, "viral") || match(desc, "phage") || match(desc, "viroid")) kingdom = "Virus";
-                else if (match(desc, "ycoplasma")) kingdom = "Mycoplasma";
-                else if (match(desc, "acteria")) kingdom = "Bacteria";
-                else if (match(desc, "ungi")) kingdom = "Fungi";
-                else if (match(desc, "omo sapiens") || match(desc, "uman")) kingdom = "Human";
-                else if (match(desc, "lant")) kingdom = "Plant";
-                
-                printf "%s\t%s\t%s\t%.2f%%\t%s\t%s\t%s\t%s\t%s\n", fields[1], contig_length, fields[2], fields[3], alignment_length, query_coverage, fields[11], kingdom, fields[13];
-            }
-        }' >> "${SAMPLE_NAME}_top_hits.tsv"
-        
-        echo "Top hits summary created: ${SAMPLE_NAME}_top_hits.tsv"
+    # Parse BLAST results with Python (handles tied hits, accession matching, kingdom classification)
+    echo "Parsing BLAST results..."
+    if [ -s "${SAMPLE_NAME}_blast_all.tsv" ] && [ $(wc -l < "${SAMPLE_NAME}_blast_all.tsv") -gt 1 ]; then
+        python "${PIPELINE_DIR}/parse_blast_results.py" \
+            "${SAMPLE_NAME}_blast_all.tsv" \
+            "${SAMPLE_NAME}_contigs_filtered.fa" \
+            --accession "$ACCESSION" \
+            --top-hits "${SAMPLE_NAME}_top_hits.tsv" \
+            --viral-hits "${SAMPLE_NAME}_viral_blast.tsv" \
+            --report "${SAMPLE_NAME}_blast_report_section.txt"
+
+        TOP_HIT_COUNT=$(tail -n +2 "${SAMPLE_NAME}_top_hits.tsv" 2>/dev/null | wc -l | tr -d ' ')
+        VIRAL_HIT_COUNT=$(tail -n +2 "${SAMPLE_NAME}_viral_blast.tsv" 2>/dev/null | wc -l | tr -d ' ')
+        echo "Top hits: $TOP_HIT_COUNT entries (including tied hits)"
+        echo "Viral hits: $VIRAL_HIT_COUNT"
     else
         echo -e "Query_ID\tSubject_ID\tPercent_Identity\tAlignment_Length\tMismatches\tGap_Opens\tQuery_Start\tQuery_End\tSubject_Start\tSubject_End\tE_value\tBit_Score\tSubject_Title" > "${SAMPLE_NAME}_viral_blast.tsv"
-        echo -e "Contig_ID\tContig_Length\tSubject_ID\tPercent_Identity\tAlignment_Length\tQuery_Coverage\tE_value\tKingdom/Type\tSubject_Title" > "${SAMPLE_NAME}_top_hits.tsv"
+        echo -e "Contig_ID\tContig_Length\tSubject_ID\tPercent_Identity\tAlignment_Length\tQuery_Coverage\tE_value\tBit_Score\tKingdom/Type\tSubject_Title" > "${SAMPLE_NAME}_top_hits.tsv"
         echo "No BLAST results obtained"
     fi
     
@@ -604,136 +553,27 @@ BLAST RESULTS SUMMARY
 ========================================
 EOF
 
-# Add top hits summary to report
-if [ -s "${SAMPLE_NAME}_top_hits.tsv" ] && [ $(wc -l < "${SAMPLE_NAME}_top_hits.tsv") -gt 1 ]; then
-    echo "TOP HITS BY CONTIG (largest contigs first):" >> "${SAMPLE_NAME}_diagnostic_report.txt"
+# Add top hits summary to report (from parse_blast_results.py --report output)
+if [ -s "${SAMPLE_NAME}_blast_report_section.txt" ]; then
+    cat "${SAMPLE_NAME}_blast_report_section.txt" >> "${SAMPLE_NAME}_diagnostic_report.txt"
     echo "" >> "${SAMPLE_NAME}_diagnostic_report.txt"
-    
-    # Add top hits table to report
-    tail -n +2 "${SAMPLE_NAME}_top_hits.tsv" | head -10 | \
-    awk -F'\t' '{printf "%-15s %8s bp  %6s  %-12s  %s\n", $1, $2, $3, $6, substr($4,1,60)"..."}' >> "${SAMPLE_NAME}_diagnostic_report.txt"
-    
-    echo "" >> "${SAMPLE_NAME}_diagnostic_report.txt"
-    
-    # Summary by kingdom
-    echo "CONTAMINATION SUMMARY:" >> "${SAMPLE_NAME}_diagnostic_report.txt"
-    tail -n +2 "${SAMPLE_NAME}_top_hits.tsv" | \
-    awk -F'\t' '{kingdom[$6]++} END {for (k in kingdom) printf "  %s: %d contigs\n", k, kingdom[k]}' | \
-    sort >> "${SAMPLE_NAME}_diagnostic_report.txt"
-    
+elif [ -s "${SAMPLE_NAME}_top_hits.tsv" ] && [ $(wc -l < "${SAMPLE_NAME}_top_hits.tsv") -gt 1 ]; then
+    # Fallback: simple top hits table
+    echo "TOP HITS BY CONTIG:" >> "${SAMPLE_NAME}_diagnostic_report.txt"
+    tail -n +2 "${SAMPLE_NAME}_top_hits.tsv" | head -20 >> "${SAMPLE_NAME}_diagnostic_report.txt"
     echo "" >> "${SAMPLE_NAME}_diagnostic_report.txt"
 fi
 
-# Add improved viral hits summary with coverage filtering
-if [ -s "${SAMPLE_NAME}_viral_blast.tsv" ] && [ $(tail -n +2 "${SAMPLE_NAME}_viral_blast.tsv" | wc -l) -gt 0 ]; then
-    echo "VIRAL CONTAMINATION ANALYSIS:" >> "${SAMPLE_NAME}_diagnostic_report.txt"
-    echo "" >> "${SAMPLE_NAME}_diagnostic_report.txt"
-else
-    # No viral hits found - add informative message
+# Viral contamination analysis section (already covered by parse_blast_results.py report)
+if [ ! -s "${SAMPLE_NAME}_viral_blast.tsv" ] || [ $(tail -n +2 "${SAMPLE_NAME}_viral_blast.tsv" 2>/dev/null | wc -l | tr -d ' ') -eq 0 ]; then
     echo "VIRAL CONTAMINATION ANALYSIS:" >> "${SAMPLE_NAME}_diagnostic_report.txt"
     echo "" >> "${SAMPLE_NAME}_diagnostic_report.txt"
     echo "No viral contamination detected in assembled contigs." >> "${SAMPLE_NAME}_diagnostic_report.txt"
     echo "" >> "${SAMPLE_NAME}_diagnostic_report.txt"
     echo "This indicates:" >> "${SAMPLE_NAME}_diagnostic_report.txt"
-    echo "  ✓ Clean viral culture (expected result)" >> "${SAMPLE_NAME}_diagnostic_report.txt"
-    echo "  ✓ No detectable co-infection with other viruses" >> "${SAMPLE_NAME}_diagnostic_report.txt"
-    echo "  ✓ Assembly contigs match target reference genome" >> "${SAMPLE_NAME}_diagnostic_report.txt"
-    echo "" >> "${SAMPLE_NAME}_diagnostic_report.txt"
-fi
-
-if [ -s "${SAMPLE_NAME}_viral_blast.tsv" ] && [ $(tail -n +2 "${SAMPLE_NAME}_viral_blast.tsv" | wc -l) -gt 0 ]; then
-    
-    # Process viral BLAST results with coverage filtering
-    # Read contig lengths and calculate query coverage for each viral hit
-    tail -n +2 "${SAMPLE_NAME}_viral_blast.tsv" | \
-    awk -F'\t' -v sample="${SAMPLE_NAME}" '
-    BEGIN {
-        # Read contig lengths from filtered fasta
-        while ((getline line < sample"_contigs_filtered.fa") > 0) {
-            if (line ~ /^>/) {
-                contig_id = substr(line, 2);
-                split(contig_id, id_parts, " ");
-                contig_id = id_parts[1];
-                n = match(line, /len=[0-9]+/);
-                if (n > 0) {
-                    contig_lengths[contig_id] = substr(line, RSTART+4, RLENGTH-4);
-                }
-            }
-        }
-        close(sample"_contigs_filtered.fa");
-    }
-    {
-        # Calculate query coverage
-        query_id = $1;
-        query_start = $7;
-        query_end = $8;
-        subject_title = $13;
-        pident = $3;
-        
-        coverage_length = query_end - query_start + 1;
-        contig_length = contig_lengths[query_id];
-        
-        if (contig_length > 0) {
-            query_coverage = coverage_length * 100 / contig_length;
-            
-            # Extract virus name (simplify)
-            virus_name = subject_title;
-            gsub(/, complete.*/, "", virus_name);
-            gsub(/ complete.*/, "", virus_name);
-            gsub(/ isolate.*/, "", virus_name);
-            gsub(/ strain.*/, "", virus_name);
-            
-            # Store data by coverage category
-            entry = sprintf("%s\t%.1f%%\t%.2f%%", query_id, query_coverage, pident);
-            
-            if (query_coverage >= 80) {
-                high_conf[virus_name] = high_conf[virus_name] "    " entry "\n";
-                high_count[virus_name]++;
-            } else if (query_coverage >= 50) {
-                med_conf[virus_name] = med_conf[virus_name] "    " entry "\n";
-                med_count[virus_name]++;
-            }
-            # Contigs with <50% coverage are excluded
-        }
-    }
-    END {
-        # Report high confidence viral contaminants (>=80% coverage)
-        if (length(high_conf) > 0) {
-            print "CONFIRMED VIRAL CONTAMINANTS (≥80% query coverage):"
-            print "========================================================"
-            for (virus in high_conf) {
-                print ""
-                print virus " (" high_count[virus] " contig" (high_count[virus]>1?"s":"") "):"
-                printf "%s", high_conf[virus];
-            }
-            print ""
-        } else {
-            print "CONFIRMED VIRAL CONTAMINANTS (≥80% query coverage): None"
-            print ""
-        }
-        
-        # Report medium confidence potential viral contaminants (50-80% coverage)
-        if (length(med_conf) > 0) {
-            print "POTENTIAL VIRAL CONTAMINANTS (50-80% query coverage):"
-            print "========================================================"
-            for (virus in med_conf) {
-                print ""
-                print virus " (" med_count[virus] " contig" (med_count[virus]>1?"s":"") "):"
-                printf "%s", med_conf[virus];
-            }
-            print ""
-        } else {
-            print "POTENTIAL VIRAL CONTAMINANTS (50-80% query coverage): None"
-            print ""
-        }
-        
-        print "NOTE: Contigs with <50% query coverage are excluded from viral contamination"
-        print "      assessment, even if they show viral BLAST hits. These may represent:"
-        print "      - Partial viral sequences integrated into host genome"
-        print "      - Non-specific matches to conserved viral domains"
-        print "      - Assembly artifacts"
-    }' >> "${SAMPLE_NAME}_diagnostic_report.txt"
-    
+    echo "  - Clean viral culture (expected result)" >> "${SAMPLE_NAME}_diagnostic_report.txt"
+    echo "  - No detectable co-infection with other viruses" >> "${SAMPLE_NAME}_diagnostic_report.txt"
+    echo "  - Assembly contigs match target reference genome" >> "${SAMPLE_NAME}_diagnostic_report.txt"
     echo "" >> "${SAMPLE_NAME}_diagnostic_report.txt"
 fi
 
@@ -805,22 +645,7 @@ echo "GENERATING QC VISUALIZATION REPORT"
 echo "========================================="
 
 # Generate presentation-ready QC report
-# Find the pipeline directory (handle SLURM path resolution)
-# SLURM copies script to /var/spool/slurmd/jobXXXX/, so we need original path
-if [ -n "$SLURM_JOB_ID" ]; then
-    # Extract original script path from SLURM job details
-    ORIGINAL_SCRIPT=$(scontrol show job $SLURM_JOB_ID | grep -oP 'Command=\K[^ ]+' || echo "")
-    if [ -n "$ORIGINAL_SCRIPT" ]; then
-        PIPELINE_DIR="$(dirname "$ORIGINAL_SCRIPT")"
-    else
-        # Fallback to bash source (works for non-SLURM execution)
-        PIPELINE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    fi
-else
-    # Not running under SLURM, use normal path
-    PIPELINE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-fi
-
+# PIPELINE_DIR already resolved at top of script
 QC_SCRIPT_PATH="${PIPELINE_DIR}/qc_with_simple_plots.py"
 
 if [ -f "$QC_SCRIPT_PATH" ]; then
