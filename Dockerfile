@@ -180,7 +180,12 @@ RUN mkdir -p ${BLAST_DB_DIR}/user_extensions && \
     chmod -R 775 ${BLAST_DB_DIR}
 
 # Download pre-built contamination database from GitHub Release
-# If download fails during build, users can run setup_blast_db.sh at runtime
+# If download fails (e.g., restricted Docker network), place the tarball in
+# the build context before building:
+#   curl -fL -o microbial_contaminants.tar.gz \
+#     https://github.com/mihinduk/VICAST/releases/download/blast-db-v1.0/microbial_contaminants.tar.gz
+#   docker build -t vicast:latest .
+# Or install at runtime: docker run --rm -v blastdb:/opt/vicast/blast_db vicast setup_blast_db.sh
 USER $MAMBA_USER
 RUN bash ${VICAST_HOME}/vicast-analyze/setup_blast_db.sh ${BLAST_DB_DIR} || \
     echo "WARNING: BLAST DB download failed during build - run setup_blast_db.sh at runtime"

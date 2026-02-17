@@ -61,6 +61,49 @@ cd VICAST
 docker build -t vicast:latest .
 ```
 
+#### BLAST Contamination Screening Database
+
+VICAST includes a curated BLAST database (~18,800 sequences) for contamination screening during QC. This database contains NCBI RefSeq viral genomes plus common lab contaminants (E. coli, Pseudomonas, Staphylococcus, Mycoplasma, Candida, Cryptococcus, Saccharomyces cerevisiae).
+
+The database downloads automatically during `docker build`. If the download fails (e.g., restricted network), you have two options:
+
+**Option A: Pre-download the database before building**
+```bash
+# Download the database tarball (~140 MB)
+curl -fL -o microbial_contaminants.tar.gz \
+  https://github.com/mihinduk/VICAST/releases/download/blast-db-v1.0/microbial_contaminants.tar.gz
+
+# Build - the local tarball is detected and used automatically
+docker build -t vicast:latest .
+```
+
+**Option B: Install at runtime with a persistent volume**
+```bash
+# Build without the database
+docker build -t vicast:latest .
+
+# Download and install to a named Docker volume (one-time setup)
+docker run --rm -v vicast_blastdb:/opt/vicast/blast_db vicast:latest setup_blast_db.sh
+
+# Use the volume in all future runs
+docker run --rm \
+  -v vicast_blastdb:/opt/vicast/blast_db \
+  -v $(pwd):/data -w /data \
+  --user $(id -u):$(id -g) \
+  vicast:latest run_vicast_analyze_full.sh R1.fq.gz R2.fq.gz NC_001474.2 8
+```
+
+**Extending the database**: Add custom sequences (e.g., lab-specific contaminants) without re-downloading:
+```bash
+docker run --rm -v vicast_blastdb:/opt/vicast/blast_db vicast:latest \
+  extend_blast_db.sh /data/my_custom_contaminants.fasta
+```
+
+**Verifying the database**:
+```bash
+docker run --rm vicast:latest setup_blast_db.sh --info
+```
+
 #### Running VICAST in Docker
 
 **Prerequisites:**
