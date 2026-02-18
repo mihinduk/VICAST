@@ -525,11 +525,11 @@ if [ "$FILTERED_COUNT" -gt 0 ]; then
 
         TOP_HIT_COUNT=$(tail -n +2 "${SAMPLE_NAME}_top_hits.tsv" 2>/dev/null | wc -l | tr -d ' ')
         VIRAL_HIT_COUNT=$(tail -n +2 "${SAMPLE_NAME}_viral_blast.tsv" 2>/dev/null | wc -l | tr -d ' ')
-        echo "Top hits: $TOP_HIT_COUNT entries (all hits per contig)"
+        echo "Top hits: $TOP_HIT_COUNT entries (best hits per contig)"
         echo "Viral hits: $VIRAL_HIT_COUNT"
     else
         echo -e "Contig_ID\tContig_Length\tSubject_ID\tPercent_Identity\tAlignment_Length\tQuery_Coverage\tE_value\tBit_Score\tSubject_Title" > "${SAMPLE_NAME}_viral_blast.tsv"
-        echo -e "Contig_ID\tContig_Length\tSubject_ID\tPercent_Identity\tAlignment_Length\tQuery_Coverage\tE_value\tBit_Score\tTied_Best\tKingdom/Type\tSubject_Title" > "${SAMPLE_NAME}_top_hits.tsv"
+        echo -e "Contig_ID\tContig_Length\tSubject_ID\tPercent_Identity\tAlignment_Length\tQuery_Coverage\tE_value\tBit_Score\tKingdom/Type\tSubject_Title" > "${SAMPLE_NAME}_top_hits.tsv"
         echo "No BLAST results obtained"
     fi
     

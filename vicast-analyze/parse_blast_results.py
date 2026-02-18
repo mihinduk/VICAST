@@ -263,13 +263,14 @@ def classify_contigs(all_hits, accession, min_coverage):
 
 
 def write_top_hits_tsv(all_hits, output_path):
-    """Write ALL hits per contig with tied-best flag."""
+    """Write only tied-best hits per contig (no Tied_Best column)."""
     with open(output_path, "w") as f:
         f.write("Contig_ID\tContig_Length\tSubject_ID\tPercent_Identity\t"
                 "Alignment_Length\tQuery_Coverage\tE_value\tBit_Score\t"
-                "Tied_Best\tKingdom/Type\tSubject_Title\n")
+                "Kingdom/Type\tSubject_Title\n")
         for h in all_hits:
-            tied = "*" if h["is_tied_best"] else ""
+            if not h["is_tied_best"]:
+                continue
             f.write(
                 f"{h['contig_id']}\t"
                 f"{h['contig_length']}\t"
@@ -279,7 +280,6 @@ def write_top_hits_tsv(all_hits, output_path):
                 f"{h['qcov']:.1f}%\t"
                 f"{h['evalue']}\t"
                 f"{h['bitscore']}\t"
-                f"{tied}\t"
                 f"{h['kingdom']}\t"
                 f"{h['stitle']}\n"
             )

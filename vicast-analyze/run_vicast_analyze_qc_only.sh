@@ -306,6 +306,16 @@ if [ $PIPELINE_EXIT_CODE -eq 0 ]; then
     fi
     if [ -f "$(pwd)/cleaned_seqs/variants/${BASE_SAMPLE}_vars.filt.vcf" ]; then
         echo "   Filtered:   $(pwd)/cleaned_seqs/variants/${BASE_SAMPLE}_vars.filt.vcf"
+        # Convert filtered VCF to TSV with expanded INFO columns
+        FILT_VCF="$(pwd)/cleaned_seqs/variants/${BASE_SAMPLE}_vars.filt.vcf"
+        FILT_TSV="$(pwd)/cleaned_seqs/variants/${BASE_SAMPLE}_vars.filt.tsv"
+        echo ""
+        echo "4. Variant TSV (INFO fields expanded):"
+        python "${PIPELINE_DIR}/vcf_to_tsv.py" "$FILT_VCF" -o "$FILT_TSV" --split-dp4 2>&1 || \
+            echo "   WARNING: VCF-to-TSV conversion failed"
+        if [ -f "$FILT_TSV" ]; then
+            echo "   $FILT_TSV"
+        fi
     fi
     echo ""
     echo "NEXT STEPS:"

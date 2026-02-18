@@ -255,10 +255,22 @@ if [ $PIPELINE_EXIT_CODE -eq 0 ]; then
     echo "Output files:"
     find ./cleaned_seqs/variants -name "*${SAMPLE_NAME}*.tsv" -o -name "*${SAMPLE_NAME}*.vcf" 2>/dev/null | sort
     echo ""
+    # Convert filtered VCF to TSV with expanded INFO columns
+    BASE_SAMPLE=$(echo "$SAMPLE_NAME" | sed -E 's/_[12]$//')
+    FILT_VCF="$(pwd)/cleaned_seqs/variants/${BASE_SAMPLE}_vars.filt.vcf"
+    if [ -f "$FILT_VCF" ]; then
+        FILT_TSV="$(pwd)/cleaned_seqs/variants/${BASE_SAMPLE}_vars.filt.tsv"
+        python "${PIPELINE_DIR}/vcf_to_tsv.py" "$FILT_VCF" -o "$FILT_TSV" --split-dp4 2>&1 || \
+            echo "WARNING: VCF-to-TSV conversion failed"
+    fi
+
     echo "Key results:"
     if ls ./cleaned_seqs/variants/*${SAMPLE_NAME}*.snpEFF.ann.tsv >/dev/null 2>&1; then
         echo "  Annotation TSV: $(ls ./cleaned_seqs/variants/*${SAMPLE_NAME}*.snpEFF.ann.tsv | head -1)"
         echo "  Total annotated variants: $(wc -l < $(ls ./cleaned_seqs/variants/*${SAMPLE_NAME}*.snpEFF.ann.tsv | head -1))"
+    fi
+    if [ -f "$FILT_TSV" ]; then
+        echo "  Variant TSV:    $FILT_TSV"
     fi
 else
     echo "Pipeline failed with exit code $PIPELINE_EXIT_CODE"

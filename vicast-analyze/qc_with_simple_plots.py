@@ -127,7 +127,7 @@ def parse_blast_results(blast_file, target_accession=None, target_virus_name=Non
     """Parse BLAST top_hits.tsv to extract contamination and target genome information.
 
     Header-aware: looks up columns by name to handle format changes.
-    Only processes tied-best hits (Tied_Best=*) to avoid overcounting.
+    top_hits.tsv contains only best hits (tied-best when multiple have identical stats).
     Deduplicates by contig_id: 1 entry per contig unless multiple tied-best hits exist.
     """
     contamination_data = []
@@ -151,18 +151,11 @@ def parse_blast_results(blast_file, target_accession=None, target_virus_name=Non
                 idx_qcov = col.get('Query_Coverage', None)
                 idx_kingdom = col.get('Kingdom/Type', -2)
                 idx_title = col.get('Subject_Title', -1)
-                idx_tied = col.get('Tied_Best', None)
 
                 for line in lines[1:]:
                     parts = line.strip().split('\t')
                     if len(parts) < 4:
                         continue
-
-                    # Only process tied-best hits (marked with *)
-                    # If Tied_Best column exists, skip non-best hits
-                    if idx_tied is not None and idx_tied < len(parts):
-                        if parts[idx_tied].strip() != '*':
-                            continue
 
                     # Parse percent identity (remove % symbol)
                     try:
