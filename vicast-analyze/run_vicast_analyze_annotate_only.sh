@@ -15,7 +15,7 @@ set -e  # Exit on error
 
 # Check arguments
 if [ $# -lt 3 ]; then
-    echo "Usage: $0 <R1_fastq> <R2_fastq> <accession> [threads] [--large-files|--extremely-large-files]"
+    echo "Usage: $0 <R1_fastq> <R2_fastq> <accession> [threads] [OPTIONS]"
     echo "Example: $0 sample_R1.fastq.gz sample_R2.fastq.gz GQ433359.1 4"
     echo ""
     echo "PREREQUISITES:"
@@ -24,9 +24,15 @@ if [ $# -lt 3 ]; then
     echo "This script runs annotation workflow (Steps 7-9) EFFICIENTLY:"
     echo "  Discovers existing VCF files from previous QC run (--resume-from-vcf)"
     echo "  Skips Steps 1-6 completely - no duplication of work!"
-    echo "  7. Filter variants"
+    echo "  7. Filter variants (lofreq filter with depth + quality thresholds)"
     echo "  8. Annotate variants with snpEff"
     echo "  9. Parse annotations"
+    echo ""
+    echo "Options:"
+    echo "  --min-depth N    Minimum read depth (default: 200)"
+    echo "  --min-qual N     Minimum variant quality, phred (default: 90)"
+    echo "  --large-files    High-memory mode for large files (1-5GB)"
+    echo "  --extremely-large-files  Extreme memory mode for >5GB files"
     echo ""
     echo "Environment variables (set before running):"
     echo "  SNPEFF_HOME     - Path to SnpEff installation"
@@ -38,21 +44,41 @@ fi
 R1=$1
 R2=$2
 ACCESSION=$3
-THREADS=${4:-4}
+THREADS=4
 LARGE_FILES_FLAG=""
+MIN_DEPTH=200
+MIN_QUAL=90
 
-# Check if memory flags are provided
-if [ $# -ge 4 ] && [ "$4" == "--large-files" ]; then
-    LARGE_FILES_FLAG="--large-files"
-    THREADS=4
-elif [ $# -ge 4 ] && [ "$4" == "--extremely-large-files" ]; then
-    LARGE_FILES_FLAG="--extremely-large-files"
-    THREADS=4
-elif [ $# -ge 5 ] && [ "$5" == "--large-files" ]; then
-    LARGE_FILES_FLAG="--large-files"
-elif [ $# -ge 5 ] && [ "$5" == "--extremely-large-files" ]; then
-    LARGE_FILES_FLAG="--extremely-large-files"
-fi
+# Parse optional flags from all remaining arguments
+shift 3  # Remove R1, R2, ACCESSION
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --large-files)
+            LARGE_FILES_FLAG="--large-files"
+            ;;
+        --extremely-large-files)
+            LARGE_FILES_FLAG="--extremely-large-files"
+            ;;
+        --min-depth)
+            shift
+            MIN_DEPTH="$1"
+            ;;
+        --min-qual)
+            shift
+            MIN_QUAL="$1"
+            ;;
+        *)
+            # Treat first bare number as threads
+            if [[ "$1" =~ ^[0-9]+$ ]] && [ "$THREADS" -eq 4 ]; then
+                THREADS="$1"
+            else
+                echo "Unknown option: $1"
+                exit 1
+            fi
+            ;;
+    esac
+    shift
+done
 
 # =============================================================================
 # Configuration Loading
@@ -137,6 +163,8 @@ echo "  R1: $R1"
 echo "  R2: $R2"
 echo "  Accession: $ACCESSION"
 echo "  Threads: $THREADS"
+echo "  Min depth: $MIN_DEPTH"
+echo "  Min qual:  $MIN_QUAL (phred)"
 echo "============================================="
 echo ""
 
@@ -197,26 +225,22 @@ echo "✓ Discovering existing VCF files from previous QC run..."
 echo "✓ Running Steps 7-9 only (filter, annotate, parse)..."
 echo ""
 
+PIPELINE_CMD="stdbuf -oL -eL python -u ${PIPELINE_DIR}/viral_pipeline.py \
+    --r1 \"$R1\" \
+    --r2 \"$R2\" \
+    --accession \"$ACCESSION\" \
+    --threads $THREADS \
+    --snpeff-jar \"$SNPEFF_JAR\" \
+    --java-path \"$JAVA_PATH\" \
+    --min-depth $MIN_DEPTH \
+    --min-qual $MIN_QUAL \
+    --resume-from-vcf"
+
 if [ -n "$LARGE_FILES_FLAG" ]; then
-    stdbuf -oL -eL python -u ${PIPELINE_DIR}/viral_pipeline.py \
-        --r1 "$R1" \
-        --r2 "$R2" \
-        --accession "$ACCESSION" \
-        --threads $THREADS \
-        --snpeff-jar "$SNPEFF_JAR" \
-        --java-path "$JAVA_PATH" \
-        --resume-from-vcf \
-        $LARGE_FILES_FLAG
-else
-    stdbuf -oL -eL python -u ${PIPELINE_DIR}/viral_pipeline.py \
-        --r1 "$R1" \
-        --r2 "$R2" \
-        --accession "$ACCESSION" \
-        --threads $THREADS \
-        --snpeff-jar "$SNPEFF_JAR" \
-        --java-path "$JAVA_PATH" \
-        --resume-from-vcf
+    PIPELINE_CMD="$PIPELINE_CMD $LARGE_FILES_FLAG"
 fi
+
+eval $PIPELINE_CMD
 
 PIPELINE_EXIT_CODE=$?
 

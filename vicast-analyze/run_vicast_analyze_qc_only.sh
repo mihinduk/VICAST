@@ -15,7 +15,7 @@ set -e  # Exit on error
 
 # Check arguments
 if [ $# -lt 3 ]; then
-    echo "Usage: $0 <R1_fastq> <R2_fastq> <accession> [threads] [--large-files|--extremely-large-files]"
+    echo "Usage: $0 <R1_fastq> <R2_fastq> <accession> [threads] [OPTIONS]"
     echo "Example: $0 sample_R1.fastq.gz sample_R2.fastq.gz GQ433359.1 4"
     echo ""
     echo "This script runs QC workflow (Steps 1-6):"
@@ -25,6 +25,10 @@ if [ $# -lt 3 ]; then
     echo "  4. Map reads and call variants"
     echo "  5. Generate depth file"
     echo "  6. Run diagnostic report"
+    echo ""
+    echo "Options:"
+    echo "  --large-files    High-memory mode for large files (1-5GB)"
+    echo "  --extremely-large-files  Extreme memory mode for >5GB files"
     echo ""
     echo "Environment variables (set before running):"
     echo "  SNPEFF_HOME     - Path to SnpEff installation"
@@ -41,21 +45,31 @@ fi
 R1=$1
 R2=$2
 ACCESSION=$3
-THREADS=${4:-4}
+THREADS=4
 LARGE_FILES_FLAG=""
 
-# Check if memory flags are provided
-if [ $# -ge 4 ] && [ "$4" == "--large-files" ]; then
-    LARGE_FILES_FLAG="--large-files"
-    THREADS=4
-elif [ $# -ge 4 ] && [ "$4" == "--extremely-large-files" ]; then
-    LARGE_FILES_FLAG="--extremely-large-files"
-    THREADS=4
-elif [ $# -ge 5 ] && [ "$5" == "--large-files" ]; then
-    LARGE_FILES_FLAG="--large-files"
-elif [ $# -ge 5 ] && [ "$5" == "--extremely-large-files" ]; then
-    LARGE_FILES_FLAG="--extremely-large-files"
-fi
+# Parse optional flags from all remaining arguments
+shift 3  # Remove R1, R2, ACCESSION
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --large-files)
+            LARGE_FILES_FLAG="--large-files"
+            ;;
+        --extremely-large-files)
+            LARGE_FILES_FLAG="--extremely-large-files"
+            ;;
+        *)
+            # Treat first bare number as threads
+            if [[ "$1" =~ ^[0-9]+$ ]] && [ "$THREADS" -eq 4 ]; then
+                THREADS="$1"
+            else
+                echo "Unknown option: $1"
+                exit 1
+            fi
+            ;;
+    esac
+    shift
+done
 
 # =============================================================================
 # Configuration Loading
@@ -322,16 +336,18 @@ if [ $PIPELINE_EXIT_CODE -eq 0 ]; then
     echo ""
     echo "  Review QC outputs, then continue with annotation (Steps 7-9):"
     echo ""
-    echo "  Basic annotation (recommended):"
-    echo "    $(pwd)/run_vicast_analyze_annotate_only.sh $R1 $R2 $ACCESSION"
+    echo "  Step 7 applies lofreq filter before annotation with these defaults:"
+    echo "    --min-depth 200   Minimum read depth (lofreq -v)"
+    echo "    --min-qual  90    Minimum variant quality, phred (lofreq -Q/-K)"
     echo ""
-    echo "  With custom quality threshold (default: min_depth=200, min_qual=1000):"
-    echo "    # Edit filtered VCF parameters in viral_pipeline.py or use different depth:"
-    echo "    # Step 7 filters: ≥1% freq, ≥200× depth, qual ≥1000 (high confidence)"
-    echo "    # Step 8 filters: 0.5-5% freq, ≥200× depth, qual ≥1000 (low frequency)"
+    echo "  Basic annotation (recommended defaults):"
+    echo "    run_vicast_analyze_annotate_only.sh $R1 $R2 $ACCESSION"
+    echo ""
+    echo "  With custom filter thresholds:"
+    echo "    run_vicast_analyze_annotate_only.sh $R1 $R2 $ACCESSION --min-depth 100 --min-qual 50"
     echo ""
     echo "  Or submit as SLURM job:"
-    echo "    sbatch --wrap=\"$(pwd)/run_vicast_analyze_annotate_only.sh $R1 $R2 $ACCESSION\""
+    echo "    sbatch --wrap=\"run_vicast_analyze_annotate_only.sh $R1 $R2 $ACCESSION\""
     echo ""
     echo "========================================"
 else

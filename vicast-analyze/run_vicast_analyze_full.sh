@@ -14,7 +14,7 @@ set -e  # Exit on error
 
 # Check arguments
 if [ $# -lt 3 ]; then
-    echo "Usage: $0 <R1_fastq> <R2_fastq> <accession> [threads] [--large-files|--extremely-large-files]"
+    echo "Usage: $0 <R1_fastq> <R2_fastq> <accession> [threads] [OPTIONS]"
     echo "Example: $0 sample_R1.fastq.gz sample_R2.fastq.gz GQ433359.1 4"
     echo ""
     echo "This script runs the complete workflow (Steps 1-9):"
@@ -24,9 +24,15 @@ if [ $# -lt 3 ]; then
     echo "  4. Map reads and call variants"
     echo "  5. Generate depth file"
     echo "  6. Run diagnostic report"
-    echo "  7. Filter variants"
+    echo "  7. Filter variants (lofreq filter with depth + quality thresholds)"
     echo "  8. Annotate variants with snpEff"
     echo "  9. Parse annotations"
+    echo ""
+    echo "Options:"
+    echo "  --min-depth N    Minimum read depth (default: 200)"
+    echo "  --min-qual N     Minimum variant quality, phred (default: 90)"
+    echo "  --large-files    High-memory mode for large files (1-5GB)"
+    echo "  --extremely-large-files  Extreme memory mode for >5GB files"
     echo ""
     echo "For two-part workflow with manual review:"
     echo "  Part 1: run_vicast_analyze_qc_only.sh <R1> <R2> <accession>"
@@ -45,21 +51,41 @@ fi
 R1=$1
 R2=$2
 ACCESSION=$3
-THREADS=${4:-4}  # Default to 4 threads if not specified
+THREADS=4
 LARGE_FILES_FLAG=""
+MIN_DEPTH=200
+MIN_QUAL=90
 
-# Check if memory flags are provided (can be in position 4 or 5)
-if [ $# -ge 4 ] && [ "$4" == "--large-files" ]; then
-    LARGE_FILES_FLAG="--large-files"
-    THREADS=4  # Reset to default since flag was in threads position
-elif [ $# -ge 4 ] && [ "$4" == "--extremely-large-files" ]; then
-    LARGE_FILES_FLAG="--extremely-large-files"
-    THREADS=4  # Reset to default since flag was in threads position
-elif [ $# -ge 5 ] && [ "$5" == "--large-files" ]; then
-    LARGE_FILES_FLAG="--large-files"
-elif [ $# -ge 5 ] && [ "$5" == "--extremely-large-files" ]; then
-    LARGE_FILES_FLAG="--extremely-large-files"
-fi
+# Parse optional flags from all remaining arguments
+shift 3  # Remove R1, R2, ACCESSION
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --large-files)
+            LARGE_FILES_FLAG="--large-files"
+            ;;
+        --extremely-large-files)
+            LARGE_FILES_FLAG="--extremely-large-files"
+            ;;
+        --min-depth)
+            shift
+            MIN_DEPTH="$1"
+            ;;
+        --min-qual)
+            shift
+            MIN_QUAL="$1"
+            ;;
+        *)
+            # Treat first bare number as threads
+            if [[ "$1" =~ ^[0-9]+$ ]] && [ "$THREADS" -eq 4 ]; then
+                THREADS="$1"
+            else
+                echo "Unknown option: $1"
+                exit 1
+            fi
+            ;;
+    esac
+    shift
+done
 
 # =============================================================================
 # Configuration Loading
@@ -156,6 +182,8 @@ echo "  R1: $R1"
 echo "  R2: $R2"
 echo "  Accession: $ACCESSION"
 echo "  Threads: $THREADS"
+echo "  Min depth: $MIN_DEPTH"
+echo "  Min qual:  $MIN_QUAL (phred)"
 echo "  Memory mode: $(if [ "$LARGE_FILES_FLAG" == "--extremely-large-files" ]; then echo "extreme (256GB)"; elif [ "$LARGE_FILES_FLAG" == "--large-files" ]; then echo "large (64GB)"; else echo "standard (32GB)"; fi)"
 echo "  Working directory: $(pwd)"
 
@@ -222,25 +250,22 @@ export PYTHONUNBUFFERED=1
 # Run the pipeline with unbuffered I/O
 # stdbuf forces line-buffered output, python -u disables Python buffering
 echo "Starting pipeline with real-time progress indicators..."
+PIPELINE_CMD="stdbuf -oL -eL python -u ${PIPELINE_DIR}/viral_pipeline.py \
+    --r1 \"$R1\" \
+    --r2 \"$R2\" \
+    --accession \"$ACCESSION\" \
+    --threads $THREADS \
+    --snpeff-jar \"$SNPEFF_JAR\" \
+    --java-path \"$JAVA_PATH\" \
+    --min-depth $MIN_DEPTH \
+    --min-qual $MIN_QUAL"
+
 if [ -n "$LARGE_FILES_FLAG" ]; then
     echo "Using $LARGE_FILES_FLAG for increased memory allocation"
-    stdbuf -oL -eL python -u ${PIPELINE_DIR}/viral_pipeline.py \
-        --r1 "$R1" \
-        --r2 "$R2" \
-        --accession "$ACCESSION" \
-        --threads $THREADS \
-        --snpeff-jar "$SNPEFF_JAR" \
-        --java-path "$JAVA_PATH" \
-        --large-files
-else
-    stdbuf -oL -eL python -u ${PIPELINE_DIR}/viral_pipeline.py \
-        --r1 "$R1" \
-        --r2 "$R2" \
-        --accession "$ACCESSION" \
-        --threads $THREADS \
-        --snpeff-jar "$SNPEFF_JAR" \
-        --java-path "$JAVA_PATH"
+    PIPELINE_CMD="$PIPELINE_CMD $LARGE_FILES_FLAG"
 fi
+
+eval $PIPELINE_CMD
 
 PIPELINE_EXIT_CODE=$?
 

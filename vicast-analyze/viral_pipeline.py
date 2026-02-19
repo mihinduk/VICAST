@@ -90,7 +90,8 @@ def parse_args() -> argparse.Namespace:
     # Output options
     output_group = parser.add_argument_group("Output")
     output_group.add_argument("--outdir", default=".", help="Output directory")
-    output_group.add_argument("--min-depth", type=int, default=200, help="Minimum read depth for final variant reporting")
+    output_group.add_argument("--min-depth", type=int, default=200, help="Minimum read depth for lofreq filter (default: 200)")
+    output_group.add_argument("--min-qual", type=int, default=90, help="Minimum variant quality (phred) for lofreq filter (default: 90)")
     output_group.add_argument("--keep-tmp", action="store_true", help="Keep temporary files")
     
     # Performance options
@@ -983,14 +984,16 @@ def map_and_call_variants(
     logger.info(f"Mapping and variant calling completed for {len(result_files)} samples")
     return result_files
 
-def filter_variants(variants_dir: str, specific_files: Dict[str, Dict[str, str]]) -> Dict[str, str]:
+def filter_variants(variants_dir: str, specific_files: Dict[str, Dict[str, str]], min_depth: int = 200, min_qual: int = 90) -> Dict[str, str]:
     """
     Filter variant calls from LoFreq.
-    
+
     Args:
         variants_dir: Directory containing variant files
         specific_files: Dictionary of specific files to filter (from variant calling step) - REQUIRED
-        
+        min_depth: Minimum read depth for variant filter (lofreq -v)
+        min_qual: Minimum variant quality in phred (lofreq -Q for SNVs, -K for indels)
+
     Returns:
         Dictionary mapping sample names to filtered variant files
     """
@@ -1025,9 +1028,10 @@ def filter_variants(variants_dir: str, specific_files: Dict[str, Dict[str, str]]
             logger.info(f"Removing existing filtered file: {filtered_path}")
             os.remove(filtered_path)
       
-        # Run LoFreq filter
+        # Run LoFreq filter with depth and quality thresholds
+        logger.info(f"  Filters: min_depth={min_depth}, min_qual(SNV)={min_qual}, min_qual(indel)={min_qual}")
         run_command(
-            f"lofreq filter -i {vcf_path} -o {filtered_path} -v 75",
+            f"lofreq filter -i {vcf_path} -o {filtered_path} -v {min_depth} -Q {min_qual} -K {min_qual}",
             shell=True
         )
         
@@ -1725,7 +1729,7 @@ def main():
         if not args.skip_variants:
             print_step_header(current_step, total_steps, "Filter Variants")
             variants_dir = os.path.join(cleaned_dir, "variants")
-            filtered_files = filter_variants(variants_dir, variant_files)
+            filtered_files = filter_variants(variants_dir, variant_files, min_depth=args.min_depth, min_qual=args.min_qual)
             output_files = [os.path.join(variants_dir, v) for v in filtered_files.values() if v]
             print_step_complete("Variant filtering completed", output_files)
         else:
