@@ -276,9 +276,12 @@ if [ $PIPELINE_EXIT_CODE -eq 0 ]; then
     
     # Extract sample name from R1 filename to only show files for current sample
     SAMPLE_NAME=$(basename "$R1" | sed -E "s/_R?[12](_[0-9]+)?..*$//")
-    
+
+    # Use HOST_PWD for display paths (set via -e HOST_PWD=$(pwd) in docker run)
+    DISPLAY_DIR="${HOST_PWD:-$(pwd)}"
+
     echo "Output files:"
-    find ./cleaned_seqs/variants -name "*${SAMPLE_NAME}*.tsv" -o -name "*${SAMPLE_NAME}*.vcf" 2>/dev/null | sort
+    find "$(pwd)/cleaned_seqs/variants" -name "*${SAMPLE_NAME}*.tsv" -o -name "*${SAMPLE_NAME}*.vcf" 2>/dev/null | sed "s|$(pwd)|${DISPLAY_DIR}|" | sort
     echo ""
     # Convert filtered VCF to TSV with expanded INFO columns
     BASE_SAMPLE=$(echo "$SAMPLE_NAME" | sed -E 's/_[12]$//')
@@ -291,11 +294,11 @@ if [ $PIPELINE_EXIT_CODE -eq 0 ]; then
 
     echo "Key results:"
     if ls ./cleaned_seqs/variants/*${SAMPLE_NAME}*.snpEFF.ann.tsv >/dev/null 2>&1; then
-        echo "  Annotation TSV: $(ls ./cleaned_seqs/variants/*${SAMPLE_NAME}*.snpEFF.ann.tsv | head -1)"
+        echo "  Annotation TSV: ${DISPLAY_DIR}/cleaned_seqs/variants/$(basename $(ls ./cleaned_seqs/variants/*${SAMPLE_NAME}*.snpEFF.ann.tsv | head -1))"
         echo "  Total annotated variants: $(wc -l < $(ls ./cleaned_seqs/variants/*${SAMPLE_NAME}*.snpEFF.ann.tsv | head -1))"
     fi
     if [ -f "$FILT_TSV" ]; then
-        echo "  Variant TSV:    $FILT_TSV"
+        echo "  Variant TSV:    ${DISPLAY_DIR}/cleaned_seqs/variants/$(basename "$FILT_TSV")"
     fi
 else
     echo "Pipeline failed with exit code $PIPELINE_EXIT_CODE"

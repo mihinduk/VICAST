@@ -289,6 +289,9 @@ if [ $PIPELINE_EXIT_CODE -eq 0 ]; then
     # Extract sample name (match Python's logic: strip _R1/_R2/_1/_2 and _001 suffix)
     SAMPLE_NAME=$(basename "$R1" | sed -E 's/(_R?[12])?(_001)?\.fastq\.gz$//')
 
+    # Use HOST_PWD for display paths (set via -e HOST_PWD=$(pwd) in docker run)
+    DISPLAY_DIR="${HOST_PWD:-$(pwd)}"
+
     echo ""
     echo "========================================"
     echo "OK: QC WORKFLOW COMPLETED (Steps 1-6)"
@@ -305,21 +308,21 @@ if [ $PIPELINE_EXIT_CODE -eq 0 ]; then
     echo "REVIEW THE FOLLOWING QC OUTPUTS:"
     echo ""
     echo "1. Depth File:"
-    echo "   $(pwd)/${SAMPLE_NAME}_results/${SAMPLE_NAME}_depth.txt"
+    echo "   ${DISPLAY_DIR}/${SAMPLE_NAME}_results/${SAMPLE_NAME}_depth.txt"
     echo ""
     echo "2. Diagnostic Report:"
-    echo "   $(pwd)/diagnostic_${SAMPLE_NAME}/${SAMPLE_NAME}_diagnostic_report.txt"
-    echo "   $(pwd)/diagnostic_${SAMPLE_NAME}/diagnostic_${SAMPLE_NAME}_presentation_ready_report.html"
+    echo "   ${DISPLAY_DIR}/diagnostic_${SAMPLE_NAME}/${SAMPLE_NAME}_diagnostic_report.txt"
+    echo "   ${DISPLAY_DIR}/diagnostic_${SAMPLE_NAME}/diagnostic_${SAMPLE_NAME}_presentation_ready_report.html"
     echo ""
     echo "3. VCF Files:"
     # Extract base sample name without _R1/_R2/_1/_2 suffix for VCF matching
     BASE_SAMPLE=$(echo "$SAMPLE_NAME" | sed -E 's/_[12]$//')
-    find $(pwd)/cleaned_seqs/variants -name "${BASE_SAMPLE}*.vcf" 2>/dev/null | head -10
+    find "$(pwd)/cleaned_seqs/variants" -name "${BASE_SAMPLE}*.vcf" 2>/dev/null | sed "s|$(pwd)|${DISPLAY_DIR}|" | head -10
     if [ -f "$(pwd)/cleaned_seqs/variants/${BASE_SAMPLE}_vars.vcf" ]; then
-        echo "   Unfiltered: $(pwd)/cleaned_seqs/variants/${BASE_SAMPLE}_vars.vcf"
+        echo "   Unfiltered: ${DISPLAY_DIR}/cleaned_seqs/variants/${BASE_SAMPLE}_vars.vcf"
     fi
     if [ -f "$(pwd)/cleaned_seqs/variants/${BASE_SAMPLE}_vars.filt.vcf" ]; then
-        echo "   Filtered:   $(pwd)/cleaned_seqs/variants/${BASE_SAMPLE}_vars.filt.vcf"
+        echo "   Filtered:   ${DISPLAY_DIR}/cleaned_seqs/variants/${BASE_SAMPLE}_vars.filt.vcf"
         # Convert filtered VCF to TSV with expanded INFO columns
         FILT_VCF="$(pwd)/cleaned_seqs/variants/${BASE_SAMPLE}_vars.filt.vcf"
         FILT_TSV="$(pwd)/cleaned_seqs/variants/${BASE_SAMPLE}_vars.filt.tsv"
@@ -328,7 +331,7 @@ if [ $PIPELINE_EXIT_CODE -eq 0 ]; then
         python "${PIPELINE_DIR}/vcf_to_tsv.py" "$FILT_VCF" -o "$FILT_TSV" --split-dp4 2>&1 || \
             echo "   WARNING: VCF-to-TSV conversion failed"
         if [ -f "$FILT_TSV" ]; then
-            echo "   $FILT_TSV"
+            echo "   ${DISPLAY_DIR}/cleaned_seqs/variants/${BASE_SAMPLE}_vars.filt.tsv"
         fi
     fi
     echo ""

@@ -250,18 +250,21 @@ if [ $PIPELINE_EXIT_CODE -eq 0 ]; then
     echo "✓ ANNOTATION WORKFLOW COMPLETED (Steps 7-9)"
     echo "============================================="
     echo ""
+    # Use HOST_PWD for display paths (set via -e HOST_PWD=$(pwd) in docker run)
+    DISPLAY_DIR="${HOST_PWD:-$(pwd)}"
+
     echo "OUTPUT FILES:"
     echo "  Annotation files:"
-    find "$(pwd)/cleaned_seqs/variants" -name "*${SAMPLE_NAME}*.snpEFF.ann.tsv" 2>/dev/null | head -5 | sed 's/^/    /'
+    find "$(pwd)/cleaned_seqs/variants" -name "*${SAMPLE_NAME}*.snpEFF.ann.tsv" 2>/dev/null | sed "s|$(pwd)|${DISPLAY_DIR}|" | head -5 | sed 's/^/    /'
     echo "  Parsed files (min depth ${MIN_DEPTH}):"
-    find "$(pwd)/cleaned_seqs/variants" -name "*${SAMPLE_NAME}*_${MIN_DEPTH}.tsv" 2>/dev/null | head -5 | sed 's/^/    /'
+    find "$(pwd)/cleaned_seqs/variants" -name "*${SAMPLE_NAME}*_${MIN_DEPTH}.tsv" 2>/dev/null | sed "s|$(pwd)|${DISPLAY_DIR}|" | head -5 | sed 's/^/    /'
     echo "  Summary files:"
-    find "$(pwd)/cleaned_seqs/variants" -name "*${SAMPLE_NAME}*summary*" 2>/dev/null | head -5 | sed 's/^/    /'
+    find "$(pwd)/cleaned_seqs/variants" -name "*${SAMPLE_NAME}*summary*" 2>/dev/null | sed "s|$(pwd)|${DISPLAY_DIR}|" | head -5 | sed 's/^/    /'
 
     # Show all annotation files if sample name match fails
     if [ -z "$(find "$(pwd)/cleaned_seqs/variants" -name "*${SAMPLE_NAME}*.snpEFF.ann.tsv" 2>/dev/null)" ]; then
         echo "  All recent annotation files:"
-        find "$(pwd)/cleaned_seqs/variants" -name "*.snpEFF.ann.tsv" 2>/dev/null | head -5 | sed 's/^/    /'
+        find "$(pwd)/cleaned_seqs/variants" -name "*.snpEFF.ann.tsv" 2>/dev/null | sed "s|$(pwd)|${DISPLAY_DIR}|" | head -5 | sed 's/^/    /'
     fi
     echo ""
     echo "Pipeline completed successfully!"
