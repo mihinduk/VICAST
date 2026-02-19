@@ -114,10 +114,11 @@ def parse_args() -> argparse.Namespace:
 
 def download_reference_genome(accession: str, output_dir: str, force: bool = False) -> str:
     """
-    Download a reference genome from NCBI using BioPython Entrez.
+    Get a reference genome: try NCBI download first, then fall back to
+    SnpEff database sequences.fa for custom genomes (e.g. segmented viruses).
 
     Args:
-        accession: The genome accession number (e.g., NC_045512.2)
+        accession: The genome accession number (e.g., NC_045512.2) or custom name
         output_dir: Directory to save the downloaded genome
         force: Force download even if the file exists
 
@@ -135,30 +136,68 @@ def download_reference_genome(accession: str, output_dir: str, force: bool = Fal
     logger.info(f"Downloading reference genome: {accession}")
 
     # Use BioPython Entrez (more reliable than command-line tools)
+    ncbi_success = False
     try:
         handle = Entrez.efetch(db="nucleotide", id=accession,
                                rettype="fasta", retmode="text")
         with open(output_file, 'w') as f:
             f.write(handle.read())
         handle.close()
-        logger.info(f"Reference genome downloaded successfully via BioPython")
+        # Verify it's a real FASTA (not an error page)
+        with open(output_file) as f:
+            first_line = f.readline().strip()
+        if first_line.startswith(">"):
+            ncbi_success = True
+            logger.info(f"Reference genome downloaded successfully via BioPython")
+        else:
+            logger.warning(f"NCBI returned non-FASTA content for {accession}")
     except Exception as e:
-        # Fall back to wget if BioPython fails
         logger.warning(f"BioPython Entrez failed: {e}")
+
+    if not ncbi_success:
+        # Fall back to wget
         logger.info("Falling back to NCBI E-utilities via wget")
         try:
             ncbi_url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nucleotide&id={accession}&rettype=fasta&retmode=text"
-            cmd = f"wget -O {output_file} \"{ncbi_url}\""
-            logger.debug(f"Running command: {cmd}")
+            cmd = f"wget -q -O {output_file} \"{ncbi_url}\""
             subprocess.run(cmd, shell=True, check=True)
+            with open(output_file) as f:
+                first_line = f.readline().strip()
+            if first_line.startswith(">"):
+                ncbi_success = True
         except subprocess.SubprocessError:
-            raise RuntimeError(f"Failed to download reference genome: {accession}")
+            pass
+
+    if not ncbi_success:
+        # Fall back to SnpEff database sequences.fa (for custom genomes)
+        logger.info(f"NCBI download failed for '{accession}', checking SnpEff database")
+        snpeff_data_dirs = [
+            os.environ.get("SNPEFF_DATA_CUSTOM", "/opt/vicast/snpeff_data_custom"),
+            os.environ.get("SNPEFF_DATA", ""),
+            os.environ.get("SNPEFF_DATA_BUILTIN", ""),
+        ]
+        for data_dir in snpeff_data_dirs:
+            if not data_dir:
+                continue
+            seq_path = os.path.join(data_dir, accession, "sequences.fa")
+            if os.path.exists(seq_path) and os.path.getsize(seq_path) > 0:
+                logger.info(f"Found reference in SnpEff database: {seq_path}")
+                shutil.copy2(seq_path, output_file)
+                ncbi_success = True
+                break
+
+    if not ncbi_success:
+        raise RuntimeError(
+            f"Failed to obtain reference genome for '{accession}'. "
+            f"Not a valid NCBI accession and not found in SnpEff database. "
+            f"Use --reference to provide a local FASTA file."
+        )
 
     # Verify the downloaded file
     if not os.path.exists(output_file) or os.path.getsize(output_file) == 0:
-        raise RuntimeError(f"Downloaded reference genome file is empty or missing: {output_file}")
+        raise RuntimeError(f"Reference genome file is empty or missing: {output_file}")
 
-    logger.info(f"Reference genome downloaded to: {output_file}")
+    logger.info(f"Reference genome ready: {output_file}")
     return output_file
 
 def run_command(cmd: Union[str, List[str]], shell: bool = False, check: bool = True) -> subprocess.CompletedProcess:
