@@ -1101,23 +1101,42 @@ def annotate_variants(variants_dir: str, accession: str, snpeff_jar: str, java_p
             os.remove(ann_vcf)
       
         # Fix VCF file to remove problematic IUB ambiguity codes that can cause snpEff to fail
+        # IUB codes like R, Y, S, W, K, M etc. in ALT field cause snpEff errors
         logger.info(f"Fixing VCF file to remove problematic IUB ambiguity codes: {filt_path}")
         try:
-            from fix_vcf_for_snpeff import fix_vcf_for_snpeff
-            fix_vcf_for_snpeff(filt_path)
+            valid_bases = set("ACGTNacgtn.,*")
+            fixed_lines = []
+            removed_count = 0
+            with open(filt_path, 'r') as f:
+                for line in f:
+                    if line.startswith('#'):
+                        fixed_lines.append(line)
+                    else:
+                        fields = line.rstrip('\n').split('\t')
+                        if len(fields) >= 5:
+                            alt = fields[4]
+                            # Check if ALT contains only valid bases (including multi-allelic commas)
+                            if all(c in valid_bases or c == ',' for c in alt):
+                                fixed_lines.append(line)
+                            else:
+                                removed_count += 1
+                        else:
+                            fixed_lines.append(line)
+            if removed_count > 0:
+                logger.info(f"Removed {removed_count} variants with IUB ambiguity codes")
+                with open(filt_path, 'w') as f:
+                    f.writelines(fixed_lines)
             logger.info(f"VCF file fixed successfully: {filt_path}")
-        except (ImportError, Exception) as e:
+        except Exception as e:
             logger.warning(f"Could not fix VCF file due to error: {str(e)}")
             logger.warning("Proceeding with original VCF file - snpEff may fail if problematic variants are present")
         
         # Validate the filtered VCF file
-        validate_cmd = f"grep -v '^#' {filt_path} | wc -l"
-        validate_result = run_command(validate_cmd, shell=True, check=False)
         variant_count_in_input = 0
-        try:
-            variant_count_in_input = int(validate_result.stdout.strip())
-        except (ValueError, AttributeError):
-            pass
+        with open(filt_path, 'r') as f:
+            for line in f:
+                if not line.startswith('#'):
+                    variant_count_in_input += 1
         
         logger.info(f"Input VCF contains {variant_count_in_input} variants")
         
@@ -1217,76 +1236,47 @@ def annotate_variants(variants_dir: str, accession: str, snpeff_jar: str, java_p
         if os.path.exists(safe_filt_path):
             os.remove(safe_filt_path)
         
-        # Process the VCF file into TSV format
+        # Process the annotated VCF file into TSV format (pure Python - no shell dependency)
         logger.info(f"Converting VCF to TSV for {sample_name}")
-        
-        # Check if the VCF file actually contains variants
-        check_variants_cmd = f"grep -v '^#' {ann_vcf} | wc -l"
-        variant_check = run_command(check_variants_cmd, shell=True, check=False)
-        variant_count = 0
+
+        ann_info_header = ["INFO", "EFFECT", "PUTATIVE_IMPACT", "GENE_NAME", "GENE_ID",
+                           "FEATURE_TYPE", "FEATURE_ID", "TRANSCRIPT_TYPE", "EXON_INTRON_RANK",
+                           "HGVSc", "HGVSp", "cDNA_POSITION_AND_LENGTH", "CDS_POSITION_AND_LENGTH",
+                           "PROTEIN_POSITION_AND_LENGTH", "DISTANCE_TO_FEATURE", "ERROR"]
+        base_header = ["CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER"]
+        full_header = base_header + ann_info_header
+
         try:
-            variant_count = int(variant_check.stdout.strip())
-        except (ValueError, AttributeError):
-            logger.warning(f"Could not determine variant count from: {variant_check.stdout}")
-        
-        if variant_count == 0:
-            logger.warning(f"No variants found in {ann_vcf}. Creating empty TSV file.")
-            # Create an empty TSV file with just a header
-            header = "CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tEFFECT\tPUTATIVE_IMPACT\tGENE_NAME\tGENE_ID\tFEATURE_TYPE\tFEATURE_ID\tTRANSCRIPT_TYPE\tEXON_INTRON_RANK\tHGVSc\tHGVSp\tcDNA_POSITION_AND_LENGTH\tCDS_POSITION_AND_LENGTH\tPROTEIN_POSITION_AND_LENGTH\tDISTANCE_TO_FEATURE\tERROR"
+            data_lines = []
+            with open(ann_vcf, 'r') as f:
+                for line in f:
+                    if line.startswith('#'):
+                        continue
+                    fields = line.rstrip('\n').split('\t')
+                    if len(fields) < 8:
+                        continue
+                    base_cols = fields[:7]
+                    info_field = fields[7]
+                    # Split INFO field on '|' to extract snpEff annotation columns
+                    info_parts = info_field.split('|')
+                    # Take first 16 fields (INFO + 15 annotation columns)
+                    if len(info_parts) >= 16:
+                        ann_cols = info_parts[:16]
+                    else:
+                        ann_cols = info_parts + [''] * (16 - len(info_parts))
+                    data_lines.append(base_cols + ann_cols)
+
+            logger.info(f"Found {len(data_lines)} annotated variants in output VCF")
+
             with open(ann_tsv, 'w') as f:
-                f.write(header + "\n")
-        else:
-            logger.info(f"Found {variant_count} annotated variants in output VCF")
-            # Create temporary files
-            tmp_base = os.path.join(variants_dir, f"{sample_name}.ann.base.vcf")
-            tmp_info = os.path.join(variants_dir, f"{sample_name}.snpEFF.ann.tmp")
-            
-            try:
-                # Use more robust shell commands with explicit error handling
-                # Extract annotations using simpler, more reliable commands
-                extract_cmd = (
-                    f"set -o pipefail; "
-                    f"grep -v '^##' {ann_vcf} | "
-                    f"tail -n +2 | "
-                    f"cut -f8 | "
-                    f"sed 's/|/\\t/g' | "
-                    f"awk '{{if (NF >= 16) print $1\"\\t\"$2\"\\t\"$3\"\\t\"$4\"\\t\"$5\"\\t\"$6\"\\t\"$7\"\\t\"$8\"\\t\"$9\"\\t\"$10\"\\t\"$11\"\\t\"$12\"\\t\"$13\"\\t\"$14\"\\t\"$15\"\\t\"$16; else print $0}}' | "
-                    f"sed '1i INFO\\tEFFECT\\tPUTATIVE_IMPACT\\tGENE_NAME\\tGENE_ID\\tFEATURE_TYPE\\tFEATURE_ID\\tTRANSCRIPT_TYPE\\tEXON_INTRON_RANK\\tHGVSc\\tHGVSp\\tcDNA_POSITION_AND_LENGTH\\tCDS_POSITION_AND_LENGTH\\tPROTEIN_POSITION_AND_LENGTH\\tDISTANCE_TO_FEATURE\\tERROR' > {tmp_info}"
-                )
-                result = run_command(extract_cmd, shell=True, check=False)
-
-                # Extract base VCF information with error handling
-                base_cmd = f"set -o pipefail; grep -v '^##' {ann_vcf} | cut -f1-7 > {tmp_base}"
-                base_result = run_command(base_cmd, shell=True, check=False)
-
-                # Check if both files exist and are not empty
-                if (os.path.exists(tmp_base) and os.path.exists(tmp_info) and
-                    os.path.getsize(tmp_base) > 0 and os.path.getsize(tmp_info) > 0):
-                    # Combine into final TSV with error handling
-                    combine_cmd = f"set -o pipefail; paste {tmp_base} {tmp_info} > {ann_tsv}"
-                    combine_result = run_command(combine_cmd, shell=True, check=False)
-
-                    # Verify the final file was created successfully
-                    if not os.path.exists(ann_tsv) or os.path.getsize(ann_tsv) == 0:
-                        raise Exception("Final TSV file was not created or is empty")
-
-                else:
-                    logger.warning(f"Temporary files missing or empty. Creating basic TSV file.")
-                    header = "CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tEFFECT\tPUTATIVE_IMPACT\tGENE_NAME\tGENE_ID\tFEATURE_TYPE\tFEATURE_ID\tTRANSCRIPT_TYPE\tEXON_INTRON_RANK\tHGVSc\tHGVSp\tcDNA_POSITION_AND_LENGTH\tCDS_POSITION_AND_LENGTH\tPROTEIN_POSITION_AND_LENGTH\tDISTANCE_TO_FEATURE\tERROR"
-                    with open(ann_tsv, 'w') as f:
-                        f.write(header + "\n")
-            except Exception as e:
-                logger.error(f"Error converting VCF to TSV: {str(e)}")
-                logger.warning(f"Creating basic TSV file as fallback")
-                header = "CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tEFFECT\tPUTATIVE_IMPACT\tGENE_NAME\tGENE_ID\tFEATURE_TYPE\tFEATURE_ID\tTRANSCRIPT_TYPE\tEXON_INTRON_RANK\tHGVSc\tHGVSp\tcDNA_POSITION_AND_LENGTH\tCDS_POSITION_AND_LENGTH\tPROTEIN_POSITION_AND_LENGTH\tDISTANCE_TO_FEATURE\tERROR"
-                with open(ann_tsv, 'w') as f:
-                    f.write(header + "\n")
-            finally:
-                # Cleanup temporary files
-                if os.path.exists(tmp_base):
-                    os.remove(tmp_base)
-                if os.path.exists(tmp_info):
-                    os.remove(tmp_info)
+                f.write('\t'.join(full_header) + '\n')
+                for row in data_lines:
+                    f.write('\t'.join(row) + '\n')
+        except Exception as e:
+            logger.error(f"Error converting VCF to TSV: {str(e)}")
+            logger.warning(f"Creating basic TSV file as fallback")
+            with open(ann_tsv, 'w') as f:
+                f.write('\t'.join(full_header) + '\n')
         
         # Check for ERROR_CHROMOSOME_NOT_FOUND
         if os.path.exists(ann_tsv) and os.path.getsize(ann_tsv) > 0:
