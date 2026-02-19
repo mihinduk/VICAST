@@ -1145,7 +1145,7 @@ def annotate_variants(variants_dir: str, accession: str, snpeff_jar: str, java_p
             # Create empty files
             with open(ann_vcf, 'w') as f:
                 f.write("")
-            header = "CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tEFFECT\tPUTATIVE_IMPACT\tGENE_NAME\tGENE_ID\tFEATURE_TYPE\tFEATURE_ID\tTRANSCRIPT_TYPE\tEXON_INTRON_RANK\tHGVSc\tHGVSp\tcDNA_POSITION_AND_LENGTH\tCDS_POSITION_AND_LENGTH\tPROTEIN_POSITION_AND_LENGTH\tDISTANCE_TO_FEATURE\tERROR"
+            header = "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tEFFECT\tPUTATIVE_IMPACT\tGENE_NAME\tGENE_ID\tFEATURE_TYPE\tFEATURE_ID\tTRANSCRIPT_TYPE\tEXON_INTRON_RANK\tHGVSc\tHGVSp\tcDNA_POSITION_AND_LENGTH\tCDS_POSITION_AND_LENGTH\tPROTEIN_POSITION_AND_LENGTH\tDISTANCE_TO_FEATURE\tERROR"
             with open(ann_tsv, 'w') as f:
                 f.write(header + "\n")
             # Add to annotation_files even for empty results
@@ -1269,14 +1269,15 @@ def annotate_variants(variants_dir: str, accession: str, snpeff_jar: str, java_p
             logger.info(f"Found {len(data_lines)} annotated variants in output VCF")
 
             with open(ann_tsv, 'w') as f:
-                f.write('\t'.join(full_header) + '\n')
+                # Prefix header with # so downstream Perl parser skips it
+                f.write('#' + '\t'.join(full_header) + '\n')
                 for row in data_lines:
                     f.write('\t'.join(row) + '\n')
         except Exception as e:
             logger.error(f"Error converting VCF to TSV: {str(e)}")
             logger.warning(f"Creating basic TSV file as fallback")
             with open(ann_tsv, 'w') as f:
-                f.write('\t'.join(full_header) + '\n')
+                f.write('#' + '\t'.join(full_header) + '\n')
         
         # Check for ERROR_CHROMOSOME_NOT_FOUND
         if os.path.exists(ann_tsv) and os.path.getsize(ann_tsv) > 0:
