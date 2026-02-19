@@ -241,20 +241,30 @@ def run_command(cmd: Union[str, List[str]], shell: bool = False, check: bool = T
 def check_snpeff_database(accession: str, snpeff_jar: str, java_path: str = "java") -> bool:
     """
     Check if a genome is in the snpEff database.
-    
+    Checks custom data directories first (fast, works offline),
+    then falls back to snpEff databases command for built-in genomes.
+
     Args:
         accession: Genome accession number
         snpeff_jar: Path to snpEff.jar
         java_path: Path to Java executable
-        
+
     Returns:
         True if the genome is in the database, False otherwise
     """
     logger.info(f"Checking if {accession} is in snpEff database")
-    
+
+    # Check data directories directly (works for custom databases)
+    snpeff_dir = os.path.dirname(snpeff_jar)
+    for data_dir in [os.environ.get("SNPEFF_DATA_CUSTOM", ""),
+                     os.environ.get("SNPEFF_DATA", ""),
+                     os.path.join(snpeff_dir, "data")]:
+        if data_dir and os.path.exists(os.path.join(data_dir, accession, "snpEffectPredictor.bin")):
+            return True
+
+    # Fallback: snpEff databases command (built-in genomes)
     cmd = f"{java_path} -jar {snpeff_jar} databases 2>/dev/null | grep {accession}"
     result = run_command(cmd, shell=True, check=False)
-    
     return result.returncode == 0
 
 def check_genome_complexity(accession: str, fasta_path: str) -> bool:
@@ -1068,17 +1078,37 @@ def annotate_variants(variants_dir: str, accession: str, snpeff_jar: str, java_p
     if not filt_files:
         raise FileNotFoundError(f"No filtered variant VCF files found in specific_files for {variants_dir}")
     
-    # Verify snpEff database has the genome
-    verify_cmd = f"{java_path} -jar {snpeff_jar} databases 2>/dev/null | grep -i {accession}"
-    verify_result = run_command(verify_cmd, shell=True, check=False)
-    
-    if verify_result.returncode != 0:
+    # Verify snpEff database has the genome by checking for database files directly
+    # (snpEff databases command only lists built-in DBs, not custom ones in data/)
+    snpeff_dir = os.path.dirname(snpeff_jar)
+    snpeff_data_dirs = [
+        os.environ.get("SNPEFF_DATA_CUSTOM", ""),
+        os.environ.get("SNPEFF_DATA", ""),
+        os.path.join(snpeff_dir, "data"),
+    ]
+    db_found = False
+    for data_dir in snpeff_data_dirs:
+        if not data_dir:
+            continue
+        predictor = os.path.join(data_dir, accession, "snpEffectPredictor.bin")
+        if os.path.exists(predictor):
+            logger.info(f"Verified genome {accession} exists in snpEff database: {data_dir}/{accession}/")
+            db_found = True
+            break
+
+    if not db_found:
+        # Fallback: try snpEff databases command (catches built-in genomes)
+        verify_cmd = f"{java_path} -jar {snpeff_jar} databases 2>/dev/null | grep -i {accession}"
+        verify_result = run_command(verify_cmd, shell=True, check=False)
+        if verify_result.returncode == 0:
+            logger.info(f"Verified genome {accession} exists in snpEff built-in database.")
+            db_found = True
+
+    if not db_found:
+        checked = [d for d in snpeff_data_dirs if d]
         logger.error(f"CRITICAL ERROR: Genome {accession} NOT FOUND in snpEff database!")
-        logger.error("Available genomes:")
-        run_command(f"{java_path} -jar {snpeff_jar} databases 2>/dev/null | grep -i corona", shell=True, check=False)
+        logger.error(f"Checked directories: {checked}")
         raise RuntimeError(f"Genome {accession} not found in snpEff database. Use --add-to-snpeff to add it.")
-    else:
-        logger.info(f"Verified genome {accession} exists in snpEff database.")
     
     annotation_files = {}
     
