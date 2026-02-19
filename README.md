@@ -18,6 +18,9 @@ VICAST provides systematic workflows for:
 - Integrated validation and testing functions
 - Automated project initialization and environment setup
 
+![VICAST Pipeline Overview](figures/VICAST_Fig_1.png)
+*Figure 1: Overview of the VICAST pipeline showing VICAST-Annotate (left) and VICAST-Analyze (right) modules with manual QC checkpoints.*
+
 ## Components
 
 ### VICAST-annotate
