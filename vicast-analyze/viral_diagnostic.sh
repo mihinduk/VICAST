@@ -431,13 +431,18 @@ if [ -d "assembly_${SAMPLE_NAME}" ]; then
 fi
 
 # MEGAHIT is available in current environment (no separate activation needed in Docker)
-# Build MEGAHIT command with conditional extreme memory settings
-MEGAHIT_CMD="megahit -1 \"${SAMPLE_NAME}_R1.qc.fastq.gz\" -2 \"${SAMPLE_NAME}_R2.qc.fastq.gz\" -o \"assembly_${SAMPLE_NAME}\" --presets meta-sensitive --min-contig-len 500 --memory 0.7 -t \"$THREADS\""
+# Use fixed memory value instead of proportion (--memory 0.7) because Docker containers
+# report host RAM via /proc/meminfo, causing megahit to request far more than the
+# container's --memory limit allows, resulting in OOM kill (exit code -9).
+# 4GB is sufficient for viral diagnostic assembly.
+MEGAHIT_MEM=4000000000  # 4GB default
 
 if [ -n "$EXTREME_MEMORY_FLAG" ]; then
-    echo "Adding extreme memory settings for MEGAHIT..."
-    MEGAHIT_CMD="$MEGAHIT_CMD --memory 0.9"  # Use 90% of available memory
+    MEGAHIT_MEM=16000000000  # 16GB for extremely large files
+    echo "Using extreme memory settings for MEGAHIT (16GB)..."
 fi
+
+MEGAHIT_CMD="megahit -1 \"${SAMPLE_NAME}_R1.qc.fastq.gz\" -2 \"${SAMPLE_NAME}_R2.qc.fastq.gz\" -o \"assembly_${SAMPLE_NAME}\" --presets meta-sensitive --min-contig-len 500 --memory $MEGAHIT_MEM -t \"$THREADS\""
 
 echo "MEGAHIT command: $MEGAHIT_CMD"
 eval $MEGAHIT_CMD
