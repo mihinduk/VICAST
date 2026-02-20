@@ -155,10 +155,18 @@ def apply_mutations(base_seq, mutations_df):
     return ''.join(seq_list), applied
 
 
+def is_utr(gene_name):
+    """Return True for UTR entries that should not be translated."""
+    name = gene_name.lower().replace("'", "").replace("_", "")
+    return 'utr' in name
+
+
 def translate_genes(seq, gene_coords):
-    """Translate per-gene CDS from a genome sequence."""
+    """Translate per-gene CDS from a genome sequence (skips UTRs)."""
     proteins = []
     for gene, (start, end) in gene_coords.items():
+        if is_utr(gene):
+            continue
         gene_seq = seq[start - 1:end]
         protein = viral_translate(gene_seq, coordinates=None, stop_at_stop_codon=False)
         proteins.append((gene, protein))

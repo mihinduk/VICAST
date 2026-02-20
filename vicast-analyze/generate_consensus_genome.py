@@ -7,7 +7,8 @@ Tier 1 of the two-tier VICAST post-processing pipeline:
   - AF threshold is genome-type-aware:
       ssRNA/ssDNA >= 0.95 (haploid)
       dsRNA       >= 0.45 (diploid-like)
-  - Translates per-gene CDS regions from the consensus
+  - Masks positions below --min-depth with N
+  - Translates per-gene CDS regions from the consensus (skips UTRs)
   - Produces a single consensus genome + protein FASTA + report
 """
 
@@ -15,6 +16,7 @@ import argparse
 import sys
 import os
 import json
+import re
 from pathlib import Path
 from collections import defaultdict
 
@@ -25,6 +27,12 @@ from Bio.SeqRecord import SeqRecord
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from viral_translator import viral_translate
+
+try:
+    import pysam
+    PYSAM_AVAILABLE = True
+except ImportError:
+    PYSAM_AVAILABLE = False
 
 # ── Default AF thresholds by genome type ──────────────────────────────
 GENOME_TYPE_THRESHOLDS = {
@@ -82,21 +90,18 @@ def get_consensus_threshold(virus_config, genome_type_override=None, af_override
 
 def load_filtered_tsv(tsv_path):
     """Load the filtered mutations TSV produced by parse_snpeff_tsv.py."""
-    df = pd.read_csv(tsv_path, sep='\t')
-    return df
+    return pd.read_csv(tsv_path, sep='\t')
 
 
 def apply_variants_to_sequence(ref_seq, variants_df):
     """Apply SNPs and simple substitutions to reference sequence.
 
-    Returns (consensus_sequence, list_of_applied_mutations).
-    Indels are recorded but only simple SNPs are applied for now.
+    Returns (consensus_sequence, list_of_applied_mutation_rows, list_of_skipped_rows).
     """
     seq_list = list(ref_seq)
     applied = []
     skipped = []
 
-    # Sort by position descending for safe indel handling (future)
     for _, row in variants_df.sort_values('POS').iterrows():
         pos = int(row['POS']) - 1  # 0-based
         ref_base = str(row['REF'])
@@ -109,32 +114,149 @@ def apply_variants_to_sequence(ref_seq, variants_df):
                     seq_list[pos] = alt_base
                     applied.append(row)
                 else:
-                    # Mismatch — apply anyway but warn
                     seq_list[pos] = alt_base
                     applied.append(row)
-                    print(f"  Warning: REF mismatch at {pos+1}: expected {ref_base}, found {seq_list[pos]}")
+                    print(f"  Warning: REF mismatch at {pos+1}: expected {ref_base}, "
+                          f"found {seq_list[pos]}")
         else:
-            # Indel — record but skip for now
             skipped.append(row)
             print(f"  Skipping indel at {pos+1}: {ref_base}>{alt_base}")
 
     return ''.join(seq_list), applied, skipped
 
 
+def mask_low_coverage(consensus_seq, bam_path, min_depth):
+    """Replace positions with coverage < min_depth with N.
+
+    Returns (masked_seq, n_count, list of masked regions as (start, end) 1-based).
+    """
+    if not PYSAM_AVAILABLE:
+        print("  Warning: pysam not available — skipping depth masking")
+        return consensus_seq, 0, []
+
+    if not Path(bam_path).exists():
+        print(f"  Warning: BAM file not found: {bam_path} — skipping depth masking")
+        return consensus_seq, 0, []
+
+    # Ensure index exists
+    bai = Path(str(bam_path) + ".bai")
+    if not bai.exists():
+        try:
+            pysam.index(str(bam_path))
+        except Exception as e:
+            print(f"  Warning: Cannot index BAM ({e}) — skipping depth masking")
+            return consensus_seq, 0, []
+
+    seq_list = list(consensus_seq)
+    genome_len = len(seq_list)
+
+    # Get per-base depth
+    depth_array = [0] * genome_len
+    try:
+        bam = pysam.AlignmentFile(str(bam_path), "rb")
+        for col in bam.pileup(min_mapping_quality=0, min_base_quality=0,
+                              truncate=True, stepper='all'):
+            if col.reference_pos < genome_len:
+                depth_array[col.reference_pos] = col.nsegments
+        bam.close()
+    except Exception as e:
+        print(f"  Warning: Failed to read BAM depth ({e}) — skipping masking")
+        return consensus_seq, 0, []
+
+    # Mask low-coverage positions
+    n_count = 0
+    masked_regions = []
+    in_region = False
+    region_start = None
+
+    for i in range(genome_len):
+        if depth_array[i] < min_depth:
+            seq_list[i] = 'N'
+            n_count += 1
+            if not in_region:
+                region_start = i + 1  # 1-based
+                in_region = True
+        else:
+            if in_region:
+                masked_regions.append((region_start, i))  # end is 1-based
+                in_region = False
+
+    if in_region:
+        masked_regions.append((region_start, genome_len))
+
+    return ''.join(seq_list), n_count, masked_regions
+
+
+def is_utr(gene_name):
+    """Return True for UTR entries that should not be translated."""
+    name = gene_name.lower().replace("'", "").replace("_", "")
+    return 'utr' in name
+
+
 def translate_genes(consensus_seq, gene_coords):
-    """Translate per-gene CDS from consensus sequence.
+    """Translate per-gene CDS from consensus sequence (skips UTRs).
 
     Returns list of (gene_name, protein_seq) tuples.
     """
     proteins = []
     for gene, (start, end) in gene_coords.items():
+        if is_utr(gene):
+            continue
         gene_seq = consensus_seq[start - 1:end]
         protein = viral_translate(gene_seq, coordinates=None, stop_at_stop_codon=False)
         proteins.append((gene, protein))
     return proteins
 
 
-def write_report(report_path, args, virus_config, threshold, variants_df, applied, skipped, proteins):
+def get_mutations_for_gene(applied, gene_name, gene_start, gene_end):
+    """Get list of mutations affecting a specific gene.
+
+    Returns list of dicts with 'nt_change' and 'aa_change' keys.
+    """
+    mutations = []
+    for row in applied:
+        pos = int(row['POS'])
+        if gene_start <= pos <= gene_end:
+            nt_change = f"{pos}{row['REF']}>{row['ALT']}"
+            # Parse HGVSp for amino acid change
+            hgvsp = str(row.get('HGVSp', ''))
+            aa_change = ''
+            if hgvsp and hgvsp != 'nan':
+                # Extract the p. notation
+                match = re.search(r'(p\.\S+)', hgvsp)
+                if match:
+                    aa_change = match.group(1)
+            mutations.append({'nt_change': nt_change, 'aa_change': aa_change})
+    return mutations
+
+
+def format_mutations_for_header(mutations, mode='nt'):
+    """Format mutation list for FASTA header.
+
+    mode='nt': nucleotide changes (e.g., 241C>T,3037C>T)
+    mode='aa': amino acid changes (e.g., p.Asp614Gly,p.Asn501Tyr)
+    mode='both': both nt and aa
+    """
+    if not mutations:
+        return ''
+    if mode == 'nt':
+        return ','.join(m['nt_change'] for m in mutations)
+    elif mode == 'aa':
+        aa_parts = [m['aa_change'] for m in mutations if m['aa_change']]
+        return ','.join(aa_parts) if aa_parts else ''
+    elif mode == 'both':
+        parts = []
+        for m in mutations:
+            if m['aa_change']:
+                parts.append(f"{m['nt_change']}({m['aa_change']})")
+            else:
+                parts.append(m['nt_change'])
+        return ','.join(parts)
+    return ''
+
+
+def write_report(report_path, args, virus_config, threshold, variants_df,
+                 applied, skipped, proteins, n_count, masked_regions, min_depth):
     """Write a human-readable consensus report."""
     genome_type = 'unknown'
     if virus_config:
@@ -151,14 +273,19 @@ def write_report(report_path, args, virus_config, threshold, variants_df, applie
             f.write(f"Virus name:         {virus_config.get('name', 'N/A')}\n")
         f.write(f"Genome type:        {genome_type}\n")
         f.write(f"Consensus AF:       >= {threshold}\n")
+        f.write(f"Min depth:          {min_depth}X\n")
         f.write(f"Input TSV:          {args.vcf}\n")
-        f.write(f"Reference FASTA:    {args.reference}\n\n")
+        f.write(f"Reference FASTA:    {args.reference}\n")
+        if args.bam:
+            f.write(f"BAM file:           {args.bam}\n")
+        f.write("\n")
 
         f.write(f"Total variants in TSV:       {len(variants_df)}\n")
         consensus_variants = variants_df[variants_df['Allele_Frequency'] >= threshold]
         f.write(f"Variants >= AF threshold:    {len(consensus_variants)}\n")
         f.write(f"Variants applied (SNPs):     {len(applied)}\n")
-        f.write(f"Variants skipped (indels):   {len(skipped)}\n\n")
+        f.write(f"Variants skipped (indels):   {len(skipped)}\n")
+        f.write(f"Positions masked (N):        {n_count}\n\n")
 
         f.write("-" * 80 + "\n")
         f.write("APPLIED MUTATIONS\n")
@@ -173,6 +300,14 @@ def write_report(report_path, args, virus_config, threshold, variants_df, applie
                         f"gene={gene}  effect={effect}  HGVSp={hgvsp}\n")
         else:
             f.write("  (none)\n")
+
+        if masked_regions:
+            f.write("\n")
+            f.write("-" * 80 + "\n")
+            f.write(f"LOW COVERAGE REGIONS (< {min_depth}X) — masked with N\n")
+            f.write("-" * 80 + "\n")
+            for start, end in masked_regions:
+                f.write(f"  {start}-{end} ({end - start + 1} bp)\n")
 
         f.write("\n")
         f.write("-" * 80 + "\n")
@@ -193,10 +328,14 @@ def main():
                         help='Reference genome FASTA')
     parser.add_argument('--accession', required=True,
                         help='Virus accession')
+    parser.add_argument('--bam', default=None,
+                        help='BAM file for depth masking (optional)')
+    parser.add_argument('--min-depth', type=int, default=20,
+                        help='Minimum depth — positions below this are masked with N (default: 20)')
     parser.add_argument('--consensus-af', type=float, default=None,
                         help='Override consensus AF threshold (default: auto from genome_type)')
     parser.add_argument('--genome-type', default=None,
-                        help='Override genome type: ss|ds|ssRNA|dsRNA (default: auto from known_viruses.json)')
+                        help='Override genome type: ss|ds|ssRNA|dsRNA')
     parser.add_argument('--output-prefix', required=True,
                         help='Output prefix for consensus files')
     args = parser.parse_args()
@@ -239,11 +378,31 @@ def main():
         consensus_seq, applied, skipped = apply_variants_to_sequence(ref_seq, consensus_variants)
         print(f"Applied {len(applied)} mutations, skipped {len(skipped)} indels")
 
-    # ── Write consensus FASTA ─────────────────────────────────────────
+    # ── Mask low-coverage positions ───────────────────────────────────
+    n_count = 0
+    masked_regions = []
+    if args.bam:
+        print(f"Masking positions with depth < {args.min_depth}X ...")
+        consensus_seq, n_count, masked_regions = mask_low_coverage(
+            consensus_seq, args.bam, args.min_depth)
+        print(f"  Masked {n_count} positions with N ({len(masked_regions)} regions)")
+    else:
+        print("No BAM provided — skipping depth masking")
+
+    # ── Build genome FASTA header ─────────────────────────────────────
     sample_name = Path(args.output_prefix).name
     consensus_fasta = f"{args.output_prefix}_consensus.fasta"
 
-    desc = f"consensus genome ({len(applied)} mutations applied, AF >= {threshold})"
+    # Header includes: mutation count, nt mutations, N count
+    header_parts = [f"{len(applied)} mutations"]
+    if applied:
+        nt_muts = ','.join(f"{int(r['POS'])}{r['REF']}>{r['ALT']}" for r in applied)
+        header_parts.append(f"variants={nt_muts}")
+    header_parts.append(f"AF>={threshold}")
+    if n_count > 0:
+        header_parts.append(f"{n_count} Ns (depth<{args.min_depth}X)")
+    desc = ' '.join(header_parts)
+
     record = SeqRecord(Seq(consensus_seq), id=f"{sample_name}", description=desc)
     SeqIO.write([record], consensus_fasta, "fasta")
     print(f"Consensus genome written to: {consensus_fasta}")
@@ -252,20 +411,35 @@ def main():
     gene_coords = virus_config.get('gene_coords', {}) if virus_config else {}
     if gene_coords:
         proteins = translate_genes(consensus_seq, gene_coords)
-        print(f"Translated {len(proteins)} gene products")
+        print(f"Translated {len(proteins)} gene products (UTRs excluded)")
     else:
         protein = viral_translate(consensus_seq, coordinates=None, stop_at_stop_codon=True)
         proteins = [('Polyprotein', protein)]
         print("No gene coordinates — generated single polyprotein")
 
-    # ── Write protein FASTA ───────────────────────────────────────────
+    # ── Write protein FASTA with mutation info in headers ─────────────
     protein_fasta = f"{args.output_prefix}_consensus_proteins.fasta"
     protein_records = []
     for gene_name, protein_seq in proteins:
+        # Find mutations in this gene
+        gene_start, gene_end = gene_coords.get(gene_name, (0, 0))
+        gene_muts = get_mutations_for_gene(applied, gene_name, gene_start, gene_end)
+
+        # Build header
+        desc_parts = [f"{gene_name} ({len(protein_seq)} aa)"]
+        if gene_muts:
+            nt_str = format_mutations_for_header(gene_muts, mode='nt')
+            aa_str = format_mutations_for_header(gene_muts, mode='aa')
+            desc_parts.append(f"nt={nt_str}")
+            if aa_str:
+                desc_parts.append(f"aa={aa_str}")
+        else:
+            desc_parts.append("no mutations")
+
         rec = SeqRecord(
             Seq(protein_seq),
             id=f"{sample_name}_{gene_name}",
-            description=f"{gene_name} ({len(protein_seq)} aa)"
+            description=' '.join(desc_parts)
         )
         protein_records.append(rec)
     SeqIO.write(protein_records, protein_fasta, "fasta")
@@ -274,7 +448,8 @@ def main():
     # ── Write report ──────────────────────────────────────────────────
     report_path = f"{args.output_prefix}_consensus_report.txt"
     write_report(report_path, args, virus_config, threshold,
-                 variants_df, applied, skipped, proteins)
+                 variants_df, applied, skipped, proteins,
+                 n_count, masked_regions, args.min_depth)
 
     print("")
     print("=" * 80)

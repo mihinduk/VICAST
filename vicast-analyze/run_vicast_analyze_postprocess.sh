@@ -19,6 +19,8 @@ CONSENSUS_AF=""
 GENOME_TYPE=""
 MIN_MINOR_AF=0.005
 MAX_MINOR_AF=0.05
+MINOR_QUALITY=100
+MIN_DEPTH=20
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -63,6 +65,14 @@ while [[ $# -gt 0 ]]; do
             MAX_MINOR_AF="$2"
             shift 2
             ;;
+        --minor-quality)
+            MINOR_QUALITY="$2"
+            shift 2
+            ;;
+        --min-depth)
+            MIN_DEPTH="$2"
+            shift 2
+            ;;
         -h|--help)
             echo "Usage: $0 --sample <name> --accession <accession> --bam <bam_file> [options]"
             echo ""
@@ -81,6 +91,8 @@ while [[ $# -gt 0 ]]; do
             echo "                            (default: auto from known_viruses.json)"
             echo "  --min-minor-af <float>    Min AF for minor variant genomes (default: 0.005)"
             echo "  --max-minor-af <float>    Max AF for minor variant genomes (default: 0.05)"
+            echo "  --minor-quality <int>     Quality threshold for minor variants (default: 100)"
+            echo "  --min-depth <int>         Min depth for N-masking in consensus (default: 20)"
             echo ""
             echo "Pipeline steps:"
             echo "  1. Parse & filter mutations        (parse_snpeff_tsv.py)"
@@ -201,6 +213,8 @@ else
     echo "  Genome type:         auto (from known_viruses.json)"
 fi
 echo "  Minor variant range: $MIN_MINOR_AF - $MAX_MINOR_AF"
+echo "  Minor quality:       $MINOR_QUALITY"
+echo "  Min depth (N-mask):  ${MIN_DEPTH}X"
 echo "============================================="
 echo ""
 
@@ -247,10 +261,16 @@ mkdir -p "$RESULTS_DIR"
 echo "============================================="
 echo "STEP 1: Parse & Filter Mutations"
 echo "============================================="
+
+# Use the lower of FREQ_PARSE and MIN_MINOR_AF so minor variants are retained
+EFFECTIVE_FREQ=$(python3 -c "print(min($FREQ_PARSE, $MIN_MINOR_AF))")
+# Use the lower of QUALITY and MINOR_QUALITY so minor variants survive
+EFFECTIVE_QUAL=$(python3 -c "print(min($QUALITY, $MINOR_QUALITY))")
+
 echo "Parameters:"
-echo "  Quality: >= $QUALITY"
+echo "  Quality: >= $EFFECTIVE_QUAL (min of --quality=$QUALITY, --minor-quality=$MINOR_QUALITY)"
 echo "  Depth: >= $DEPTH"
-echo "  Allele Frequency: >= $FREQ_PARSE"
+echo "  Allele Frequency: >= $EFFECTIVE_FREQ (min of --freq-parse=$FREQ_PARSE, --min-minor-af=$MIN_MINOR_AF)"
 echo ""
 
 FILTERED_TSV="${RESULTS_DIR}/${SAMPLE_NAME}_filtered_mutations.tsv"
@@ -258,9 +278,9 @@ FILTERED_TSV="${RESULTS_DIR}/${SAMPLE_NAME}_filtered_mutations.tsv"
 python ${SCRIPT_DIR}/parse_snpeff_tsv.py \
   "$TSV_FILE" \
   "$FILTERED_TSV" \
-  --quality $QUALITY \
+  --quality $EFFECTIVE_QUAL \
   --depth $DEPTH \
-  --freq $FREQ_PARSE
+  --freq $EFFECTIVE_FREQ
 
 PARSE_EXIT_CODE=$?
 
@@ -303,6 +323,7 @@ OUTPUT_PREFIX="${RESULTS_DIR}/${SAMPLE_NAME}"
 
 # Build consensus-genome args
 CONSENSUS_ARGS="--vcf $FILTERED_TSV --reference $REF_FILE --accession $ACCESSION --output-prefix $OUTPUT_PREFIX"
+CONSENSUS_ARGS="$CONSENSUS_ARGS --bam $BAM_FILE --min-depth $MIN_DEPTH"
 if [ -n "$CONSENSUS_AF" ]; then
     CONSENSUS_ARGS="$CONSENSUS_ARGS --consensus-af $CONSENSUS_AF"
 fi
