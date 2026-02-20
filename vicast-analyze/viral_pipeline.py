@@ -967,11 +967,16 @@ def map_and_call_variants(
         
         # 9. Call variants with LoFreq
         logger.info(f"Calling variants for {sample_name}")
-        # Check if output file exists and remove it
-        if os.path.exists(vars_file):
-            logger.info(f"Removing existing variant file: {vars_file}")
-            os.remove(vars_file)
-            
+        # lofreq filter (invoked internally by call-parallel) has no
+        # --force-overwrite flag and will abort if the output file exists.
+        # Unconditionally remove any stale VCF from a previous run.
+        for stale in [vars_file, vars_file + ".gz"]:
+            try:
+                os.remove(stale)
+                logger.info(f"Removed pre-existing variant file: {stale}")
+            except FileNotFoundError:
+                pass
+
         # Call variants with LoFreq
         run_command(
             f"lofreq call-parallel --pp-threads {threads} --force-overwrite --no-default-filter --call-indels -f {reference} -o {vars_file} {final_bam}",
