@@ -69,6 +69,66 @@ def determine_virus_family(gene_coords):
 
     return "unknown"
 
+def determine_genome_type(virus_family, gbk_file=None):
+    """Infer genome type from virus family or GenBank metadata.
+
+    Returns one of: 'ssRNA', 'dsRNA', 'ssDNA', 'dsDNA', 'unknown'.
+    """
+    # Family-based inference
+    family_map = {
+        'flavivirus': 'ssRNA',
+        'wnv_lineage2': 'ssRNA',
+        'alphavirus': 'ssRNA',
+        'coronavirus': 'ssRNA',
+        'paramyxovirus': 'ssRNA',
+        'orthomyxovirus': 'ssRNA',
+        'filovirus': 'ssRNA',
+        'rhabdovirus': 'ssRNA',
+        'picornavirus': 'ssRNA',
+        'calicivirus': 'ssRNA',
+        'togavirus': 'ssRNA',
+        'reovirus': 'dsRNA',
+        'rotavirus': 'dsRNA',
+        'orbivirus': 'dsRNA',
+        'parvovirus': 'ssDNA',
+        'circovirus': 'ssDNA',
+        'anellovirus': 'ssDNA',
+        'herpesvirus': 'dsDNA',
+        'adenovirus': 'dsDNA',
+        'poxvirus': 'dsDNA',
+    }
+
+    family_lower = virus_family.lower() if virus_family else ''
+    for key, gtype in family_map.items():
+        if key in family_lower:
+            return gtype
+
+    # Try GenBank metadata if available
+    if gbk_file and Path(gbk_file).exists():
+        try:
+            for record in SeqIO.parse(str(gbk_file), "genbank"):
+                mol_type = ''
+                for feature in record.features:
+                    if feature.type == 'source':
+                        mol_type = feature.qualifiers.get('mol_type', [''])[0].lower()
+                        break
+                if 'ssrna' in mol_type or 'ss-rna' in mol_type:
+                    return 'ssRNA'
+                elif 'dsrna' in mol_type or 'ds-rna' in mol_type:
+                    return 'dsRNA'
+                elif 'ssdna' in mol_type or 'ss-dna' in mol_type:
+                    return 'ssDNA'
+                elif 'dsdna' in mol_type or 'ds-dna' in mol_type:
+                    return 'dsDNA'
+                elif 'rna' in mol_type:
+                    return 'ssRNA'
+                elif 'dna' in mol_type:
+                    return 'dsDNA'
+        except Exception:
+            pass
+
+    return 'unknown'
+
 def classify_genes(gene_coords, virus_family):
     """Classify genes as structural or nonstructural"""
     structural_genes = []
@@ -166,6 +226,9 @@ def add_virus_to_json(accession, snpeff_dir, json_file):
         # Determine family
         virus_family = determine_virus_family(gene_coords)
 
+        # Determine genome type
+        genome_type = determine_genome_type(virus_family, gbk_file)
+
         # Classify genes
         structural_genes, nonstructural_genes = classify_genes(gene_coords, virus_family)
 
@@ -176,6 +239,7 @@ def add_virus_to_json(accession, snpeff_dir, json_file):
         viruses[accession] = {
             "name": virus_name,
             "family": virus_family,
+            "genome_type": genome_type,
             "genome_length": genome_length,
             "gene_coords": gene_coords,
             "colors": colors,
@@ -190,6 +254,7 @@ def add_virus_to_json(accession, snpeff_dir, json_file):
         print(f"✅ Successfully added {accession} to {json_file}")
         print(f"   Name: {virus_name}")
         print(f"   Family: {virus_family}")
+        print(f"   Genome type: {genome_type}")
         print(f"   Genome length: {genome_length} bp")
         print(f"   Total genes: {len(gene_coords)}")
 

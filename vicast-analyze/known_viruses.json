@@ -2,6 +2,7 @@
   "NC_009942.1": {
     "name": "West Nile virus",
     "family": "flavivirus",
+    "genome_type": "ssRNA",
     "genome_length": 11029,
     "gene_coords": {
       "C": [
@@ -99,6 +100,7 @@
   "HM440560.1": {
     "name": "Powassan virus",
     "family": "flavivirus",
+    "genome_type": "ssRNA",
     "genome_length": 10839,
     "gene_coords": {
       "C": [
@@ -196,6 +198,7 @@
   "NC_001477.1": {
     "name": "Dengue virus type 1",
     "family": "flavivirus",
+    "genome_type": "ssRNA",
     "genome_length": 10723,
     "gene_coords": {
       "ancC": [
@@ -303,6 +306,7 @@
   "AY532665.1": {
     "name": "West Nile virus strain NY99",
     "family": "wnv_lineage2",
+    "genome_type": "ssRNA",
     "genome_length": 11029,
     "gene_coords": {
       "C": [
@@ -406,6 +410,7 @@
   "NC_075022.1": {
     "name": "Venezuelan equine encephalitis virus",
     "family": "alphavirus",
+    "genome_type": "ssRNA",
     "genome_length": 11522,
     "gene_coords": {
       "nsP1": [
@@ -467,6 +472,7 @@
   "NC_012532.1": {
     "name": "Zika virus",
     "family": "flavivirus",
+    "genome_type": "ssRNA",
     "genome_length": 10794,
     "gene_coords": {
       "C": [
@@ -564,6 +570,7 @@
   "ON109597.1": {
     "name": "Dengue virus",
     "family": "flavivirus",
+    "genome_type": "ssRNA",
     "genome_length": 10735,
     "gene_coords": {
       "ancC": [
@@ -661,6 +668,7 @@
   "NC_001474.2": {
     "name": "Dengue virus type 2",
     "family": "flavivirus",
+    "genome_type": "ssRNA",
     "genome_length": 10723,
     "gene_coords": {
       "5_UTR": [
@@ -768,6 +776,7 @@
   "NC_045512.2": {
     "name": "SARS-CoV-2",
     "family": "coronavirus",
+    "genome_type": "ssRNA",
     "genome_length": 29903,
     "gene_coords": {
       "5_UTR": [
