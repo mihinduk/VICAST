@@ -1199,7 +1199,19 @@ def annotate_variants(variants_dir: str, accession: str, snpeff_jar: str, java_p
             java_mem = "-Xmx32g"   # 32GB for large files
         else:
             java_mem = "-Xmx4g"    # 4GB default
-        cmd = f"{java_path} -jar {java_mem} {snpeff_jar} -v {accession} {safe_filt_path} -s {summary_html} > {ann_vcf}"
+        # Build snpEff command - use custom config if available (has genome entries for custom DBs)
+        snpeff_config_flag = ""
+        for candidate_config in [
+            os.environ.get("SNPEFF_CONFIG_CUSTOM", ""),
+            os.environ.get("SNPEFF_CONFIG", ""),
+            os.path.join(os.environ.get("SNPEFF_DATA_CUSTOM", ""), "snpEff.config"),
+        ]:
+            if candidate_config and os.path.exists(candidate_config):
+                snpeff_config_flag = f"-c {candidate_config}"
+                logger.info(f"Using snpEff config: {candidate_config}")
+                break
+
+        cmd = f"{java_path} -jar {java_mem} {snpeff_jar} {snpeff_config_flag} -v {accession} {safe_filt_path} -s {summary_html} > {ann_vcf}"
         logger.info(f"Running command: {cmd}")
         
         try:
@@ -1237,7 +1249,7 @@ def annotate_variants(variants_dir: str, accession: str, snpeff_jar: str, java_p
                         logger.info(f"Filtered VCF now has {aggressive_count} variants (originally {variant_count_in_input})")
                         
                         # Try snpEff with the more aggressively filtered file
-                        retry_cmd = f"{java_path} -jar {java_mem} {snpeff_jar} -v {accession} {filtered_tmp} -s {summary_html} > {ann_vcf}"
+                        retry_cmd = f"{java_path} -jar {java_mem} {snpeff_jar} {snpeff_config_flag} -v {accession} {filtered_tmp} -s {summary_html} > {ann_vcf}"
                         try:
                             logger.info(f"Retrying with aggressively filtered VCF: {retry_cmd}")
                             run_command(retry_cmd, shell=True)
