@@ -383,6 +383,11 @@ OUTPUT_PREFIX="${RESULTS_DIR}/${SAMPLE_NAME}"
 # Build consensus-genome args
 CONSENSUS_ARGS="--vcf $FILTERED_TSV --reference $REF_FILE --accession $ACCESSION --output-prefix $OUTPUT_PREFIX"
 CONSENSUS_ARGS="$CONSENSUS_ARGS --bam $BAM_FILE --min-depth $MIN_DEPTH"
+# Use pre-computed depth file if it exists (matches samtools depth output)
+DEPTH_FILE="${RESULTS_DIR}/${SAMPLE_NAME}_depth.txt"
+if [ -f "$DEPTH_FILE" ]; then
+    CONSENSUS_ARGS="$CONSENSUS_ARGS --depth-file $DEPTH_FILE"
+fi
 if [ -n "$CONSENSUS_AF" ]; then
     CONSENSUS_ARGS="$CONSENSUS_ARGS --consensus-af $CONSENSUS_AF"
 fi

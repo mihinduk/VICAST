@@ -28,11 +28,7 @@ from Bio.SeqRecord import SeqRecord
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from viral_translator import viral_translate
 
-try:
-    import pysam
-    PYSAM_AVAILABLE = True
-except ImportError:
-    PYSAM_AVAILABLE = False
+import subprocess
 
 # ── Default AF thresholds by genome type ──────────────────────────────
 GENOME_TYPE_THRESHOLDS = {
@@ -125,42 +121,66 @@ def apply_variants_to_sequence(ref_seq, variants_df):
     return ''.join(seq_list), applied, skipped
 
 
-def mask_low_coverage(consensus_seq, bam_path, min_depth):
+def _load_depth_from_file(depth_file, genome_len):
+    """Parse a samtools-depth TSV (chrom, pos, depth) into an array."""
+    depth_array = [0] * genome_len
+    with open(depth_file, 'r') as f:
+        for line in f:
+            if line.startswith('chrom') or line.startswith('#'):
+                continue
+            parts = line.rstrip('\n').split('\t')
+            if len(parts) >= 3:
+                try:
+                    pos = int(parts[1]) - 1  # 1-based → 0-based
+                    depth = int(parts[2])
+                    if 0 <= pos < genome_len:
+                        depth_array[pos] = depth
+                except ValueError:
+                    continue
+    return depth_array
+
+
+def _load_depth_from_bam(bam_path, genome_len):
+    """Run samtools depth -a on a BAM and return per-base depth array."""
+    depth_array = [0] * genome_len
+    try:
+        result = subprocess.run(
+            ['samtools', 'depth', '-a', str(bam_path)],
+            capture_output=True, text=True, check=True
+        )
+        for line in result.stdout.splitlines():
+            parts = line.split('\t')
+            if len(parts) >= 3:
+                pos = int(parts[1]) - 1
+                depth = int(parts[2])
+                if 0 <= pos < genome_len:
+                    depth_array[pos] = depth
+    except (subprocess.CalledProcessError, FileNotFoundError) as e:
+        print(f"  Warning: samtools depth failed ({e}) — skipping masking")
+        return None
+    return depth_array
+
+
+def mask_low_coverage(consensus_seq, min_depth, bam_path=None, depth_file=None):
     """Replace positions with coverage < min_depth with N.
 
+    Uses depth_file if provided, otherwise runs samtools depth on the BAM.
     Returns (masked_seq, n_count, list of masked regions as (start, end) 1-based).
     """
-    if not PYSAM_AVAILABLE:
-        print("  Warning: pysam not available — skipping depth masking")
-        return consensus_seq, 0, []
-
-    if not Path(bam_path).exists():
-        print(f"  Warning: BAM file not found: {bam_path} — skipping depth masking")
-        return consensus_seq, 0, []
-
-    # Ensure index exists
-    bai = Path(str(bam_path) + ".bai")
-    if not bai.exists():
-        try:
-            pysam.index(str(bam_path))
-        except Exception as e:
-            print(f"  Warning: Cannot index BAM ({e}) — skipping depth masking")
-            return consensus_seq, 0, []
-
     seq_list = list(consensus_seq)
     genome_len = len(seq_list)
 
-    # Get per-base depth
-    depth_array = [0] * genome_len
-    try:
-        bam = pysam.AlignmentFile(str(bam_path), "rb")
-        for col in bam.pileup(min_mapping_quality=0, min_base_quality=0,
-                              truncate=True, stepper='all'):
-            if col.reference_pos < genome_len:
-                depth_array[col.reference_pos] = col.nsegments
-        bam.close()
-    except Exception as e:
-        print(f"  Warning: Failed to read BAM depth ({e}) — skipping masking")
+    # Load depth from file or BAM
+    if depth_file and Path(depth_file).exists():
+        print(f"  Reading depth from: {depth_file}")
+        depth_array = _load_depth_from_file(depth_file, genome_len)
+    elif bam_path and Path(bam_path).exists():
+        print(f"  Computing depth from BAM: {bam_path}")
+        depth_array = _load_depth_from_bam(bam_path, genome_len)
+        if depth_array is None:
+            return consensus_seq, 0, []
+    else:
+        print("  Warning: No depth source available — skipping masking")
         return consensus_seq, 0, []
 
     # Mask low-coverage positions
@@ -276,7 +296,9 @@ def write_report(report_path, args, virus_config, threshold, variants_df,
         f.write(f"Min depth:          {min_depth}X\n")
         f.write(f"Input TSV:          {args.vcf}\n")
         f.write(f"Reference FASTA:    {args.reference}\n")
-        if args.bam:
+        if args.depth_file:
+            f.write(f"Depth file:         {args.depth_file}\n")
+        elif args.bam:
             f.write(f"BAM file:           {args.bam}\n")
         f.write("\n")
 
@@ -329,7 +351,9 @@ def main():
     parser.add_argument('--accession', required=True,
                         help='Virus accession')
     parser.add_argument('--bam', default=None,
-                        help='BAM file for depth masking (optional)')
+                        help='BAM file for depth masking (fallback if no --depth-file)')
+    parser.add_argument('--depth-file', default=None,
+                        help='Pre-computed samtools depth file (preferred over --bam)')
     parser.add_argument('--min-depth', type=int, default=20,
                         help='Minimum depth — positions below this are masked with N (default: 20)')
     parser.add_argument('--consensus-af', type=float, default=None,
@@ -381,13 +405,14 @@ def main():
     # ── Mask low-coverage positions ───────────────────────────────────
     n_count = 0
     masked_regions = []
-    if args.bam:
+    if args.depth_file or args.bam:
         print(f"Masking positions with depth < {args.min_depth}X ...")
         consensus_seq, n_count, masked_regions = mask_low_coverage(
-            consensus_seq, args.bam, args.min_depth)
+            consensus_seq, args.min_depth,
+            bam_path=args.bam, depth_file=args.depth_file)
         print(f"  Masked {n_count} positions with N ({len(masked_regions)} regions)")
     else:
-        print("No BAM provided — skipping depth masking")
+        print("No BAM or depth file provided — skipping depth masking")
 
     # ── Build genome FASTA header ─────────────────────────────────────
     sample_name = Path(args.output_prefix).name
