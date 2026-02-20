@@ -91,7 +91,7 @@ def parse_args() -> argparse.Namespace:
     output_group = parser.add_argument_group("Output")
     output_group.add_argument("--outdir", default=".", help="Output directory")
     output_group.add_argument("--min-depth", type=int, default=200, help="Minimum read depth for lofreq filter (default: 200)")
-    output_group.add_argument("--min-qual", type=int, default=90, help="Minimum variant quality (phred) for lofreq filter (default: 90)")
+    output_group.add_argument("--min-qual", type=int, default=1000, help="Minimum variant quality (phred) for lofreq filter (default: 1000)")
     output_group.add_argument("--keep-tmp", action="store_true", help="Keep temporary files")
     
     # Performance options
@@ -994,7 +994,7 @@ def map_and_call_variants(
     logger.info(f"Mapping and variant calling completed for {len(result_files)} samples")
     return result_files
 
-def filter_variants(variants_dir: str, specific_files: Dict[str, Dict[str, str]], min_depth: int = 200, min_qual: int = 90) -> Dict[str, str]:
+def filter_variants(variants_dir: str, specific_files: Dict[str, Dict[str, str]], min_depth: int = 200, min_qual: int = 1000) -> Dict[str, str]:
     """
     Filter variant calls from LoFreq.
 

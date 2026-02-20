@@ -30,7 +30,7 @@ if [ $# -lt 3 ]; then
     echo ""
     echo "Options:"
     echo "  --min-depth N    Minimum read depth (default: 200)"
-    echo "  --min-qual N     Minimum variant quality, phred (default: 90)"
+    echo "  --min-qual N     Minimum variant quality, phred (default: 1000)"
     echo "  --large-files    High-memory mode for large files (1-5GB)"
     echo "  --extremely-large-files  Extreme memory mode for >5GB files"
     echo ""
@@ -54,7 +54,7 @@ ACCESSION=$3
 THREADS=4
 LARGE_FILES_FLAG=""
 MIN_DEPTH=200
-MIN_QUAL=90
+MIN_QUAL=1000
 
 # Parse optional flags from all remaining arguments
 shift 3  # Remove R1, R2, ACCESSION

@@ -341,7 +341,7 @@ if [ $PIPELINE_EXIT_CODE -eq 0 ]; then
     echo ""
     echo "  Step 7 applies lofreq filter before annotation with these defaults:"
     echo "    --min-depth 200   Minimum read depth (lofreq -v)"
-    echo "    --min-qual  90    Minimum variant quality, phred (lofreq -Q/-K)"
+    echo "    --min-qual  1000  Minimum variant quality, phred (lofreq -Q/-K)"
     echo ""
     echo "  Basic annotation (recommended defaults):"
     echo "    run_vicast_analyze_annotate_only.sh $R1 $R2 $ACCESSION"
