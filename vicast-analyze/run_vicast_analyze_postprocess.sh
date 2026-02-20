@@ -275,17 +275,56 @@ echo ""
 RESULTS_DIR="${SAMPLE_NAME}_results"
 mkdir -p "$RESULTS_DIR"
 
+# Compute effective thresholds (lower of consensus/minor values)
+EFFECTIVE_FREQ=$(python3 -c "print(min($FREQ_PARSE, $MIN_MINOR_AF))")
+EFFECTIVE_QUAL=$(python3 -c "print(min($QUALITY, $MINOR_QUALITY))")
+
+# =============================================================================
+# Save parameters to file for reproducibility
+# =============================================================================
+PARAMS_FILE="${RESULTS_DIR}/${SAMPLE_NAME}_parameters.txt"
+cat > "$PARAMS_FILE" <<PARAMS_EOF
+================================================================================
+VICAST POST-PROCESSING PARAMETERS
+================================================================================
+Date:                   $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+VICAST version:         $(git -C "${VICAST_HOME}" describe --tags 2>/dev/null || echo "unknown")
+Sample:                 $SAMPLE_NAME
+Accession:              $ACCESSION
+
+Input files:
+  Annotation TSV:       $(host_path ${TSV_FILE})
+  Reference FASTA:      $(host_path ${REF_FILE})
+  BAM file:             $(host_path ${BAM_FILE})
+
+Consensus genome (Tier 1):
+  Quality threshold:    $QUALITY
+  Depth threshold:      $DEPTH
+  Frequency (parse):    $FREQ_PARSE
+  Consensus AF:         ${CONSENSUS_AF:-auto (genome-type aware)}
+  Genome type:          ${GENOME_TYPE:-auto (from known_viruses.json)}
+  Min depth (N-mask):   ${MIN_DEPTH}X
+
+Minor variant genomes (Tier 2):
+  Minor quality:        $MINOR_QUALITY
+  Min minor AF:         $MIN_MINOR_AF
+  Max minor AF:         $MAX_MINOR_AF
+
+Effective parse thresholds (min of consensus/minor values):
+  Quality:              $EFFECTIVE_QUAL  (min of $QUALITY, $MINOR_QUALITY)
+  Frequency:            $EFFECTIVE_FREQ  (min of $FREQ_PARSE, $MIN_MINOR_AF)
+================================================================================
+PARAMS_EOF
+
+echo "Parameters saved to: $(host_path ${PARAMS_FILE})"
+echo ""
+
 # ============================================================================
 # STEP 1: Parse & Filter Mutations
 # ============================================================================
 echo "============================================="
 echo "STEP 1: Parse & Filter Mutations"
 echo "============================================="
-
-# Use the lower of FREQ_PARSE and MIN_MINOR_AF so minor variants are retained
-EFFECTIVE_FREQ=$(python3 -c "print(min($FREQ_PARSE, $MIN_MINOR_AF))")
-# Use the lower of QUALITY and MINOR_QUALITY so minor variants survive
-EFFECTIVE_QUAL=$(python3 -c "print(min($QUALITY, $MINOR_QUALITY))")
 
 echo "Parameters:"
 echo "  Quality: >= $EFFECTIVE_QUAL (min of --quality=$QUALITY, --minor-quality=$MINOR_QUALITY)"
@@ -447,5 +486,8 @@ echo "  Tier 2 - Variant genomes:"
 echo "    $(host_path ${OUTPUT_PREFIX}_variant_genomes.fasta)"
 echo "    $(host_path ${OUTPUT_PREFIX}_variant_proteins.fasta)"
 echo "    $(host_path ${OUTPUT_PREFIX}_variant_report.txt)"
+echo ""
+echo "  Run parameters:"
+echo "    $(host_path ${PARAMS_FILE})"
 echo ""
 echo "============================================="
