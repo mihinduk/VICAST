@@ -74,14 +74,14 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         -h|--help)
-            echo "Usage: $0 --sample <name> --accession <accession> --bam <bam_file> [options]"
+            echo "Usage: $0 --sample <name> --accession <accession> [options]"
             echo ""
             echo "Required arguments:"
             echo "  --sample <name>           Sample name (must match .snpEFF.ann.tsv filename)"
             echo "  --accession <accession>   Virus accession number (e.g., AY532665.1)"
-            echo "  --bam <file>              BAM file from QC step (sorted, indexed)"
             echo ""
             echo "Optional arguments:"
+            echo "  --bam <file>              BAM file (default: cleaned_seqs/mapping/<sample>.lofreq.final.bam)"
             echo "  --quality <int>           Minimum quality score (default: 1000)"
             echo "  --depth <int>             Minimum coverage depth (default: 200)"
             echo "  --freq-parse <float>      Min allele frequency for parsing (default: 0.01)"
@@ -101,17 +101,19 @@ while [[ $# -gt 0 ]]; do
             echo "  4. Generate minor variant genomes  (generate_variant_genomes.py)"
             echo ""
             echo "Examples:"
-            echo "  # Standard ssRNA virus (AF >= 0.95 for consensus)"
-            echo "  $0 --sample DRR878516 --accession NC_045512.2 \\"
-            echo "     --bam cleaned_seqs/variants/DRR878516_aligned_sorted.bam"
+            echo "  # Minimal — BAM auto-detected from sample name"
+            echo "  $0 --sample DRR878516 --accession NC_045512.2"
             echo ""
             echo "  # Override consensus threshold for dsRNA"
-            echo "  $0 --sample MY_SAMPLE --accession NC_XXXXXX.X \\"
-            echo "     --bam my_bam.bam --genome-type ds"
+            echo "  $0 --sample MY_SAMPLE --accession NC_XXXXXX.X --genome-type ds"
             echo ""
             echo "  # Custom minor variant range (1%-10%)"
             echo "  $0 --sample MY_SAMPLE --accession NC_XXXXXX.X \\"
-            echo "     --bam my_bam.bam --min-minor-af 0.01 --max-minor-af 0.10"
+            echo "     --min-minor-af 0.01 --max-minor-af 0.10"
+            echo ""
+            echo "  # Explicit BAM path"
+            echo "  $0 --sample MY_SAMPLE --accession NC_XXXXXX.X \\"
+            echo "     --bam /path/to/custom.bam"
             echo ""
             echo "PREREQUISITES:"
             echo "  Run annotation workflow first: run_vicast_analyze_annotate_only.sh <R1> <R2> <accession>"
@@ -126,13 +128,31 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Check required arguments
-if [ -z "$SAMPLE_NAME" ] || [ -z "$ACCESSION" ] || [ -z "$BAM_FILE" ]; then
+if [ -z "$SAMPLE_NAME" ] || [ -z "$ACCESSION" ]; then
     echo "Error: Missing required arguments"
     echo ""
-    echo "Usage: $0 --sample <name> --accession <accession> --bam <bam_file> [options]"
+    echo "Usage: $0 --sample <name> --accession <accession> [options]"
     echo "Use --help for full usage information"
     exit 1
 fi
+
+# Auto-detect BAM if not provided
+if [ -z "$BAM_FILE" ]; then
+    BAM_FILE="cleaned_seqs/mapping/${SAMPLE_NAME}.lofreq.final.bam"
+    echo "Auto-detected BAM: $BAM_FILE"
+fi
+
+# =============================================================================
+# HOST_DIR for displaying host-side paths (Docker support)
+# =============================================================================
+# If HOST_DIR is set (via -e HOST_DIR=$(pwd)), use it to show host paths.
+# Otherwise fall back to current working directory.
+HOST_DIR="${HOST_DIR:-$(pwd)}"
+
+# Helper: display a path with HOST_DIR prefix for user-friendly output
+host_path() {
+    echo "${HOST_DIR}/$1"
+}
 
 # =============================================================================
 # Configuration Loading
@@ -410,32 +430,22 @@ echo "============================================="
 echo "POST-PROCESSING COMPLETE"
 echo "============================================="
 echo ""
-echo "OUTPUT FILES:"
+echo "OUTPUT FILES (host paths):"
 echo ""
 echo "  Filtered mutations:"
-echo "    ${FILTERED_TSV}"
+echo "    $(host_path ${FILTERED_TSV})"
 echo ""
 echo "  Tier 1 - Consensus genome:"
-echo "    ${OUTPUT_PREFIX}_consensus.fasta"
-echo "    ${OUTPUT_PREFIX}_consensus_proteins.fasta"
-echo "    ${OUTPUT_PREFIX}_consensus_report.txt"
+echo "    $(host_path ${OUTPUT_PREFIX}_consensus.fasta)"
+echo "    $(host_path ${OUTPUT_PREFIX}_consensus_proteins.fasta)"
+echo "    $(host_path ${OUTPUT_PREFIX}_consensus_report.txt)"
 echo ""
 echo "  Co-occurrence analysis:"
-echo "    ${COOCCURRENCE_TSV}"
+echo "    $(host_path ${COOCCURRENCE_TSV})"
 echo ""
 echo "  Tier 2 - Variant genomes:"
-echo "    ${OUTPUT_PREFIX}_variant_genomes.fasta"
-echo "    ${OUTPUT_PREFIX}_variant_proteins.fasta"
-echo "    ${OUTPUT_PREFIX}_variant_report.txt"
-echo ""
-echo "NEXT STEPS:"
-echo "  Review consensus report:"
-echo "    cat ${OUTPUT_PREFIX}_consensus_report.txt"
-echo ""
-echo "  Review variant report:"
-echo "    cat ${OUTPUT_PREFIX}_variant_report.txt"
-echo ""
-echo "  Check co-occurrence linkage:"
-echo "    cat ${COOCCURRENCE_TSV}"
+echo "    $(host_path ${OUTPUT_PREFIX}_variant_genomes.fasta)"
+echo "    $(host_path ${OUTPUT_PREFIX}_variant_proteins.fasta)"
+echo "    $(host_path ${OUTPUT_PREFIX}_variant_report.txt)"
 echo ""
 echo "============================================="
