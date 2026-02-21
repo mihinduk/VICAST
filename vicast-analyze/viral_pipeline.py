@@ -84,6 +84,7 @@ def parse_args() -> argparse.Namespace:
     pipeline_group.add_argument("--skip-mapping", action="store_true", help="Skip read mapping step")
     pipeline_group.add_argument("--skip-variants", action="store_true", help="Skip variant calling step")
     pipeline_group.add_argument("--skip-annotation", action="store_true", help="Skip variant annotation step")
+    pipeline_group.add_argument("--skip-vector-filter", action="store_true", help="Skip cloning vector read filtering (default: filter using UniVec)")
     pipeline_group.add_argument("--resume-from-vcf", action="store_true", help="Resume from existing VCF files (skip Steps 1-6, run only annotation Steps 7-9)")
     pipeline_group.add_argument("--create-genbank", action="store_true", help="Create GenBank file from FASTA using BLAST annotation")
     
@@ -800,22 +801,24 @@ def clean_reads(output_dir: str, r1_pattern: str, r2_pattern: str, threads: int 
     return cleaned_files
 
 def map_and_call_variants(
-    reference: str, 
-    output_dir: str, 
+    reference: str,
+    output_dir: str,
     threads: int = 1,
     cleaned_files: Dict[str, Tuple[str, str]] = None,
     large_files: bool = False,
-    extremely_large_files: bool = False
+    extremely_large_files: bool = False,
+    skip_vector_filter: bool = False
 ) -> Dict[str, Dict[str, str]]:
     """
     Map reads to reference and call variants.
-    
+
     Args:
         reference: Path to reference genome
         output_dir: Base output directory
         threads: Number of threads to use
         cleaned_files: Dictionary mapping sample names to (R1, R2) cleaned file paths
-        
+        skip_vector_filter: If True, skip cloning vector read filtering
+
     Returns:
         Dictionary mapping sample names to output files
     """
@@ -866,7 +869,56 @@ def map_and_call_variants(
             continue
         
         logger.info(f"Processing sample: {sample_name}")
-        
+
+        # ── Vector filtering: remove reads matching cloning vectors ──
+        novector_r1 = None
+        novector_r2 = None
+        if not skip_vector_filter:
+            vector_db = os.path.join(
+                os.environ.get('BLAST_DB_DIR', '/opt/vicast/blast_db'),
+                'cloning_vectors.fasta')
+            if os.path.exists(vector_db):
+                logger.info(f"Filtering cloning vector reads for {sample_name}")
+                novector_r1 = os.path.join(mapping_dir, f"{sample_name}_novector_R1.fastq.gz")
+                novector_r2 = os.path.join(mapping_dir, f"{sample_name}_novector_R2.fastq.gz")
+
+                # Index vector DB if not already indexed
+                if not os.path.exists(vector_db + '.bwt'):
+                    run_command(f"bwa index {vector_db}", shell=True)
+
+                # Map to vectors, keep only unmapped read pairs (-f 12)
+                run_command(
+                    f"bwa mem -t {threads} {vector_db} {r1_path} {r2_path} | "
+                    f"samtools fastq -f 12 -F 256 "
+                    f"-1 {novector_r1} -2 {novector_r2} -s /dev/null -",
+                    shell=True
+                )
+
+                # Log filtering stats
+                try:
+                    import subprocess as _sp
+                    orig_count = _sp.run(
+                        f"zcat {r1_path} | wc -l",
+                        shell=True, capture_output=True, text=True
+                    ).stdout.strip()
+                    filt_count = _sp.run(
+                        f"zcat {novector_r1} | wc -l",
+                        shell=True, capture_output=True, text=True
+                    ).stdout.strip()
+                    orig_reads = int(orig_count) // 4
+                    filt_reads = int(filt_count) // 4
+                    removed = orig_reads - filt_reads
+                    logger.info(f"Vector filtering: {orig_reads} → {filt_reads} read pairs "
+                                f"({removed} removed, {removed/max(orig_reads,1)*100:.2f}%)")
+                except Exception:
+                    pass
+
+                # Use filtered reads for all downstream steps
+                r1_path = novector_r1
+                r2_path = novector_r2
+            else:
+                logger.debug("No vector database found — skipping vector filtering")
+
         # Prepare output file paths
         sam_file = os.path.join(mapping_dir, f"{sample_name}.sam")
         fixmate_file = os.path.join(mapping_dir, f"{sample_name}.fixmate.bam")
@@ -983,6 +1035,12 @@ def map_and_call_variants(
             shell=True
         )
         
+        # Clean up vector-filtered intermediate files
+        for tmp_file in [novector_r1, novector_r2]:
+            if tmp_file and os.path.exists(tmp_file):
+                os.remove(tmp_file)
+                logger.debug(f"Cleaned up: {tmp_file}")
+
         # Store output files
         result_files[sample_name] = {
             'sam': sam_file,
@@ -1668,7 +1726,8 @@ def main():
                     args.threads,
                     cleaned_files,  # Pass the specific cleaned files
                     args.large_files,
-                    args.extremely_large_files
+                    args.extremely_large_files,
+                    skip_vector_filter=getattr(args, 'skip_vector_filter', False)
                 )
                 # Extract file paths from nested dict structure
                 output_files = []

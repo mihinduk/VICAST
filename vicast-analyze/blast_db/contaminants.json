@@ -1,7 +1,14 @@
 {
-  "version": "1.0",
+  "version": "1.1",
   "description": "VICAST contamination screening database configuration",
-  "last_updated": "2026-02-17",
+  "last_updated": "2026-02-20",
+  "vector_source": {
+    "type": "univec",
+    "url": "https://ftp.ncbi.nlm.nih.gov/pub/UniVec/UniVec",
+    "description": "NCBI UniVec database (~3,058 cloning vector sequences)",
+    "purpose": "Pre-mapping read filtering to remove cloning vector artifacts (e.g., NotI sites from infectious clones)",
+    "usage": "Downloaded to cloning_vectors.fasta, BWA-indexed, used automatically by map_and_call_variants()"
+  },
   "viral_source": {
     "type": "refseq_ftp",
     "url": "https://ftp.ncbi.nlm.nih.gov/refseq/release/viral/viral.1.1.genomic.fna.gz",

@@ -114,7 +114,7 @@ RUN printf '#!/bin/bash\njava -jar %s "$@"\n' "${SNPEFF_JAR}" > /usr/local/bin/s
     chmod +x /usr/local/bin/snpeff
 
 # Create helpful MOTD
-RUN echo '#!/bin/bash\ncat << "EOF"\n\n╔══════════════════════════════════════════════════════════════╗\n║                    VICAST Docker v2.3.0                      ║\n║        Viral Cultured-virus Annotation & SnpEff Toolkit      ║\n╚══════════════════════════════════════════════════════════════╝\n\nPre-built Genomes (Ready to Use):\n  ✓ DENV-2      (NC_001474.2)\n  ✓ SARS-CoV-2  (NC_045512.2)\n  ✓ Ebola       (NC_002549.1)\n\nQuick Start - Pre-built Genome:\n  download_sra_data.sh SRR5992153\n  run_vicast_analyze_full.sh SRR5992153_1.fastq.gz SRR5992153_2.fastq.gz NC_001474.2 8\n\nCustom Genome Workflow:\n  step1_parse_viral_genome.py AF252854.1  # Download & parse\n  step2_add_to_snpeff.py AF252854.1 AF252854.1.tsv  # Add to SnpEff\n  run_vicast_analyze_full.sh R1.fq.gz R2.fq.gz AF252854.1 8\n\nContamination Screening:\n  ✓ BLAST database: 18,804 sequences (viruses + lab contaminants)\n  Run: setup_blast_db.sh --info\n\nMounted Locations:\n  /data              → Your working directory\n  /opt/vicast        → VICAST installation\n  $SNPEFF_DATA_CUSTOM → Custom databases (if mounted)\n\nDocumentation: /opt/vicast/README.md\n\nEOF' > /etc/profile.d/vicast_motd.sh && \
+RUN echo '#!/bin/bash\ncat << "EOF"\n\n╔══════════════════════════════════════════════════════════════╗\n║                    VICAST Docker v2.3.0                      ║\n║        Viral Cultured-virus Annotation & SnpEff Toolkit      ║\n╚══════════════════════════════════════════════════════════════╝\n\nPre-built Genomes (Ready to Use):\n  ✓ DENV-2      (NC_001474.2)\n  ✓ SARS-CoV-2  (NC_045512.2)\n  ✓ Ebola       (NC_002549.1)\n\nQuick Start - Pre-built Genome:\n  download_sra_data.sh SRR5992153\n  run_vicast_analyze_full.sh SRR5992153_1.fastq.gz SRR5992153_2.fastq.gz NC_001474.2 8\n\nCustom Genome Workflow:\n  step1_parse_viral_genome.py AF252854.1  # Download & parse\n  step2_add_to_snpeff.py AF252854.1 AF252854.1.tsv  # Add to SnpEff\n  run_vicast_analyze_full.sh R1.fq.gz R2.fq.gz AF252854.1 8\n\nContamination Screening:\n  ✓ BLAST database: 18,804 sequences (viruses + lab contaminants)\n  ✓ UniVec vector filtering: ~3,058 cloning vectors (automatic)\n  Run: setup_blast_db.sh --info\n\nMounted Locations:\n  /data              → Your working directory\n  /opt/vicast        → VICAST installation\n  $SNPEFF_DATA_CUSTOM → Custom databases (if mounted)\n\nDocumentation: /opt/vicast/README.md\n\nEOF' > /etc/profile.d/vicast_motd.sh && \
     chmod +x /etc/profile.d/vicast_motd.sh
 
 # Create conda symlink to micromamba for compatibility
@@ -189,6 +189,18 @@ RUN mkdir -p ${BLAST_DB_DIR}/user_extensions && \
 USER $MAMBA_USER
 RUN bash ${VICAST_HOME}/vicast-analyze/setup_blast_db.sh ${BLAST_DB_DIR} || \
     echo "WARNING: BLAST DB download failed during build - run setup_blast_db.sh at runtime"
+
+# =============================================================================
+# UniVec Cloning Vector Database
+# NCBI UniVec (~3,058 vector sequences) for pre-mapping read filtering.
+# Removes cloning vector artifacts (e.g., NotI sites from infectious clones).
+# Used automatically by Step 4 (map_and_call_variants) before BWA alignment.
+# =============================================================================
+RUN curl -fL -o ${BLAST_DB_DIR}/cloning_vectors.fasta \
+        "https://ftp.ncbi.nlm.nih.gov/pub/UniVec/UniVec" && \
+    bwa index ${BLAST_DB_DIR}/cloning_vectors.fasta && \
+    echo "UniVec database installed: $(grep -c '^>' ${BLAST_DB_DIR}/cloning_vectors.fasta) vectors" || \
+    echo "WARNING: UniVec download failed - vector filtering will be skipped at runtime"
 
 # Set working directory
 WORKDIR /data

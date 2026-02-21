@@ -365,12 +365,37 @@ EOF
     fi
 
     echo ""
-    echo -e "${GREEN}Database built successfully!${NC}"
+    echo -e "${GREEN}BLAST database built successfully!${NC}"
     echo "Location: ${output_dir}/${DB_NAME}"
     echo "Total sequences: $TOTAL ($VIRAL_COUNT viral + $CONTAM_COUNT contaminants)"
 
     # -------------------------------------------------------------------------
-    # Step 5: Package for distribution (optional)
+    # Step 5: Download UniVec cloning vector database for read-level filtering
+    # -------------------------------------------------------------------------
+    echo ""
+    echo "Step 5: Downloading NCBI UniVec cloning vector database"
+    echo "--------------------------------------------------------"
+    local univec_fasta="${output_dir}/cloning_vectors.fasta"
+    local univec_url="https://ftp.ncbi.nlm.nih.gov/pub/UniVec/UniVec"
+
+    if curl -fL -o "$univec_fasta" "$univec_url"; then
+        local univec_count
+        univec_count=$(grep -c "^>" "$univec_fasta")
+        echo -e "${GREEN}Downloaded UniVec: $univec_count vector sequences${NC}"
+
+        # BWA index for pre-mapping read filtering
+        if command -v bwa &> /dev/null; then
+            bwa index "$univec_fasta" 2>/dev/null
+            echo -e "${GREEN}BWA index created for vector filtering${NC}"
+        else
+            echo -e "${YELLOW}Warning: bwa not found — index at runtime${NC}"
+        fi
+    else
+        echo -e "${YELLOW}Warning: UniVec download failed — vector filtering will be skipped${NC}"
+    fi
+
+    # -------------------------------------------------------------------------
+    # Step 6: Package for distribution (optional)
     # -------------------------------------------------------------------------
     if $package; then
         echo ""
