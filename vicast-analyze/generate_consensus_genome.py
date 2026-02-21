@@ -90,35 +90,86 @@ def load_filtered_tsv(tsv_path):
 
 
 def apply_variants_to_sequence(ref_seq, variants_df):
-    """Apply SNPs and simple substitutions to reference sequence.
+    """Apply SNPs and indels to reference sequence.
 
-    Returns (consensus_sequence, list_of_applied_mutation_rows, list_of_skipped_rows).
+    Indels are applied in reverse position order to preserve upstream coordinates.
+    Returns (consensus_sequence, applied_rows, skipped_rows, indel_offsets).
+    indel_offsets is a sorted list of (1-based pos, size_change) for coordinate adjustment.
     """
     seq_list = list(ref_seq)
     applied = []
     skipped = []
+    indel_offsets = []  # (pos_1based, size_change) for downstream coordinate adjustment
 
-    for _, row in variants_df.sort_values('POS').iterrows():
+    # Sort by position descending so indels don't shift upstream coordinates
+    sorted_variants = variants_df.sort_values('POS', ascending=False)
+
+    for _, row in sorted_variants.iterrows():
         pos = int(row['POS']) - 1  # 0-based
         ref_base = str(row['REF'])
         alt_base = str(row['ALT'])
 
-        # SNP
-        if len(ref_base) == 1 and len(alt_base) == 1:
-            if pos < len(seq_list):
-                if seq_list[pos].upper() == ref_base.upper():
-                    seq_list[pos] = alt_base
-                    applied.append(row)
-                else:
-                    seq_list[pos] = alt_base
-                    applied.append(row)
-                    print(f"  Warning: REF mismatch at {pos+1}: expected {ref_base}, "
-                          f"found {seq_list[pos]}")
-        else:
+        if pos >= len(seq_list):
             skipped.append(row)
-            print(f"  Skipping indel at {pos+1}: {ref_base}>{alt_base}")
+            continue
 
-    return ''.join(seq_list), applied, skipped
+        if len(ref_base) == 1 and len(alt_base) == 1:
+            # SNP
+            seq_list[pos] = alt_base
+            applied.append(row)
+        elif len(ref_base) < len(alt_base) and alt_base.startswith(ref_base):
+            # Insertion: REF=A, ALT=ATCG → insert TCG after pos
+            insert_seq = alt_base[len(ref_base):]
+            insert_pos = pos + len(ref_base)
+            seq_list[insert_pos:insert_pos] = list(insert_seq)
+            indel_offsets.append((int(row['POS']), len(insert_seq)))
+            applied.append(row)
+            print(f"  Applied insertion at {int(row['POS'])}: +{len(insert_seq)}bp")
+        elif len(ref_base) > len(alt_base) and ref_base.startswith(alt_base):
+            # Deletion: REF=ATCG, ALT=A → delete TCG after anchor
+            del_start = pos + len(alt_base)
+            del_len = len(ref_base) - len(alt_base)
+            del seq_list[del_start:del_start + del_len]
+            indel_offsets.append((int(row['POS']), -del_len))
+            applied.append(row)
+            print(f"  Applied deletion at {int(row['POS'])}: -{del_len}bp")
+        else:
+            # Complex substitution (MNV) — apply as replacement
+            seq_list[pos:pos + len(ref_base)] = list(alt_base)
+            size_change = len(alt_base) - len(ref_base)
+            if size_change != 0:
+                indel_offsets.append((int(row['POS']), size_change))
+            applied.append(row)
+            print(f"  Applied complex variant at {int(row['POS'])}: "
+                  f"{ref_base}>{alt_base}")
+
+    # Re-sort applied list by position (ascending) for reporting
+    applied.sort(key=lambda r: int(r['POS']))
+    # Sort offsets by position ascending for coordinate adjustment
+    indel_offsets.sort(key=lambda x: x[0])
+
+    return ''.join(seq_list), applied, skipped, indel_offsets
+
+
+def adjust_gene_coords(gene_coords, indel_offsets):
+    """Adjust gene coordinates based on indel offsets.
+
+    Returns new dict of gene_name -> (adjusted_start, adjusted_end).
+    """
+    if not indel_offsets:
+        return gene_coords
+
+    adjusted = {}
+    for gene, (start, end) in gene_coords.items():
+        cum_offset = 0
+        for indel_pos, size_change in indel_offsets:
+            if indel_pos < start:
+                cum_offset += size_change
+            elif indel_pos <= end:
+                # Indel within the gene — adjust end only
+                end += size_change
+        adjusted[gene] = (start + cum_offset, end + cum_offset)
+    return adjusted
 
 
 def _load_depth_from_file(depth_file, genome_len):
@@ -305,8 +356,10 @@ def write_report(report_path, args, virus_config, threshold, variants_df,
         f.write(f"Total variants in TSV:       {len(variants_df)}\n")
         consensus_variants = variants_df[variants_df['Allele_Frequency'] >= threshold]
         f.write(f"Variants >= AF threshold:    {len(consensus_variants)}\n")
-        f.write(f"Variants applied (SNPs):     {len(applied)}\n")
-        f.write(f"Variants skipped (indels):   {len(skipped)}\n")
+        n_snps_applied = sum(1 for r in applied if len(str(r['REF'])) == 1 and len(str(r['ALT'])) == 1)
+        n_indels_applied = len(applied) - n_snps_applied
+        f.write(f"Variants applied:            {len(applied)} ({n_snps_applied} SNPs, {n_indels_applied} indels)\n")
+        f.write(f"Variants skipped:            {len(skipped)}\n")
         f.write(f"Positions masked (N):        {n_count}\n\n")
 
         f.write("-" * 80 + "\n")
@@ -393,14 +446,23 @@ def main():
     print(f"Variants at AF >= {threshold}: {len(consensus_variants)}")
 
     # ── Build consensus ───────────────────────────────────────────────
+    indel_offsets = []
     if len(consensus_variants) == 0:
         print("No variants above consensus threshold — consensus equals reference")
         consensus_seq = ref_seq
         applied = []
         skipped = []
     else:
-        consensus_seq, applied, skipped = apply_variants_to_sequence(ref_seq, consensus_variants)
-        print(f"Applied {len(applied)} mutations, skipped {len(skipped)} indels")
+        consensus_seq, applied, skipped, indel_offsets = apply_variants_to_sequence(
+            ref_seq, consensus_variants)
+        n_snps = sum(1 for r in applied if len(str(r['REF'])) == 1 and len(str(r['ALT'])) == 1)
+        n_indels = len(applied) - n_snps
+        print(f"Applied {len(applied)} mutations ({n_snps} SNPs, {n_indels} indels), "
+              f"skipped {len(skipped)}")
+        if indel_offsets:
+            total_offset = sum(s for _, s in indel_offsets)
+            print(f"  Net genome size change from indels: {total_offset:+d} bp "
+                  f"(ref {len(ref_seq)} → consensus {len(consensus_seq)})")
 
     # ── Mask low-coverage positions ───────────────────────────────────
     n_count = 0
@@ -434,7 +496,17 @@ def main():
 
     # ── Translate proteins ────────────────────────────────────────────
     gene_coords = virus_config.get('gene_coords', {}) if virus_config else {}
-    if gene_coords:
+
+    # Adjust gene coordinates if indels changed the genome length
+    adjusted_coords = adjust_gene_coords(gene_coords, indel_offsets) if gene_coords else {}
+    if indel_offsets and gene_coords:
+        print(f"  Adjusted {len(adjusted_coords)} gene coordinates for indels")
+
+    if adjusted_coords:
+        proteins = translate_genes(consensus_seq, adjusted_coords)
+        print(f"Translated {len(proteins)} gene products (UTRs excluded)")
+    elif gene_coords:
+        # No indels — use original coords
         proteins = translate_genes(consensus_seq, gene_coords)
         print(f"Translated {len(proteins)} gene products (UTRs excluded)")
     else:
@@ -446,7 +518,7 @@ def main():
     protein_fasta = f"{args.output_prefix}_consensus_proteins.fasta"
     protein_records = []
     for gene_name, protein_seq in proteins:
-        # Find mutations in this gene
+        # Find mutations in this gene (use original coords for POS matching)
         gene_start, gene_end = gene_coords.get(gene_name, (0, 0))
         gene_muts = get_mutations_for_gene(applied, gene_name, gene_start, gene_end)
 

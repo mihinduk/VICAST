@@ -136,23 +136,77 @@ def find_connected_components(graph, all_positions):
 
 
 def apply_mutations(base_seq, mutations_df):
-    """Apply SNP mutations to a sequence.
+    """Apply SNP and indel mutations to a sequence.
 
-    Returns (mutated_seq, applied_count).
+    Processes variants in reverse position order so indels don't shift
+    upstream coordinates.
+
+    Returns (mutated_seq, applied_count, indel_offsets).
+    indel_offsets is a sorted list of (1-based pos, size_change).
     """
     seq_list = list(base_seq)
     applied = 0
+    indel_offsets = []
 
-    for _, row in mutations_df.sort_values('POS').iterrows():
+    # Sort descending so indels preserve upstream positions
+    for _, row in mutations_df.sort_values('POS', ascending=False).iterrows():
         pos = int(row['POS']) - 1  # 0-based
         ref_base = str(row['REF'])
         alt_base = str(row['ALT'])
 
-        if len(ref_base) == 1 and len(alt_base) == 1 and pos < len(seq_list):
+        if pos >= len(seq_list):
+            continue
+
+        if len(ref_base) == 1 and len(alt_base) == 1:
+            # SNP
             seq_list[pos] = alt_base
             applied += 1
+        elif len(ref_base) < len(alt_base) and alt_base.startswith(ref_base):
+            # Insertion: REF=A, ALT=ATCG → insert TCG after anchor
+            insert_seq = alt_base[len(ref_base):]
+            insert_pos = pos + len(ref_base)
+            seq_list[insert_pos:insert_pos] = list(insert_seq)
+            indel_offsets.append((int(row['POS']), len(insert_seq)))
+            applied += 1
+        elif len(ref_base) > len(alt_base) and ref_base.startswith(alt_base):
+            # Deletion: REF=ATCG, ALT=A → delete TCG after anchor
+            del_start = pos + len(alt_base)
+            del_len = len(ref_base) - len(alt_base)
+            del seq_list[del_start:del_start + del_len]
+            indel_offsets.append((int(row['POS']), -del_len))
+            applied += 1
+        else:
+            # Complex substitution (MNV)
+            seq_list[pos:pos + len(ref_base)] = list(alt_base)
+            size_change = len(alt_base) - len(ref_base)
+            if size_change != 0:
+                indel_offsets.append((int(row['POS']), size_change))
+            applied += 1
 
-    return ''.join(seq_list), applied
+    # Sort offsets ascending for coordinate adjustment
+    indel_offsets.sort(key=lambda x: x[0])
+    return ''.join(seq_list), applied, indel_offsets
+
+
+def adjust_gene_coords(gene_coords, indel_offsets):
+    """Adjust gene coordinates based on indel offsets.
+
+    Returns new dict of gene_name -> (adjusted_start, adjusted_end).
+    """
+    if not indel_offsets:
+        return gene_coords
+
+    adjusted = {}
+    for gene, (start, end) in gene_coords.items():
+        cum_offset = 0
+        for indel_pos, size_change in indel_offsets:
+            if indel_pos < start:
+                cum_offset += size_change
+            elif indel_pos <= end:
+                # Indel within the gene — adjust end only
+                end += size_change
+        adjusted[gene] = (start + cum_offset, end + cum_offset)
+    return adjusted
 
 
 def is_utr(gene_name):
@@ -312,11 +366,18 @@ def main():
             linkage_type = "singleton"
 
         # Apply mutations on top of consensus
-        variant_seq, applied_count = apply_mutations(consensus_seq, group_df)
+        variant_seq, applied_count, var_indel_offsets = apply_mutations(
+            consensus_seq, group_df)
 
         # Create genome record
         positions_str = ','.join(str(p) for p in sorted(group_positions))
-        desc = (f"variant genome ({applied_count} mutations at pos {positions_str}; "
+        n_snps = sum(1 for _, r in group_df.iterrows()
+                     if len(str(r['REF'])) == 1 and len(str(r['ALT'])) == 1)
+        n_indels = applied_count - n_snps
+        mut_desc = f"{applied_count} mutations"
+        if n_indels > 0:
+            mut_desc = f"{n_snps} SNPs, {n_indels} indels"
+        desc = (f"variant genome ({mut_desc} at pos {positions_str}; "
                 f"linkage: {linkage_type})")
         genome_rec = SeqRecord(
             Seq(variant_seq),
@@ -325,8 +386,11 @@ def main():
         )
         genome_records.append(genome_rec)
 
-        # Translate proteins
-        if gene_coords:
+        # Translate proteins — adjust coords if indels changed genome length
+        var_coords = adjust_gene_coords(gene_coords, var_indel_offsets) if var_indel_offsets else gene_coords
+        if var_coords:
+            proteins = translate_genes(variant_seq, var_coords)
+        elif gene_coords:
             proteins = translate_genes(variant_seq, gene_coords)
         else:
             protein = viral_translate(variant_seq, coordinates=None, stop_at_stop_codon=True)
@@ -348,7 +412,7 @@ def main():
             'mutations_df': group_df,
         })
 
-        print(f"  {group_name}: {applied_count} mutations, linkage={linkage_type}")
+        print(f"  {group_name}: {applied_count} mutations ({mut_desc}), linkage={linkage_type}")
 
     # ── Write outputs ─────────────────────────────────────────────────
     genome_fasta = f"{args.output_prefix}_variant_genomes.fasta"
