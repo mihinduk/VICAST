@@ -146,7 +146,7 @@ def resolve_segment_accessions(accession):
             try:
                 with open(mpath, 'r') as f:
                     manifest = json.load(f)
-                for entry in manifest.get("genomes", []):
+                for entry in manifest.get("databases", []):
                     if entry.get("accession") == accession:
                         segments = entry.get("segment_accessions", [])
                         if segments:
