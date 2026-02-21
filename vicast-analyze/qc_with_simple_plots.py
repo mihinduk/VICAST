@@ -123,6 +123,41 @@ def parse_diagnostic_report(report_file):
         
     return data
 
+def resolve_segment_accessions(accession):
+    """Resolve a custom accession to its segment accessions from the manifest.
+
+    For segmented viruses (e.g., influenza_pr8), the custom accession won't
+    appear in BLAST results. This returns a set including individual segment
+    accessions so they can be matched.
+    """
+    accessions = {accession.lower()} if accession else set()
+    if not accession:
+        return accessions
+
+    script_dir = Path(__file__).parent
+    manifest_paths = [
+        script_dir.parent / "prebuilt_databases" / "manifest.json",
+        script_dir / "manifest.json",
+        Path("/opt/vicast/prebuilt_databases/manifest.json"),
+    ]
+
+    for mpath in manifest_paths:
+        if mpath.exists():
+            try:
+                with open(mpath, 'r') as f:
+                    manifest = json.load(f)
+                for entry in manifest.get("genomes", []):
+                    if entry.get("accession") == accession:
+                        segments = entry.get("segment_accessions", [])
+                        if segments:
+                            accessions.update(s.lower() for s in segments)
+                        break
+            except (json.JSONDecodeError, KeyError):
+                pass
+            break
+    return accessions
+
+
 def parse_blast_results(blast_file, target_accession=None, target_virus_name=None):
     """Parse BLAST top_hits.tsv to extract contamination and target genome information.
 
@@ -130,6 +165,8 @@ def parse_blast_results(blast_file, target_accession=None, target_virus_name=Non
     top_hits.tsv contains only best hits (tied-best when multiple have identical stats).
     Deduplicates by contig_id: 1 entry per contig unless multiple tied-best hits exist.
     """
+    # Resolve segment accessions for segmented viruses
+    target_accession_set = resolve_segment_accessions(target_accession)
     contamination_data = []
     target_data = []
 
@@ -180,8 +217,10 @@ def parse_blast_results(blast_file, target_accession=None, target_virus_name=Non
 
                     # Check if this matches target genome
                     is_target = False
-                    if target_accession and (target_accession.lower() in subject_id.lower()
-                                             or target_accession.lower() in title_lower):
+                    sid_lower = subject_id.lower()
+                    if target_accession_set and any(
+                            acc in sid_lower or acc in title_lower
+                            for acc in target_accession_set):
                         is_target = True
                     elif target_virus_name and target_virus_name in title_lower:
                         is_target = True

@@ -21,9 +21,58 @@ Usage:
 """
 
 import argparse
+import json
+import os
 import re
 import sys
 from collections import defaultdict, OrderedDict
+from pathlib import Path
+
+
+def resolve_accessions(accession):
+    """Resolve a single accession to a set of accessions to match.
+
+    For segmented viruses (e.g., influenza_pr8), the custom accession won't
+    appear in BLAST results — the individual segment accessions will. This
+    function looks up segment_accessions from the prebuilt manifest.
+
+    Returns a set of accession strings to check against BLAST subject IDs.
+    """
+    accessions = {accession}
+    if not accession:
+        return accessions
+
+    # Search for manifest.json in standard locations
+    script_dir = Path(__file__).parent
+    manifest_paths = [
+        script_dir.parent / "prebuilt_databases" / "manifest.json",
+        script_dir / "manifest.json",
+        Path("manifest.json"),
+    ]
+
+    for mpath in manifest_paths:
+        if mpath.exists():
+            try:
+                with open(mpath, 'r') as f:
+                    manifest = json.load(f)
+                for entry in manifest.get("genomes", []):
+                    if entry.get("accession") == accession:
+                        segments = entry.get("segment_accessions", [])
+                        if segments:
+                            accessions.update(segments)
+                            print(f"Resolved {accession} → {len(segments)} segment accessions",
+                                  file=sys.stderr)
+                        break
+            except (json.JSONDecodeError, KeyError):
+                pass
+            break  # Only try first found manifest
+
+    return accessions
+
+
+def accession_matches(subject_id, accession_set):
+    """Check if a BLAST subject_id matches any accession in the set."""
+    return any(acc in subject_id for acc in accession_set)
 
 
 def parse_contig_lengths(fasta_path):
@@ -199,17 +248,22 @@ def get_hits_per_contig(rows, contig_lengths):
     return all_hits
 
 
-def classify_contigs(all_hits, accession, min_coverage):
+def classify_contigs(all_hits, accession, min_coverage, accession_set=None):
     """Classify contigs into reference, other-viral, contaminant categories.
 
     A contig is classified by its BEST hit (highest bitscore).
     Hits below min_coverage are excluded from classification.
+
+    accession_set: set of accession strings to match (includes segment accessions).
+    Falls back to {accession} if not provided.
 
     Returns dict with:
       reference:    list of (contig_id, contig_length, [best_hits])
       other_viral:  list of (contig_id, contig_length, [best_hits])
       non_viral:    OrderedDict of kingdom -> list of (contig_id, contig_length, best_hit)
     """
+    if accession_set is None:
+        accession_set = {accession} if accession else set()
     # Group hits by contig
     by_contig = defaultdict(list)
     for h in all_hits:
@@ -238,8 +292,9 @@ def classify_contigs(all_hits, accession, min_coverage):
             else:
                 break
 
-        # Check if reference accession appears in ANY valid hit for this contig
-        has_ref = any(accession in h["subject_id"] for h in valid_hits) if accession else False
+        # Check if reference accession (or segment accession) appears in ANY valid hit
+        has_ref = any(accession_matches(h["subject_id"], accession_set)
+                      for h in valid_hits) if accession_set else False
 
         if has_ref:
             reference_contigs.append((contig_id, vbest["contig_length"], best_hits))
@@ -306,9 +361,11 @@ def write_viral_hits_tsv(rows, contig_lengths, output_path):
     return count
 
 
-def write_report_section(all_hits, contig_lengths, accession, min_coverage, output_path):
+def write_report_section(all_hits, contig_lengths, accession, min_coverage, output_path,
+                         accession_set=None):
     """Write detailed contamination screening report."""
-    classification = classify_contigs(all_hits, accession, min_coverage)
+    classification = classify_contigs(all_hits, accession, min_coverage,
+                                      accession_set=accession_set)
 
     # Get all contig IDs (including those with no hits)
     all_contig_ids = set(contig_lengths.keys())
@@ -468,12 +525,20 @@ def main():
           f"{contigs_with_hits} contigs "
           f"({tied_best_count} tied-best)", file=sys.stderr)
 
+    # Resolve accession to include segment accessions for segmented viruses
+    accession_set = resolve_accessions(args.accession) if args.accession else set()
+
     # Accession check
     if args.accession:
-        has_ref = any(args.accession in h["subject_id"] for h in all_hits)
+        has_ref = any(accession_matches(h["subject_id"], accession_set) for h in all_hits)
         if has_ref:
-            print(f"REFERENCE MATCH: {args.accession} confirmed in BLAST hits",
-                  file=sys.stderr)
+            if len(accession_set) > 1:
+                print(f"REFERENCE MATCH: {args.accession} confirmed via segment accessions "
+                      f"({', '.join(sorted(accession_set - {args.accession}))})",
+                      file=sys.stderr)
+            else:
+                print(f"REFERENCE MATCH: {args.accession} confirmed in BLAST hits",
+                      file=sys.stderr)
         else:
             print(f"WARNING: Reference {args.accession} not found in BLAST hits",
                   file=sys.stderr)
@@ -489,7 +554,8 @@ def main():
 
     if args.report:
         write_report_section(all_hits, contig_lengths, args.accession,
-                             args.min_coverage, args.report)
+                             args.min_coverage, args.report,
+                             accession_set=accession_set)
         print(f"Wrote report: {args.report}", file=sys.stderr)
 
     # Also print top hits to stdout for quick viewing
