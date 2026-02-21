@@ -1,0 +1,12 @@
+##fileformat=VCFv4.2
+##INFO=<ID=DP,Number=1,Type=Integer,Description="Read Depth">
+##INFO=<ID=AF,Number=A,Type=Float,Description="Allele Frequency">
+##INFO=<ID=NOTE,Number=1,Type=String,Description="Variant Note">
+##contig=<ID=NC_001474.2,length=10723>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
+NC_001474.2	1231	.	A	G	2000	PASS	DP=1000;AF=0.95;NOTE=E_R99G_fusion_loop
+NC_001474.2	1834	.	T	C	1800	PASS	DP=800;AF=0.85;NOTE=E_S300P_DomIII_neutralization
+NC_001474.2	2800	.	G	A	1500	PASS	DP=700;AF=0.30;NOTE=NS1_E127K_diagnostic_antigen
+NC_001474.2	4700	.	A	G	1700	PASS	DP=900;AF=0.90;NOTE=NS3_H60R_protease_domain
+NC_001474.2	5500	.	C	A	1200	PASS	DP=600;AF=0.15;NOTE=NS3_Q327K_helicase_domain
+NC_001474.2	9000	.	G	A	1300	PASS	DP=650;AF=0.20;NOTE=NS5_M477I_RdRp_domain
