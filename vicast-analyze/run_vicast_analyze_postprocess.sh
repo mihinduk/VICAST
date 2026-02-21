@@ -17,8 +17,8 @@ DEPTH=200
 FREQ_PARSE=0.01
 CONSENSUS_AF=""
 GENOME_TYPE=""
-MIN_MINOR_AF=0.005
-MAX_MINOR_AF=0.05
+MIN_MINOR_AF=0.03
+MAX_MINOR_AF=0.50
 MINOR_QUALITY=100
 MIN_DEPTH=20
 
@@ -89,8 +89,8 @@ while [[ $# -gt 0 ]]; do
             echo "                            (default: auto — 0.95 for ssRNA/ssDNA, 0.45 for dsRNA)"
             echo "  --genome-type <str>       Override genome type: ss|ds|ssRNA|dsRNA"
             echo "                            (default: auto from known_viruses.json)"
-            echo "  --min-minor-af <float>    Min AF for minor variant genomes (default: 0.005)"
-            echo "  --max-minor-af <float>    Max AF for minor variant genomes (default: 0.05)"
+            echo "  --min-minor-af <float>    Min AF for minor variant genomes (default: 0.03 = 3%)"
+            echo "  --max-minor-af <float>    Max AF for minor variant genomes (default: 0.50 = 50%)"
             echo "  --minor-quality <int>     Quality threshold for minor variants (default: 100)"
             echo "  --min-depth <int>         Min depth for N-masking in consensus (default: 20)"
             echo ""
@@ -107,9 +107,9 @@ while [[ $# -gt 0 ]]; do
             echo "  # Override consensus threshold for dsRNA"
             echo "  $0 --sample MY_SAMPLE --accession NC_XXXXXX.X --genome-type ds"
             echo ""
-            echo "  # Custom minor variant range (1%-10%)"
+            echo "  # Sensitive mode with technical replicates (1%-50%)"
             echo "  $0 --sample MY_SAMPLE --accession NC_XXXXXX.X \\"
-            echo "     --min-minor-af 0.01 --max-minor-af 0.10"
+            echo "     --min-minor-af 0.01 --max-minor-af 0.50"
             echo ""
             echo "  # Explicit BAM path"
             echo "  $0 --sample MY_SAMPLE --accession NC_XXXXXX.X \\"

@@ -84,7 +84,7 @@ echo "    --bam $BAM_FILE \\"
 echo "    --vcf $VCF_FILE \\"
 echo "    --min-qual 1000 \\"
 echo "    --min-depth 200 \\"
-echo "    --min-freq 0.05 \\"
+echo "    --min-freq 0.03 \\"
 echo "    --output ${BASENAME}_cooccurrence_highqual.tsv"
 echo ""
 read -p "Press Enter to run (or Ctrl+C to skip)..."
@@ -93,7 +93,7 @@ python check_read_cooccurrence.py \
     --vcf "$VCF_FILE" \
     --min-qual 1000 \
     --min-depth 200 \
-    --min-freq 0.05 \
+    --min-freq 0.03 \
     --output "${BASENAME}_cooccurrence_highqual.tsv"
 echo -e "${GREEN}✓ Complete${NC}"
 echo ""

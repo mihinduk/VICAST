@@ -636,7 +636,7 @@ Examples:
   %(prog)s --bam aligned.bam --vcf variants.vcf --max-distance 300 --min-qual 1000
 
   # High-quality variants only
-  %(prog)s --bam aligned.bam --vcf variants.vcf --min-qual 1000 --min-depth 200 --min-freq 0.05
+  %(prog)s --bam aligned.bam --vcf variants.vcf --min-qual 1000 --min-depth 200 --min-freq 0.03
 
   # Use only individual reads (not pairs)
   %(prog)s --bam aligned.bam --vcf variants.vcf --no-pairs

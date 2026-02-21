@@ -3,7 +3,7 @@
 Generate BAM-validated minor variant genomes and per-gene proteins.
 
 Tier 2 of the two-tier VICAST post-processing pipeline:
-  - Selects minor variants within a user-specified AF range (default 0.5%-5%)
+  - Selects minor variants within a user-specified AF range (default 3%-50%)
   - Uses BAM co-occurrence data to identify linked variant groups
   - Builds one variant genome per linked group (applied on top of consensus)
   - Unlinked variants become singleton variant genomes
@@ -228,10 +228,10 @@ def main():
                         help='Consensus FASTA from generate_consensus_genome.py')
     parser.add_argument('--accession', required=True,
                         help='Virus accession')
-    parser.add_argument('--min-af', type=float, default=0.005,
-                        help='Minimum AF for minor variants (default: 0.005 = 0.5%%)')
-    parser.add_argument('--max-af', type=float, default=0.05,
-                        help='Maximum AF for minor variants (default: 0.05 = 5%%)')
+    parser.add_argument('--min-af', type=float, default=0.03,
+                        help='Minimum AF for minor variants (default: 0.03 = 3%%)')
+    parser.add_argument('--max-af', type=float, default=0.50,
+                        help='Maximum AF for minor variants (default: 0.50 = 50%%)')
     parser.add_argument('--output-prefix', required=True,
                         help='Output prefix for variant genome files')
     args = parser.parse_args()
