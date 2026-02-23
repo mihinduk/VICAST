@@ -87,7 +87,8 @@ def get_consensus_threshold(virus_config, genome_type_override=None, af_override
 
 def load_filtered_tsv(tsv_path):
     """Load the filtered mutations TSV produced by parse_snpeff_tsv.py."""
-    return pd.read_csv(tsv_path, sep='\t')
+    # keep_default_na=False: preserve literal "NA" values (e.g. influenza NA segment)
+    return pd.read_csv(tsv_path, sep='\t', keep_default_na=False)
 
 
 def apply_variants_to_sequence(ref_seq, variants_df):

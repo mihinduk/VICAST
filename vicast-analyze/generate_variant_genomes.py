@@ -44,7 +44,8 @@ def read_virus_config(accession):
 
 def load_filtered_tsv(tsv_path):
     """Load the filtered mutations TSV."""
-    return pd.read_csv(tsv_path, sep='\t')
+    # keep_default_na=False: preserve literal "NA" values (e.g. influenza NA segment)
+    return pd.read_csv(tsv_path, sep='\t', keep_default_na=False)
 
 
 def load_cooccurrence(cooccurrence_path):
@@ -52,7 +53,7 @@ def load_cooccurrence(cooccurrence_path):
     if not Path(cooccurrence_path).exists():
         print(f"Warning: co-occurrence file not found: {cooccurrence_path}")
         return pd.DataFrame()
-    df = pd.read_csv(cooccurrence_path, sep='\t')
+    df = pd.read_csv(cooccurrence_path, sep='\t', keep_default_na=False)
     if len(df) == 0:
         print("Co-occurrence file is empty — no linked pairs found")
     return df

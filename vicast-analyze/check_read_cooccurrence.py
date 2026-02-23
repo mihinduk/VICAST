@@ -515,7 +515,8 @@ def parse_vcf(vcf_file: str, min_qual: float = 0, min_depth: int = 0,
             first_line = f.readline()
             if first_line.startswith('#CHROM') or 'POS' in first_line:
                 # TSV format (VICAST filtered output)
-                df = pd.read_csv(vcf_file, sep='\t', comment='#')
+                # keep_default_na=False: preserve literal "NA" (e.g. influenza NA segment)
+                df = pd.read_csv(vcf_file, sep='\t', comment='#', keep_default_na=False)
 
                 # Apply filters if columns exist
                 if 'QUAL' in df.columns:
@@ -552,7 +553,7 @@ def parse_vcf(vcf_file: str, min_qual: float = 0, min_depth: int = 0,
                 with open(vcf_file, 'r') as f:
                     lines = [line for line in f if not line.startswith('##')]
 
-                df = pd.read_csv(pd.io.common.StringIO(''.join(lines)), sep='\t')
+                df = pd.read_csv(pd.io.common.StringIO(''.join(lines)), sep='\t', keep_default_na=False)
 
                 # VCF format
                 variants = []

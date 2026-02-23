@@ -46,7 +46,8 @@ def main():
     tsv_content = header_line + '\n' + '\n'.join(data_lines)
 
     import io
-    df = pd.read_csv(io.StringIO(tsv_content), sep='\t')
+    # keep_default_na=False: preserve literal "NA" values (e.g. influenza NA segment)
+    df = pd.read_csv(io.StringIO(tsv_content), sep='\t', keep_default_na=False)
 
     print(f"Found {len(df)} total variants")
 
