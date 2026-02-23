@@ -319,9 +319,9 @@ def create_simple_html_charts(samples_data, all_contamination, all_target_data, 
         .moderate { border-left-color: #f39c12 !important; }
         .poor { border-left-color: #e74c3c !important; }
         .bar-chart { margin: 20px 0; }
-        .bar { height: 30px; margin: 5px 0; position: relative; background: #ecf0f1; border-radius: 5px; overflow: hidden; }
-        .bar-fill { height: 100%; border-radius: 5px; position: relative; }
-        .bar-label { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-weight: bold; z-index: 2; color: white; }
+        .bar { height: 30px; margin: 5px 0; position: relative; background: #ecf0f1; border-radius: 5px; overflow: visible; }
+        .bar-fill { height: 100%; border-radius: 5px; position: relative; line-height: 30px; }
+        .bar-label { padding-left: 10px; font-weight: bold; color: white; font-size: 14px; }
         .bar-value { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-weight: bold; z-index: 2; color: white; }
         .excellent-bar { background: #27ae60; }
         .moderate-bar { background: #f39c12; }
@@ -331,8 +331,9 @@ def create_simple_html_charts(samples_data, all_contamination, all_target_data, 
         .alert-critical { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
         .alert-warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
         .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-        .stats-grid { display: flex; flex-wrap: nowrap; gap: 15px; margin: 20px 0; justify-content: space-between; }
-        .stat-box { flex: 1; min-width: 200px; text-align: center; padding: 20px; background: #3498db; color: white; border-radius: 8px; }
+        .stats-grid { display: flex; flex-wrap: nowrap; margin: 20px 0; }
+        .stat-box { width: 23%; margin-right: 2%; text-align: center; padding: 20px; background: #3498db; color: white; border-radius: 8px; }
+        .stat-box:last-child { margin-right: 0; }
         .stat-number { font-size: 2em; font-weight: bold; display: block; }
     </style>
 </head>
