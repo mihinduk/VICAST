@@ -301,7 +301,10 @@ def _determine_segment(group_df, is_segmented):
     """
     if not is_segmented or 'CHROM' not in group_df.columns:
         return None
-    chroms = group_df['CHROM'].unique()
+    # Drop NaN CHROM values before determining segment
+    chroms = group_df['CHROM'].dropna().unique()
+    if len(chroms) == 0:
+        return None
     # All variants in a linked group should be on the same segment
     return str(chroms[0]) if len(chroms) == 1 else None
 
