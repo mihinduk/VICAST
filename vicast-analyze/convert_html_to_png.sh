@@ -64,14 +64,18 @@ echo "  Output: $OUTPUT_PNG"
 # --width: Page width in pixels (wide enough for 4-column grid layout)
 # --enable-local-file-access: Allow loading local resources
 # --encoding: Set character encoding to UTF-8 for emoji support
+# --enable-javascript: Enable JS execution for better CSS rendering
 # --javascript-delay: Wait for rendering to complete (helps with CSS grid)
+# --disable-smart-width: Don't shrink page to content width
 # The tool automatically handles scrolling/long pages
 wkhtmltoimage \
     --quality 100 \
     --width 1600 \
     --encoding utf-8 \
     --enable-local-file-access \
-    --javascript-delay 1500 \
+    --enable-javascript \
+    --javascript-delay 2000 \
+    --disable-smart-width \
     "$INPUT_HTML" \
     "$OUTPUT_PNG"
 
