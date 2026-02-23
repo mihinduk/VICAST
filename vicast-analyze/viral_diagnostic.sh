@@ -702,6 +702,24 @@ if [ -f "$QC_SCRIPT_PATH" ]; then
     if [ $QC_EXIT_CODE -eq 0 ]; then
         echo "✅ QC report generated: diagnostic_${SAMPLE_NAME}/diagnostic_${SAMPLE_NAME}_presentation_ready_report.html"
         echo "🌐 Open this file in a web browser for presentation-ready results"
+
+        # Convert HTML report to PNG for publication figures
+        CONVERTER_SCRIPT="${PIPELINE_DIR}/convert_html_to_png.sh"
+        HTML_REPORT="diagnostic_${SAMPLE_NAME}_presentation_ready_report.html"
+        PNG_REPORT="diagnostic_${SAMPLE_NAME}_presentation_ready_report.png"
+
+        if [ -f "$CONVERTER_SCRIPT" ] && command -v wkhtmltoimage &> /dev/null; then
+            echo "Converting HTML report to PNG..."
+            bash "$CONVERTER_SCRIPT" "$HTML_REPORT" "$PNG_REPORT" 2>&1 | sed 's/^/  /'
+            if [ -f "$PNG_REPORT" ]; then
+                echo "📊 PNG figure generated: diagnostic_${SAMPLE_NAME}/$PNG_REPORT"
+            fi
+        elif [ ! -f "$CONVERTER_SCRIPT" ]; then
+            echo "ℹ️  HTML to PNG converter not found (optional)"
+        elif ! command -v wkhtmltoimage &> /dev/null; then
+            echo "ℹ️  wkhtmltoimage not installed - skipping PNG conversion (optional)"
+            echo "   Install with: conda install -c conda-forge wkhtmltopdf"
+        fi
     else
         echo "⚠️  QC report generation failed - check diagnostic output files"
     fi
