@@ -121,6 +121,8 @@ No AI-generated content appears in the final software without human review, vali
 
 ![Overview of the VICAST pipeline. VICAST comprises two modules. VICAST-Annotate (left) prepares viral reference genomes for variant annotation through four pathways (pre-built database, GenBank parsing, BLASTx homology search, or segmented genome assembly), with a manual curation checkpoint before building a custom SnpEff database. VICAST-Analyze (right) processes paired-end sequencing reads through a nine-step workflow comprising read-level QC, alignment, and variant calling alongside de novo assembly with BLAST-based contamination screening against a curated database of 18,804 viral and microbial sequences. Manual QC checkpoints allow users to review contamination results and variant quality before SnpEff annotation. A postprocessing module generates consensus genome and minor variant genomes, with their associated proteins. Tool names are shown in italics beneath each step.](figures/VICAST_Fig_1.png)
 
+![VICAST contamination screening report for Dengue virus 2 (SRR5992153). The diagnostic workflow identified the target genome (99.5% identity to NC_001474.2) and detected 6 contaminating contigs including human adenovirus C and Enterobacteria phage P7, demonstrating the pipeline's ability to identify non-target sequences in cultured virus samples.](figures/VICAST_Fig_2.png)
+
 # Acknowledgments
 
 [PLACEHOLDER - Funding information to be provided]
