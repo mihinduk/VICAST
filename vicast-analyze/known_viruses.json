@@ -868,5 +868,51 @@
       "N",
       "ORF10"
     ]
+  },
+  "influenza_pr8": {
+    "name": "Influenza A/Puerto Rico/8/1934 (H1N1)",
+    "family": "orthomyxovirus",
+    "genome_type": "ssRNA",
+    "segmented": true,
+    "gene_coords_by_segment": {
+      "PB2": {"PB2": [28, 2307]},
+      "PB1": {"PB1": [25, 2298], "PB1-F2": [119, 382]},
+      "PA":  {"PA": [25, 2175], "PA-X": [25, 784]},
+      "HA":  {"HA": [33, 1733]},
+      "NP":  {"NP": [46, 1542]},
+      "NA":  {"NA": [21, 1385]},
+      "M":   {"M1": [26, 784], "M2": [26, 1007]},
+      "NS":  {"NS1": [27, 719], "NEP": [27, 864]}
+    },
+    "colors": {
+      "PB2": "#4575b4",
+      "PB1": "#74add1",
+      "PB1-F2": "#abd9e9",
+      "PA": "#fdae61",
+      "PA-X": "#f4a460",
+      "HA": "#d73027",
+      "NP": "#a50026",
+      "NA": "#762a83",
+      "M1": "#9970ab",
+      "M2": "#c2a5cf",
+      "NS1": "#e6f5d0",
+      "NEP": "#1b7837"
+    },
+    "structural_genes": [
+      "HA",
+      "NA",
+      "M1",
+      "M2"
+    ],
+    "nonstructural_genes": [
+      "PB2",
+      "PB1",
+      "PB1-F2",
+      "PA",
+      "PA-X",
+      "NP",
+      "NS1",
+      "NEP"
+    ]
   }
 }

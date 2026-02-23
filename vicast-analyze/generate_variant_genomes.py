@@ -8,6 +8,7 @@ Tier 2 of the two-tier VICAST post-processing pipeline:
   - Builds one variant genome per linked group (applied on top of consensus)
   - Unlinked variants become singleton variant genomes
   - Translates per-gene proteins for each variant genome
+  - Supports multi-segment viruses (e.g. influenza): auto-detected from consensus FASTA
 """
 
 import argparse
@@ -15,7 +16,7 @@ import sys
 import os
 import json
 from pathlib import Path
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 
 import pandas as pd
 from Bio import SeqIO
@@ -227,6 +228,20 @@ def translate_genes(seq, gene_coords):
     return proteins
 
 
+def get_gene_coords_for_segment(virus_config, segment_id):
+    """Get gene coordinates for a specific segment.
+
+    For segmented viruses, returns gene_coords_by_segment[segment_id].
+    For non-segmented viruses, returns flat gene_coords.
+    """
+    if not virus_config:
+        return {}
+    by_segment = virus_config.get('gene_coords_by_segment', {})
+    if by_segment and segment_id in by_segment:
+        return by_segment[segment_id]
+    return virus_config.get('gene_coords', {})
+
+
 def write_report(report_path, args, groups, minor_variants, cooccurrence_df,
                  virus_config, variant_genomes_info):
     """Write a human-readable variant genomes report."""
@@ -256,6 +271,8 @@ def write_report(report_path, args, groups, minor_variants, cooccurrence_df,
 
         for info in variant_genomes_info:
             f.write(f"Group: {info['name']}\n")
+            if info.get('segment'):
+                f.write(f"  Segment:    {info['segment']}\n")
             f.write(f"  Positions:  {', '.join(str(p) for p in sorted(info['positions']))}\n")
             f.write(f"  Mutations:  {info['applied_count']} applied\n")
             f.write(f"  Linkage:    {info['linkage_type']}\n")
@@ -269,6 +286,18 @@ def write_report(report_path, args, groups, minor_variants, cooccurrence_df,
             f.write("\n")
 
     print(f"Report written to: {report_path}")
+
+
+def _determine_segment(group_df, is_segmented):
+    """Determine which segment a variant group belongs to.
+
+    Returns segment_id string or None for non-segmented viruses.
+    """
+    if not is_segmented or 'CHROM' not in group_df.columns:
+        return None
+    chroms = group_df['CHROM'].unique()
+    # All variants in a linked group should be on the same segment
+    return str(chroms[0]) if len(chroms) == 1 else None
 
 
 def main():
@@ -294,16 +323,30 @@ def main():
     print("VICAST VARIANT GENOME GENERATION (Tier 2)")
     print("=" * 80)
 
-    # ── Load consensus genome ─────────────────────────────────────────
-    consensus_record = next(SeqIO.parse(args.consensus, "fasta"))
-    consensus_seq = str(consensus_record.seq)
-    print(f"Consensus genome: {len(consensus_seq)} bp")
+    # ── Load consensus genome (auto-detect segmented) ─────────────────
+    consensus_records = OrderedDict()
+    for record in SeqIO.parse(args.consensus, "fasta"):
+        consensus_records[record.id] = str(record.seq)
+    is_segmented = len(consensus_records) > 1
+
+    if is_segmented:
+        total_bp = sum(len(s) for s in consensus_records.values())
+        print(f"Consensus genome: {len(consensus_records)} segments, {total_bp} bp total")
+        for rec_id, rec_seq in consensus_records.items():
+            print(f"  {rec_id}: {len(rec_seq)} bp")
+    else:
+        consensus_seq = list(consensus_records.values())[0]
+        print(f"Consensus genome: {len(consensus_seq)} bp")
 
     # ── Load virus config ─────────────────────────────────────────────
     virus_config = read_virus_config(args.accession)
     gene_coords = virus_config.get('gene_coords', {}) if virus_config else {}
     if virus_config:
-        print(f"Virus config: {virus_config.get('name', 'N/A')} ({len(gene_coords)} genes)")
+        if is_segmented:
+            n_genes = sum(len(v) for v in virus_config.get('gene_coords_by_segment', {}).values())
+            print(f"Virus config: {virus_config.get('name', 'N/A')} ({n_genes} genes across segments)")
+        else:
+            print(f"Virus config: {virus_config.get('name', 'N/A')} ({len(gene_coords)} genes)")
 
     # ── Load variants ─────────────────────────────────────────────────
     variants_df = load_filtered_tsv(args.vcf)
@@ -350,6 +393,9 @@ def main():
         group_df = minor_variants[minor_variants['POS'].isin(group_positions)].copy()
         n_muts = len(group_df)
 
+        # Determine affected segment for segmented viruses
+        seg_id = _determine_segment(group_df, is_segmented)
+
         # Name the group
         if n_muts == 1:
             row = group_df.iloc[0]
@@ -365,11 +411,26 @@ def main():
         else:
             linkage_type = "singleton"
 
-        # Apply mutations on top of consensus
-        variant_seq, applied_count, var_indel_offsets = apply_mutations(
-            consensus_seq, group_df)
+        # Select the correct base sequence for mutation application
+        if is_segmented and seg_id:
+            # Find the consensus record matching this segment
+            # Record IDs are "{sample}_{segment}", so match by suffix
+            base_seq = None
+            for rec_id, rec_seq in consensus_records.items():
+                if rec_id.endswith(f"_{seg_id}") or rec_id == seg_id:
+                    base_seq = rec_seq
+                    break
+            if base_seq is None:
+                print(f"  Warning: No consensus record for segment {seg_id}, skipping group {group_name}")
+                continue
+        else:
+            base_seq = consensus_seq if not is_segmented else list(consensus_records.values())[0]
 
-        # Create genome record
+        # Apply mutations on top of consensus (or segment consensus)
+        variant_seq, applied_count, var_indel_offsets = apply_mutations(
+            base_seq, group_df)
+
+        # Create genome record — output only the affected segment
         positions_str = ','.join(str(p) for p in sorted(group_positions))
         n_snps = sum(1 for _, r in group_df.iterrows()
                      if len(str(r['REF'])) == 1 and len(str(r['ALT'])) == 1)
@@ -377,8 +438,9 @@ def main():
         mut_desc = f"{applied_count} mutations"
         if n_indels > 0:
             mut_desc = f"{n_snps} SNPs, {n_indels} indels"
+        seg_label = f" segment={seg_id}" if seg_id else ""
         desc = (f"variant genome ({mut_desc} at pos {positions_str}; "
-                f"linkage: {linkage_type})")
+                f"linkage: {linkage_type}){seg_label}")
         genome_rec = SeqRecord(
             Seq(variant_seq),
             id=f"{sample_name}_{group_name}",
@@ -386,33 +448,42 @@ def main():
         )
         genome_records.append(genome_rec)
 
-        # Translate proteins — adjust coords if indels changed genome length
-        var_coords = adjust_gene_coords(gene_coords, var_indel_offsets) if var_indel_offsets else gene_coords
+        # Translate proteins using segment-specific gene coords
+        if is_segmented and seg_id:
+            var_gene_coords = get_gene_coords_for_segment(virus_config, seg_id)
+        else:
+            var_gene_coords = gene_coords
+
+        var_coords = adjust_gene_coords(var_gene_coords, var_indel_offsets) \
+            if var_indel_offsets else var_gene_coords
         if var_coords:
             proteins = translate_genes(variant_seq, var_coords)
-        elif gene_coords:
-            proteins = translate_genes(variant_seq, gene_coords)
+        elif var_gene_coords:
+            proteins = translate_genes(variant_seq, var_gene_coords)
         else:
             protein = viral_translate(variant_seq, coordinates=None, stop_at_stop_codon=True)
             proteins = [('Polyprotein', protein)]
 
         for gene_name, protein_seq in proteins:
+            seg_prefix = f"{seg_id}:" if seg_id else ""
             prot_rec = SeqRecord(
                 Seq(protein_seq),
                 id=f"{sample_name}_{group_name}_{gene_name}",
-                description=f"{gene_name} from {group_name} ({len(protein_seq)} aa)"
+                description=f"{seg_prefix}{gene_name} from {group_name} ({len(protein_seq)} aa)"
             )
             protein_records.append(prot_rec)
 
         variant_genomes_info.append({
             'name': group_name,
+            'segment': seg_id,
             'positions': group_positions,
             'applied_count': applied_count,
             'linkage_type': linkage_type,
             'mutations_df': group_df,
         })
 
-        print(f"  {group_name}: {applied_count} mutations ({mut_desc}), linkage={linkage_type}")
+        seg_info = f" [{seg_id}]" if seg_id else ""
+        print(f"  {group_name}{seg_info}: {applied_count} mutations ({mut_desc}), linkage={linkage_type}")
 
     # ── Write outputs ─────────────────────────────────────────────────
     genome_fasta = f"{args.output_prefix}_variant_genomes.fasta"

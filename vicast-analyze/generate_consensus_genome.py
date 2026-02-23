@@ -10,6 +10,7 @@ Tier 1 of the two-tier VICAST post-processing pipeline:
   - Masks positions below --min-depth with N
   - Translates per-gene CDS regions from the consensus (skips UTRs)
   - Produces a single consensus genome + protein FASTA + report
+  - Supports multi-segment viruses (e.g. influenza): auto-detected from reference FASTA
 """
 
 import argparse
@@ -18,7 +19,7 @@ import os
 import json
 import re
 from pathlib import Path
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 
 import pandas as pd
 from Bio import SeqIO
@@ -191,6 +192,32 @@ def _load_depth_from_file(depth_file, genome_len):
     return depth_array
 
 
+def _load_depth_from_file_segmented(depth_file, ref_records):
+    """Parse a samtools-depth TSV into per-segment depth arrays.
+
+    Returns dict[segment_id -> depth_array].
+    """
+    depth_by_seg = {}
+    for seg_id, seg_seq in ref_records.items():
+        depth_by_seg[seg_id] = [0] * len(seg_seq)
+
+    with open(depth_file, 'r') as f:
+        for line in f:
+            if line.startswith('chrom') or line.startswith('#'):
+                continue
+            parts = line.rstrip('\n').split('\t')
+            if len(parts) >= 3:
+                try:
+                    chrom = parts[0]
+                    pos = int(parts[1]) - 1  # 1-based → 0-based
+                    depth = int(parts[2])
+                    if chrom in depth_by_seg and 0 <= pos < len(depth_by_seg[chrom]):
+                        depth_by_seg[chrom][pos] = depth
+                except ValueError:
+                    continue
+    return depth_by_seg
+
+
 def _load_depth_from_bam(bam_path, genome_len):
     """Run samtools depth -a on a BAM and return per-base depth array."""
     depth_array = [0] * genome_len
@@ -210,6 +237,34 @@ def _load_depth_from_bam(bam_path, genome_len):
         print(f"  Warning: samtools depth failed ({e}) — skipping masking")
         return None
     return depth_array
+
+
+def _load_depth_from_bam_segmented(bam_path, ref_records):
+    """Run samtools depth -a on a BAM and return per-segment depth arrays.
+
+    Returns dict[segment_id -> depth_array], or None on failure.
+    """
+    depth_by_seg = {}
+    for seg_id, seg_seq in ref_records.items():
+        depth_by_seg[seg_id] = [0] * len(seg_seq)
+
+    try:
+        result = subprocess.run(
+            ['samtools', 'depth', '-a', str(bam_path)],
+            capture_output=True, text=True, check=True
+        )
+        for line in result.stdout.splitlines():
+            parts = line.split('\t')
+            if len(parts) >= 3:
+                chrom = parts[0]
+                pos = int(parts[1]) - 1
+                depth = int(parts[2])
+                if chrom in depth_by_seg and 0 <= pos < len(depth_by_seg[chrom]):
+                    depth_by_seg[chrom][pos] = depth
+    except (subprocess.CalledProcessError, FileNotFoundError) as e:
+        print(f"  Warning: samtools depth failed ({e}) — skipping masking")
+        return None
+    return depth_by_seg
 
 
 def mask_low_coverage(consensus_seq, min_depth, bam_path=None, depth_file=None):
@@ -258,6 +313,36 @@ def mask_low_coverage(consensus_seq, min_depth, bam_path=None, depth_file=None):
     return ''.join(seq_list), n_count, masked_regions
 
 
+def mask_low_coverage_from_array(consensus_seq, min_depth, depth_array):
+    """Mask positions with coverage < min_depth using a pre-loaded depth array.
+
+    Returns (masked_seq, n_count, list of masked regions as (start, end) 1-based).
+    """
+    seq_list = list(consensus_seq)
+    genome_len = len(seq_list)
+    n_count = 0
+    masked_regions = []
+    in_region = False
+    region_start = None
+
+    for i in range(genome_len):
+        if i < len(depth_array) and depth_array[i] < min_depth:
+            seq_list[i] = 'N'
+            n_count += 1
+            if not in_region:
+                region_start = i + 1
+                in_region = True
+        else:
+            if in_region:
+                masked_regions.append((region_start, i))
+                in_region = False
+
+    if in_region:
+        masked_regions.append((region_start, genome_len))
+
+    return ''.join(seq_list), n_count, masked_regions
+
+
 def is_utr(gene_name):
     """Return True for UTR entries that should not be translated."""
     name = gene_name.lower().replace("'", "").replace("_", "")
@@ -277,6 +362,20 @@ def translate_genes(consensus_seq, gene_coords):
         protein = viral_translate(gene_seq, coordinates=None, stop_at_stop_codon=False)
         proteins.append((gene, protein))
     return proteins
+
+
+def get_gene_coords_for_segment(virus_config, segment_id):
+    """Get gene coordinates for a specific segment.
+
+    For segmented viruses, returns gene_coords_by_segment[segment_id].
+    For non-segmented viruses, returns flat gene_coords.
+    """
+    if not virus_config:
+        return {}
+    by_segment = virus_config.get('gene_coords_by_segment', {})
+    if by_segment and segment_id in by_segment:
+        return by_segment[segment_id]
+    return virus_config.get('gene_coords', {})
 
 
 def get_mutations_for_gene(applied, gene_name, gene_start, gene_end):
@@ -394,6 +493,88 @@ def write_report(report_path, args, virus_config, threshold, variants_df,
     print(f"Report written to: {report_path}")
 
 
+def write_report_segmented(report_path, args, virus_config, threshold, variants_df,
+                           segment_results, min_depth):
+    """Write a human-readable consensus report for segmented viruses."""
+    genome_type = 'unknown'
+    if virus_config:
+        genome_type = virus_config.get('genome_type', 'unknown')
+    if args.genome_type:
+        genome_type = args.genome_type
+
+    # Aggregate totals
+    total_applied = sum(len(sr['applied']) for sr in segment_results.values())
+    total_skipped = sum(len(sr['skipped']) for sr in segment_results.values())
+    total_n_count = sum(sr['n_count'] for sr in segment_results.values())
+    total_proteins = []
+    for sr in segment_results.values():
+        total_proteins.extend(sr['proteins'])
+
+    with open(report_path, 'w') as f:
+        f.write("=" * 80 + "\n")
+        f.write("VICAST CONSENSUS GENOME REPORT (SEGMENTED)\n")
+        f.write("=" * 80 + "\n\n")
+        f.write(f"Accession:          {args.accession}\n")
+        if virus_config:
+            f.write(f"Virus name:         {virus_config.get('name', 'N/A')}\n")
+        f.write(f"Genome type:        {genome_type}\n")
+        f.write(f"Segments:           {len(segment_results)}\n")
+        f.write(f"Consensus AF:       >= {threshold}\n")
+        f.write(f"Min depth:          {min_depth}X\n")
+        f.write(f"Input TSV:          {args.vcf}\n")
+        f.write(f"Reference FASTA:    {args.reference}\n")
+        if args.depth_file:
+            f.write(f"Depth file:         {args.depth_file}\n")
+        elif args.bam:
+            f.write(f"BAM file:           {args.bam}\n")
+        f.write("\n")
+
+        f.write(f"Total variants in TSV:       {len(variants_df)}\n")
+        consensus_variants = variants_df[variants_df['Allele_Frequency'] >= threshold]
+        f.write(f"Variants >= AF threshold:    {len(consensus_variants)}\n")
+        n_snps_total = sum(1 for sr in segment_results.values()
+                          for r in sr['applied']
+                          if len(str(r['REF'])) == 1 and len(str(r['ALT'])) == 1)
+        n_indels_total = total_applied - n_snps_total
+        f.write(f"Variants applied:            {total_applied} ({n_snps_total} SNPs, {n_indels_total} indels)\n")
+        f.write(f"Variants skipped:            {total_skipped}\n")
+        f.write(f"Positions masked (N):        {total_n_count}\n\n")
+
+        # Per-segment details
+        for seg_id, sr in segment_results.items():
+            f.write("-" * 80 + "\n")
+            f.write(f"SEGMENT: {seg_id} ({sr['ref_len']} bp)\n")
+            f.write("-" * 80 + "\n")
+            n_snps = sum(1 for r in sr['applied']
+                         if len(str(r['REF'])) == 1 and len(str(r['ALT'])) == 1)
+            n_indels = len(sr['applied']) - n_snps
+            f.write(f"  Variants applied: {len(sr['applied'])} ({n_snps} SNPs, {n_indels} indels)\n")
+            f.write(f"  Positions masked: {sr['n_count']}\n")
+
+            if sr['applied']:
+                f.write("  Mutations:\n")
+                for row in sr['applied']:
+                    gene = row.get('GENE_NAME', '')
+                    hgvsp = row.get('HGVSp', '')
+                    effect = row.get('EFFECT', '')
+                    af = row['Allele_Frequency']
+                    f.write(f"    {row['POS']} {row['REF']}>{row['ALT']}  AF={af:.4f}  "
+                            f"gene={gene}  effect={effect}  HGVSp={hgvsp}\n")
+
+            if sr['masked_regions']:
+                f.write(f"  Low coverage regions (< {min_depth}X):\n")
+                for start, end in sr['masked_regions']:
+                    f.write(f"    {start}-{end} ({end - start + 1} bp)\n")
+
+            if sr['proteins']:
+                f.write("  Proteins:\n")
+                for gene_name, protein in sr['proteins']:
+                    f.write(f"    {gene_name}: {len(protein)} aa\n")
+            f.write("\n")
+
+    print(f"Report written to: {report_path}")
+
+
 def main():
     parser = argparse.ArgumentParser(
         description='Generate consensus genome and proteins from high-AF variants')
@@ -421,10 +602,20 @@ def main():
     print("VICAST CONSENSUS GENOME GENERATION (Tier 1)")
     print("=" * 80)
 
-    # ── Load reference ────────────────────────────────────────────────
-    ref_record = next(SeqIO.parse(args.reference, "fasta"))
-    ref_seq = str(ref_record.seq)
-    print(f"Reference genome: {len(ref_seq)} bp")
+    # ── Load reference (auto-detect segmented) ────────────────────────
+    ref_records = OrderedDict()
+    for record in SeqIO.parse(args.reference, "fasta"):
+        ref_records[record.id] = str(record.seq)
+    is_segmented = len(ref_records) > 1
+
+    if is_segmented:
+        total_bp = sum(len(s) for s in ref_records.values())
+        print(f"Reference genome: {len(ref_records)} segments, {total_bp} bp total")
+        for seg_id, seg_seq in ref_records.items():
+            print(f"  {seg_id}: {len(seg_seq)} bp")
+    else:
+        ref_seq = list(ref_records.values())[0]
+        print(f"Reference genome: {len(ref_seq)} bp")
 
     # ── Load virus config ─────────────────────────────────────────────
     virus_config = read_virus_config(args.accession)
@@ -445,6 +636,22 @@ def main():
     consensus_variants = variants_df[variants_df['Allele_Frequency'] >= threshold].copy()
     print(f"Variants at AF >= {threshold}: {len(consensus_variants)}")
 
+    # ── Branch: segmented vs single-sequence ──────────────────────────
+    if is_segmented:
+        _run_segmented(args, ref_records, virus_config, threshold,
+                       variants_df, consensus_variants)
+    else:
+        _run_single(args, ref_seq, virus_config, threshold,
+                    variants_df, consensus_variants)
+
+    print("")
+    print("=" * 80)
+    print("Consensus generation complete")
+    print("=" * 80)
+
+
+def _run_single(args, ref_seq, virus_config, threshold, variants_df, consensus_variants):
+    """Original single-sequence consensus pipeline."""
     # ── Build consensus ───────────────────────────────────────────────
     indel_offsets = []
     if len(consensus_variants) == 0:
@@ -548,10 +755,148 @@ def main():
                  variants_df, applied, skipped, proteins,
                  n_count, masked_regions, args.min_depth)
 
-    print("")
-    print("=" * 80)
-    print("Consensus generation complete")
-    print("=" * 80)
+
+def _run_segmented(args, ref_records, virus_config, threshold,
+                   variants_df, consensus_variants):
+    """Segmented virus consensus pipeline — per-segment processing."""
+    sample_name = Path(args.output_prefix).name
+
+    # ── Group variants by CHROM ───────────────────────────────────────
+    if 'CHROM' in consensus_variants.columns:
+        variants_by_seg = dict(tuple(consensus_variants.groupby('CHROM')))
+    else:
+        # Fallback: all variants go to the first segment
+        first_seg = list(ref_records.keys())[0]
+        variants_by_seg = {first_seg: consensus_variants} if len(consensus_variants) > 0 else {}
+
+    # ── Load depth data if available ──────────────────────────────────
+    depth_by_seg = None
+    if args.depth_file and Path(args.depth_file).exists():
+        print(f"Reading depth from: {args.depth_file}")
+        depth_by_seg = _load_depth_from_file_segmented(args.depth_file, ref_records)
+    elif args.bam and Path(args.bam).exists():
+        print(f"Computing depth from BAM: {args.bam}")
+        depth_by_seg = _load_depth_from_bam_segmented(args.bam, ref_records)
+
+    # ── Process each segment ──────────────────────────────────────────
+    consensus_records = []
+    protein_records = []
+    segment_results = OrderedDict()
+
+    for seg_id, seg_ref_seq in ref_records.items():
+        print(f"\n--- Segment: {seg_id} ({len(seg_ref_seq)} bp) ---")
+
+        seg_variants = variants_by_seg.get(seg_id, pd.DataFrame())
+        seg_indel_offsets = []
+
+        if len(seg_variants) == 0:
+            print(f"  No variants — consensus equals reference")
+            seg_consensus = seg_ref_seq
+            seg_applied = []
+            seg_skipped = []
+        else:
+            seg_consensus, seg_applied, seg_skipped, seg_indel_offsets = \
+                apply_variants_to_sequence(seg_ref_seq, seg_variants)
+            n_snps = sum(1 for r in seg_applied
+                         if len(str(r['REF'])) == 1 and len(str(r['ALT'])) == 1)
+            n_indels = len(seg_applied) - n_snps
+            print(f"  Applied {len(seg_applied)} mutations ({n_snps} SNPs, {n_indels} indels), "
+                  f"skipped {len(seg_skipped)}")
+            if seg_indel_offsets:
+                total_offset = sum(s for _, s in seg_indel_offsets)
+                print(f"  Net size change: {total_offset:+d} bp")
+
+        # ── Per-segment depth masking ─────────────────────────────────
+        seg_n_count = 0
+        seg_masked_regions = []
+        if depth_by_seg and seg_id in depth_by_seg:
+            print(f"  Masking positions with depth < {args.min_depth}X ...")
+            seg_consensus, seg_n_count, seg_masked_regions = \
+                mask_low_coverage_from_array(seg_consensus, args.min_depth,
+                                             depth_by_seg[seg_id])
+            print(f"  Masked {seg_n_count} positions with N ({len(seg_masked_regions)} regions)")
+        elif not (args.depth_file or args.bam):
+            pass  # No depth source — already reported above
+
+        # ── Build FASTA record for this segment ──────────────────────
+        header_parts = [f"segment={seg_id}", f"{len(seg_applied)} mutations"]
+        if seg_applied:
+            nt_muts = ','.join(f"{int(r['POS'])}{r['REF']}>{r['ALT']}" for r in seg_applied)
+            header_parts.append(f"variants={nt_muts}")
+        header_parts.append(f"AF>={threshold}")
+        if seg_n_count > 0:
+            header_parts.append(f"{seg_n_count} Ns (depth<{args.min_depth}X)")
+        desc = ' '.join(header_parts)
+
+        rec = SeqRecord(Seq(seg_consensus), id=f"{sample_name}_{seg_id}",
+                        description=desc)
+        consensus_records.append(rec)
+
+        # ── Per-segment protein translation ───────────────────────────
+        seg_gene_coords = get_gene_coords_for_segment(virus_config, seg_id)
+        seg_adjusted_coords = adjust_gene_coords(seg_gene_coords, seg_indel_offsets) \
+            if seg_indel_offsets and seg_gene_coords else seg_gene_coords
+
+        if seg_adjusted_coords:
+            seg_proteins = translate_genes(seg_consensus, seg_adjusted_coords)
+        elif seg_gene_coords:
+            seg_proteins = translate_genes(seg_consensus, seg_gene_coords)
+        else:
+            protein = viral_translate(seg_consensus, coordinates=None, stop_at_stop_codon=True)
+            seg_proteins = [('Polyprotein', protein)]
+
+        if seg_proteins:
+            print(f"  Translated {len(seg_proteins)} proteins: "
+                  f"{', '.join(g for g, _ in seg_proteins)}")
+
+        for gene_name, protein_seq in seg_proteins:
+            gene_start, gene_end = seg_gene_coords.get(gene_name, (0, 0))
+            gene_muts = get_mutations_for_gene(seg_applied, gene_name, gene_start, gene_end)
+
+            desc_parts = [f"{seg_id}:{gene_name} ({len(protein_seq)} aa)"]
+            if gene_muts:
+                nt_str = format_mutations_for_header(gene_muts, mode='nt')
+                aa_str = format_mutations_for_header(gene_muts, mode='aa')
+                desc_parts.append(f"nt={nt_str}")
+                if aa_str:
+                    desc_parts.append(f"aa={aa_str}")
+            else:
+                desc_parts.append("no mutations")
+
+            prot_rec = SeqRecord(
+                Seq(protein_seq),
+                id=f"{sample_name}_{seg_id}_{gene_name}",
+                description=' '.join(desc_parts)
+            )
+            protein_records.append(prot_rec)
+
+        segment_results[seg_id] = {
+            'ref_len': len(seg_ref_seq),
+            'consensus_len': len(seg_consensus),
+            'applied': seg_applied,
+            'skipped': seg_skipped,
+            'indel_offsets': seg_indel_offsets,
+            'n_count': seg_n_count,
+            'masked_regions': seg_masked_regions,
+            'proteins': seg_proteins,
+        }
+
+    # ── Write multi-record consensus FASTA ────────────────────────────
+    consensus_fasta = f"{args.output_prefix}_consensus.fasta"
+    SeqIO.write(consensus_records, consensus_fasta, "fasta")
+    print(f"\nConsensus genome written to: {consensus_fasta} "
+          f"({len(consensus_records)} segments)")
+
+    # ── Write protein FASTA ───────────────────────────────────────────
+    protein_fasta = f"{args.output_prefix}_consensus_proteins.fasta"
+    SeqIO.write(protein_records, protein_fasta, "fasta")
+    print(f"Consensus proteins written to: {protein_fasta} "
+          f"({len(protein_records)} proteins)")
+
+    # ── Write segmented report ────────────────────────────────────────
+    report_path = f"{args.output_prefix}_consensus_report.txt"
+    write_report_segmented(report_path, args, virus_config, threshold,
+                           variants_df, segment_results, args.min_depth)
 
 
 if __name__ == "__main__":
