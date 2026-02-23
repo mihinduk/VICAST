@@ -323,16 +323,16 @@ def create_simple_html_charts(samples_data, all_contamination, all_target_data, 
         .bar-fill { height: 100%; border-radius: 5px; position: relative; }
         .bar-label { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-weight: bold; z-index: 2; color: white; }
         .bar-value { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-weight: bold; z-index: 2; color: white; }
-        .excellent-bar { background: linear-gradient(90deg, #27ae60, #2ecc71); }
-        .moderate-bar { background: linear-gradient(90deg, #f39c12, #e67e22); }
-        .poor-bar { background: linear-gradient(90deg, #e74c3c, #c0392b); }
+        .excellent-bar { background: #27ae60; }
+        .moderate-bar { background: #f39c12; }
+        .poor-bar { background: #e74c3c; }
         .contamination-item { padding: 10px; margin: 5px 0; background: #fff; border-radius: 5px; border-left: 4px solid #e74c3c; }
         .alert { padding: 15px; margin: 15px 0; border-radius: 8px; font-weight: bold; }
         .alert-critical { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
         .alert-warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
         .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0; }
-        .stat-box { text-align: center; padding: 20px; background: #3498db; color: white; border-radius: 8px; }
+        .stats-grid { display: flex; flex-wrap: nowrap; gap: 15px; margin: 20px 0; justify-content: space-between; }
+        .stat-box { flex: 1; min-width: 200px; text-align: center; padding: 20px; background: #3498db; color: white; border-radius: 8px; }
         .stat-number { font-size: 2em; font-weight: bold; display: block; }
     </style>
 </head>
