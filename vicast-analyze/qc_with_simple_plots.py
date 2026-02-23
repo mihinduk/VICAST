@@ -331,9 +331,8 @@ def create_simple_html_charts(samples_data, all_contamination, all_target_data, 
         .alert-critical { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
         .alert-warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
         .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-        .stats-grid { display: flex; flex-wrap: nowrap; margin: 20px 0; }
-        .stat-box { width: 23%; margin-right: 2%; text-align: center; padding: 20px; background: #3498db; color: white; border-radius: 8px; }
-        .stat-box:last-child { margin-right: 0; }
+        .stats-grid { display: table; width: 100%; margin: 20px 0; border-spacing: 15px 0; }
+        .stat-box { display: table-cell; width: 25%; text-align: center; padding: 20px; background: #3498db; color: white; border-radius: 8px; vertical-align: middle; }
         .stat-number { font-size: 2em; font-weight: bold; display: block; }
     </style>
 </head>
