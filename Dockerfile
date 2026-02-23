@@ -63,8 +63,9 @@ RUN mkdir -p ${SNPEFF_DATA} && \
     chmod -R 755 ${SNPEFF_HOME}
 
 # Build font cache after conda environment is ready
+# Make cache writable for all users (needed when running with --user flag)
 RUN mkdir -p /opt/conda/var/cache/fontconfig && \
-    chown -R $MAMBA_USER:$MAMBA_USER /opt/conda/var/cache/fontconfig && \
+    chmod -R 777 /opt/conda/var/cache/fontconfig && \
     fc-cache -f
 
 # Copy VICAST source code
