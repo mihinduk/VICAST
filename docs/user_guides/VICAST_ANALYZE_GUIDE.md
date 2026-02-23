@@ -133,6 +133,21 @@ java -jar $SNPEFF_JAR databases | grep NC_001477
 **Optional:**
 - **Threads** - Number of CPU cores (default: 4)
 
+### Running in screen or tmux (Recommended for Remote Servers)
+
+Each chunk of the pipeline can take **30 minutes to several hours** depending on read depth and genome size. If you are running on a remote server via SSH, use `screen` or `tmux` to prevent the pipeline from being killed if your connection drops:
+
+```bash
+# Start a named screen session
+screen -S vicast
+
+# Run your pipeline commands inside screen...
+# Detach: Ctrl+A, then D
+# Reattach later: screen -r vicast
+```
+
+> **Tip:** If a running pipeline becomes unresponsive to Ctrl+C, you can stop it with `Ctrl+\` (sends SIGQUIT). For Docker containers, use `docker ps` and `docker kill <container_id>` from another terminal.
+
 ### Workflow Option 1: Three-Chunk (Recommended)
 
 **Chunk 1: QC & Diagnostics**
@@ -1099,6 +1114,8 @@ ProteinM:
 - Tmp file locations
 
 ### Batch Processing
+
+> **Note:** For batch processing on a remote server, always run inside `screen` or `tmux` to protect against SSH disconnections. See [Running in screen or tmux](#running-in-screen-or-tmux-recommended-for-remote-servers) above.
 
 **Process multiple samples:**
 

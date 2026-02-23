@@ -79,6 +79,36 @@ docker run -it -v $(pwd):/data vicast:latest bash
 python -c "from vicast.config import get_config; print('VICAST ready!')"
 ```
 
+### Running Long Pipelines (screen/tmux)
+
+**Important:** VICAST QC (`run_vicast_analyze_qc_only.sh`) and postprocessing (`run_vicast_analyze_postprocess.sh`) can take 30 minutes to several hours depending on genome size and read depth. If you are running via SSH, your pipeline **will be killed** if the connection drops.
+
+Always use `screen` or `tmux` for long-running steps:
+
+```bash
+# Start a screen session
+screen -S vicast
+
+# Run your pipeline inside screen
+docker run --rm -v $(pwd):/data vicast:latest \
+    run_vicast_analyze_qc_only.sh R1.fq.gz R2.fq.gz NC_001477 8
+
+# Detach from screen (pipeline keeps running): Ctrl+A then D
+# Reattach later:
+screen -r vicast
+```
+
+**Quick screen reference:**
+| Action | Keys |
+|--------|------|
+| Detach (leave running) | `Ctrl+A`, then `D` |
+| Reattach | `screen -r vicast` |
+| List sessions | `screen -ls` |
+| Kill session | `Ctrl+A`, then `K` |
+| Kill stuck Docker | Open new terminal: `docker ps` then `docker kill <id>` |
+
+> **Tip:** `tmux` works identically — use whichever is installed on your server.
+
 ### Running VICAST with Docker
 
 **Mount your data directory:**
