@@ -40,10 +40,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fonts-noto-color-emoji \
     fonts-noto \
     fontconfig \
-    && mkdir -p /opt/conda/var/cache/fontconfig \
-    && mkdir -p /root/.cache/fontconfig \
-    && mkdir -p /root/.fontconfig \
-    && fc-cache -f -v \
     && rm -rf /var/lib/apt/lists/*
 
 # Create vicast user
@@ -65,6 +61,11 @@ USER root
 RUN mkdir -p ${SNPEFF_DATA} && \
     chown -R $MAMBA_USER:$MAMBA_USER ${SNPEFF_HOME} && \
     chmod -R 755 ${SNPEFF_HOME}
+
+# Build font cache after conda environment is ready
+RUN mkdir -p /opt/conda/var/cache/fontconfig && \
+    chown -R $MAMBA_USER:$MAMBA_USER /opt/conda/var/cache/fontconfig && \
+    fc-cache -f
 
 # Copy VICAST source code
 COPY --chown=$MAMBA_USER:$MAMBA_USER . ${VICAST_HOME}
