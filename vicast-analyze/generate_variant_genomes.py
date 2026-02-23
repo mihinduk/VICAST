@@ -71,15 +71,17 @@ def build_linkage_graph(minor_variants, cooccurrence_df):
     """Build an adjacency list from co-occurrence data.
 
     A variant pair is linked if both_alt > 0 in the co-occurrence table.
-    Variants are identified by their 1-based POS.
+    Only considers pairs where BOTH positions are minor variants.
 
-    Returns dict mapping POS -> set of linked POS values.
+    Returns (graph, linked_pair_count) where graph is dict mapping
+    POS -> set of linked POS values.
     """
     graph = defaultdict(set)
     minor_positions = set(minor_variants['POS'].astype(int))
+    linked_count = 0
 
     if cooccurrence_df.empty:
-        return graph
+        return graph, linked_count
 
     for _, row in cooccurrence_df.iterrows():
         raw1 = row.get('variant1_pos', 0)
@@ -101,8 +103,9 @@ def build_linkage_graph(minor_variants, cooccurrence_df):
         if both_alt > 0 and pos1 in minor_positions and pos2 in minor_positions:
             graph[pos1].add(pos2)
             graph[pos2].add(pos1)
+            linked_count += 1
 
-    return graph
+    return graph, linked_count
 
 
 def find_connected_components(graph, all_positions):
@@ -249,7 +252,7 @@ def get_gene_coords_for_segment(virus_config, segment_id):
 
 
 def write_report(report_path, args, groups, minor_variants, cooccurrence_df,
-                 virus_config, variant_genomes_info):
+                 virus_config, variant_genomes_info, linked_pair_count=0):
     """Write a human-readable variant genomes report."""
     with open(report_path, 'w') as f:
         f.write("=" * 80 + "\n")
@@ -265,10 +268,7 @@ def write_report(report_path, args, groups, minor_variants, cooccurrence_df,
         f.write(f"Minor variants found:           {len(minor_variants)}\n")
         n_pairs = len(cooccurrence_df) if not cooccurrence_df.empty else 0
         f.write(f"Co-occurrence pairs tested:     {n_pairs}\n")
-        linked_pairs = 0
-        if not cooccurrence_df.empty and 'both_alt' in cooccurrence_df.columns:
-            linked_pairs = int((cooccurrence_df['both_alt'].astype(int) > 0).sum())
-        f.write(f"Linked pairs (both_alt > 0):    {linked_pairs}\n")
+        f.write(f"Linked minor variant pairs:     {linked_pair_count}\n")
         f.write(f"Variant groups (genomes):       {len(groups)}\n\n")
 
         f.write("-" * 80 + "\n")
@@ -384,7 +384,7 @@ def main():
     cooccurrence_df = load_cooccurrence(args.cooccurrence)
 
     # ── Build linkage graph & find groups ─────────────────────────────
-    graph = build_linkage_graph(minor_variants, cooccurrence_df)
+    graph, linked_pair_count = build_linkage_graph(minor_variants, cooccurrence_df)
     all_positions = set(minor_variants['POS'].astype(int))
     groups = find_connected_components(graph, all_positions)
     print(f"Variant groups: {len(groups)} (from {len(all_positions)} positions)")
@@ -502,7 +502,7 @@ def main():
 
     report_path = f"{args.output_prefix}_variant_report.txt"
     write_report(report_path, args, groups, minor_variants, cooccurrence_df,
-                 virus_config, variant_genomes_info)
+                 virus_config, variant_genomes_info, linked_pair_count)
 
     print("")
     print("=" * 80)
