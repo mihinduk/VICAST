@@ -61,15 +61,19 @@ echo "  Output: $OUTPUT_PNG"
 
 # Convert HTML to PNG
 # --quality: Image quality (0-100, default 94)
-# --width: Page width in pixels (1200px = good for figures)
+# --width: Page width in pixels (optimized for publication figures)
 # --enable-local-file-access: Allow loading local resources
 # --encoding: Set character encoding to UTF-8 for emoji support
+# --javascript-delay: Wait for rendering to complete (helps with emoji fonts)
+# --zoom: Increase rendering quality
 # The tool automatically handles scrolling/long pages
 wkhtmltoimage \
-    --quality 95 \
-    --width 1200 \
+    --quality 100 \
+    --width 1400 \
     --encoding utf-8 \
     --enable-local-file-access \
+    --javascript-delay 1000 \
+    --zoom 1.3 \
     "$INPUT_HTML" \
     "$OUTPUT_PNG"
 
