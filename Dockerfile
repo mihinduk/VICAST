@@ -207,7 +207,7 @@ RUN bash ${VICAST_HOME}/vicast-analyze/setup_blast_db.sh ${BLAST_DB_DIR} || \
 # Removes cloning vector artifacts (e.g., NotI sites from infectious clones).
 # Used automatically by Step 4 (map_and_call_variants) before BWA alignment.
 # =============================================================================
-RUN curl -fL -o ${BLAST_DB_DIR}/cloning_vectors.fasta \
+RUN wget -q -O ${BLAST_DB_DIR}/cloning_vectors.fasta \
         "https://ftp.ncbi.nlm.nih.gov/pub/UniVec/UniVec" && \
     bwa index ${BLAST_DB_DIR}/cloning_vectors.fasta && \
     echo "UniVec database installed: $(grep -c '^>' ${BLAST_DB_DIR}/cloning_vectors.fasta) vectors" || \

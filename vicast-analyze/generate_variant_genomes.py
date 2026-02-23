@@ -82,8 +82,14 @@ def build_linkage_graph(minor_variants, cooccurrence_df):
         return graph
 
     for _, row in cooccurrence_df.iterrows():
-        pos1 = int(row.get('variant1_pos', 0))
-        pos2 = int(row.get('variant2_pos', 0))
+        raw1 = row.get('variant1_pos', 0)
+        raw2 = row.get('variant2_pos', 0)
+        # Skip rows with missing position data (NaN from unmatched pairs)
+        try:
+            pos1 = int(raw1)
+            pos2 = int(raw2)
+        except (ValueError, TypeError):
+            continue
 
         # Parse both_alt — might be int or string
         both_alt = row.get('both_alt', 0)
