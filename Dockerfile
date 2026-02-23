@@ -40,6 +40,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fonts-noto-color-emoji \
     fonts-noto \
     fontconfig \
+    && mkdir -p /opt/conda/var/cache/fontconfig \
+    && mkdir -p /root/.cache/fontconfig \
+    && mkdir -p /root/.fontconfig \
     && fc-cache -f -v \
     && rm -rf /var/lib/apt/lists/*
 
