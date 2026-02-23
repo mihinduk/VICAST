@@ -37,6 +37,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     unzip \
     git \
+    fonts-noto-color-emoji \
+    fonts-noto \
     && rm -rf /var/lib/apt/lists/*
 
 # Create vicast user
