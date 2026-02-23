@@ -63,10 +63,12 @@ echo "  Output: $OUTPUT_PNG"
 # --quality: Image quality (0-100, default 94)
 # --width: Page width in pixels (1200px = good for figures)
 # --enable-local-file-access: Allow loading local resources
+# --encoding: Set character encoding to UTF-8 for emoji support
 # The tool automatically handles scrolling/long pages
 wkhtmltoimage \
     --quality 95 \
     --width 1200 \
+    --encoding utf-8 \
     --enable-local-file-access \
     "$INPUT_HTML" \
     "$OUTPUT_PNG"
