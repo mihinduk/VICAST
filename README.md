@@ -7,6 +7,7 @@
 [![CI](https://github.com/mihinduk/VICAST/actions/workflows/ci.yml/badge.svg)](https://github.com/mihinduk/VICAST/actions/workflows/ci.yml)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18751503.svg)](https://doi.org/10.5281/zenodo.18751503)
 
 A comprehensive suite of semi-automated pipelines for cultured virus genomic analysis, specializing in annotation curation and variant calling for viral passage studies.
 

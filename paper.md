@@ -25,6 +25,7 @@ affiliations:
     ror: 01yc7t268
 date: 10 February 2026
 bibliography: paper.bib
+archive_doi: 10.5281/zenodo.18751503
 ---
 
 # Summary
