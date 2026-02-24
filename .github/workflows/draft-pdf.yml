@@ -1,0 +1,46 @@
+name: Draft PDF
+
+on:
+  push:
+    paths:
+      - 'paper.md'
+      - 'paper.bib'
+      - 'figures/**'
+  pull_request:
+    paths:
+      - 'paper.md'
+      - 'paper.bib'
+      - 'figures/**'
+  workflow_dispatch:
+
+jobs:
+  paper:
+    runs-on: ubuntu-latest
+    name: Generate PDF from paper.md
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build draft PDF
+        uses: openjournals/openjournals-draft-action@master
+        with:
+          journal: joss
+          paper-path: paper.md
+
+      - name: Upload PDF as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: paper-pdf
+          path: paper.pdf
+
+      - name: Comment on PR with PDF link
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '📄 Paper PDF has been generated and is available as an artifact in the workflow run.'
+            })
