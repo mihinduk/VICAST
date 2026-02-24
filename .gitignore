@@ -94,3 +94,10 @@ microbial_contaminants_info.txt
 
 # Local tool installations
 tools/snpEff/
+
+# Test and development files
+DEVELOPMENT_HISTORY.md
+NC_001477.1.*
+analysis/
+annotate/
+influenza_pr8/
