@@ -125,7 +125,8 @@ No AI-generated content appears in the final software without human review, vali
 
 # Acknowledgments
 
-[PLACEHOLDER - Funding information to be provided]
+Funding Statement
+This work was supported by the National Institutes of Health under Award Number U24HL175772 (HVP Consortium Coordination Center: Enhancing Virome Research Efficiency; University of Maryland, Baltimore). The content is solely the responsibility of the authors and does not necessarily represent the official views of the National Institutes of Health.
 
 We thank the Washington University Research Computing Facility (HTCF) for computational resources. We acknowledge the NCBI Sequence Read Archive and contributing researchers for making public viral sequencing datasets available for validation.
 
