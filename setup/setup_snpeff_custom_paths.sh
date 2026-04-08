@@ -542,8 +542,8 @@ test_vicast_annotate() {
     fi
     
     echo "Step 3: Running validation..."
-    if [ -f "../vicast_validation.py" ]; then
-        python3 -c "import sys; sys.path.insert(0, '..'); from vicast_validation import validate_gff_for_snpeff; print('Validation module loaded successfully')"
+    if python3 -c "from vicast.validation import validate_gff_for_snpeff" 2>/dev/null; then
+        python3 -c "from vicast.validation import validate_gff_for_snpeff; print('Validation module loaded successfully')"
         
         # Convert TSV to test GFF for validation
         python3 -c "

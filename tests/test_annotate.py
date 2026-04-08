@@ -39,7 +39,7 @@ class TestGFFValidation:
 
     def test_validate_valid_gff(self, sample_gff, sample_fasta):
         """Test validation of a valid GFF file."""
-        from vicast_validation import validate_gff_for_snpeff
+        from vicast.validation import validate_gff_for_snpeff
 
         is_valid, errors, warnings = validate_gff_for_snpeff(sample_gff, sample_fasta)
 
@@ -48,7 +48,7 @@ class TestGFFValidation:
 
     def test_validate_gff_missing_file(self):
         """Test validation with non-existent file."""
-        from vicast_validation import validate_gff_for_snpeff
+        from vicast.validation import validate_gff_for_snpeff
 
         is_valid, errors, warnings = validate_gff_for_snpeff("/nonexistent/file.gff")
 
@@ -58,7 +58,7 @@ class TestGFFValidation:
 
     def test_validate_gff_malformed(self, tmp_path):
         """Test validation of malformed GFF file."""
-        from vicast_validation import validate_gff_for_snpeff
+        from vicast.validation import validate_gff_for_snpeff
 
         # Create a malformed GFF
         malformed_gff = tmp_path / "malformed.gff3"
@@ -74,7 +74,7 @@ NC_TEST\tVICAST\tCDS\tinvalid\tend\t.\t+\t.\tID=test
 
     def test_validate_gff_invalid_coordinates(self, tmp_path):
         """Test validation catches invalid coordinates."""
-        from vicast_validation import validate_gff_for_snpeff
+        from vicast.validation import validate_gff_for_snpeff
 
         # Create GFF with start > end
         bad_coords_gff = tmp_path / "bad_coords.gff3"
@@ -89,7 +89,7 @@ NC_TEST\tVICAST\tCDS\t500\t100\t.\t+\t.\tID=test;gene=testGene
 
     def test_validate_gff_duplicate_ids(self, tmp_path):
         """Test validation catches duplicate IDs."""
-        from vicast_validation import validate_gff_for_snpeff
+        from vicast.validation import validate_gff_for_snpeff
 
         # Create GFF with duplicate IDs
         dup_ids_gff = tmp_path / "dup_ids.gff3"
@@ -105,7 +105,7 @@ NC_TEST\tVICAST\tCDS\t300\t400\t.\t+\t.\tID=gene1;gene=test
 
     def test_validate_gff_missing_id(self, tmp_path):
         """Test validation catches missing ID attribute."""
-        from vicast_validation import validate_gff_for_snpeff
+        from vicast.validation import validate_gff_for_snpeff
 
         # Create GFF without ID
         no_id_gff = tmp_path / "no_id.gff3"
