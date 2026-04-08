@@ -23,10 +23,7 @@ LABEL version="2.2.0"
 
 # Set environment variables
 ENV VICAST_HOME=/opt/vicast
-# SnpEff installed via conda
-ENV SNPEFF_HOME=/opt/conda/share/snpeff-5.4.0a-0
-ENV SNPEFF_JAR=${SNPEFF_HOME}/snpEff.jar
-ENV SNPEFF_DATA=${SNPEFF_HOME}/data
+# SnpEff paths are set dynamically after conda install (see symlink step below)
 ENV NCBI_EMAIL=vicast_docker@example.com
 ENV VICAST_THREADS=4
 
@@ -56,9 +53,20 @@ USER $MAMBA_USER
 RUN micromamba install -y -n base -f /tmp/environment.yml && \
     micromamba clean --all --yes
 
-# SnpEff is already installed via conda in environment.yml
-# Create SnpEff data directory and set permissions
+# Detect actual SnpEff installation path (version varies with conda updates)
+# Create a stable symlink so ENV and all subsequent steps are version-agnostic
 USER root
+RUN SNPEFF_REAL=$(find /opt/conda/share -maxdepth 1 -name "snpeff-*" -type d | head -1) && \
+    echo "Detected SnpEff at: ${SNPEFF_REAL}" && \
+    ln -sfn "${SNPEFF_REAL}" /opt/conda/share/snpeff && \
+    echo "Created symlink: /opt/conda/share/snpeff -> ${SNPEFF_REAL}"
+
+# Now set ENV vars using the stable symlink path
+ENV SNPEFF_HOME=/opt/conda/share/snpeff
+ENV SNPEFF_JAR=/opt/conda/share/snpeff/snpEff.jar
+ENV SNPEFF_DATA=/opt/conda/share/snpeff/data
+
+# Create SnpEff data directory and set permissions
 RUN mkdir -p ${SNPEFF_DATA} && \
     chown -R $MAMBA_USER:$MAMBA_USER ${SNPEFF_HOME} && \
     chmod -R 755 ${SNPEFF_HOME}

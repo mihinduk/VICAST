@@ -63,7 +63,7 @@ jobs:
         shell: bash -l {0}
         run: |
           conda install -y biopython pandas numpy
-          pip install -e .
+          pip install -e ".[dev]"
 
       - name: Run bioinformatics tests
         shell: bash -l {0}

@@ -65,13 +65,19 @@ def find_snpeff_jar():
     locations = [
         Path.home() / 'snpEff' / 'snpEff.jar',
         Path('/opt/snpEff') / 'snpEff.jar',
-        Path('/opt/conda/share/snpeff-5.4.0a-0') / 'snpEff.jar',
+        Path('/opt/conda/share/snpeff') / 'snpEff.jar',  # Docker symlink (version-agnostic)
         Path(__file__).parent.parent / 'tools' / 'snpEff' / 'snpEff.jar',
     ]
 
     for loc in locations:
         if loc.exists():
             return str(loc)
+
+    # Fallback: glob for any snpeff version installed via conda
+    import glob
+    conda_matches = glob.glob('/opt/conda/share/snpeff-*/snpEff.jar')
+    if conda_matches:
+        return conda_matches[0]
 
     return None
 
