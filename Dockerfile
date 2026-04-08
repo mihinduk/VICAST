@@ -40,6 +40,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fonts-noto-color-emoji \
     fonts-noto \
     fontconfig \
+    wkhtmltopdf \
     && rm -rf /var/lib/apt/lists/*
 
 # Create vicast user

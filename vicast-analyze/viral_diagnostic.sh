@@ -718,7 +718,7 @@ if [ -f "$QC_SCRIPT_PATH" ]; then
             echo "ℹ️  HTML to PNG converter not found (optional)"
         elif ! command -v wkhtmltoimage &> /dev/null; then
             echo "ℹ️  wkhtmltoimage not installed - skipping PNG conversion (optional)"
-            echo "   Install with: conda install -c conda-forge wkhtmltopdf"
+            echo "   Install with: sudo apt-get install wkhtmltopdf (Ubuntu) or brew install wkhtmltopdf (macOS)"
         fi
     else
         echo "⚠️  QC report generation failed - check diagnostic output files"

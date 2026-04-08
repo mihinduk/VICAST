@@ -48,10 +48,10 @@ fi
 if ! command -v wkhtmltoimage &> /dev/null; then
     echo "Error: wkhtmltoimage not found"
     echo ""
-    echo "Please install wkhtmltoimage:"
-    echo "  conda: conda install -c conda-forge wkhtmltopdf"
-    echo "  macOS: brew install wkhtmltopdf"
-    echo "  Ubuntu: sudo apt-get install wkhtmltopdf"
+    echo "Please install wkhtmltopdf (provides wkhtmltoimage):"
+    echo "  Ubuntu/Debian: sudo apt-get install wkhtmltopdf"
+    echo "  macOS:         brew install wkhtmltopdf"
+    echo "  Docker:        already included in the VICAST Docker image"
     exit 1
 fi
 
