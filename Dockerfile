@@ -177,7 +177,7 @@ ENV SNPEFF_DATA=${SNPEFF_DATA_CUSTOM}
 # Fix SnpEff config to use absolute path for data directory
 # Make config writable so users can add genome entries when running with --user flag
 USER root
-RUN sed -i 's|^data\.dir = \./data/$|data.dir = /opt/vicast/snpeff_data_custom|' ${SNPEFF_HOME}/snpEff.config && \
+RUN sed -i 's|^data\.dir.*|data.dir = /opt/vicast/snpeff_data_custom|' ${SNPEFF_HOME}/snpEff.config && \
     chmod 666 ${SNPEFF_HOME}/snpEff.config && \
     grep "^data.dir" ${SNPEFF_HOME}/snpEff.config
 
