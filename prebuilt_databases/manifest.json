@@ -13,7 +13,7 @@
       "size_mb": 0.02,
       "features": 31,
       "tags": ["flavivirus", "arbovirus", "mosquito-borne", "dengue"],
-      "url": "https://github.com/shandley/VICAST/raw/main/prebuilt_databases/NC_001474.2.tar.gz",
+      "url": "https://github.com/mihinduk/VICAST/raw/main/prebuilt_databases/NC_001474.2.tar.gz",
       "md5": "554a26c4048734773149a26fc44d8993"
     },
     {
@@ -279,7 +279,7 @@
       "size_mb": 0.02,
       "features": 18,
       "tags": ["alphavirus", "arbovirus", "mosquito-borne"],
-      "url": "https://github.com/shandley/VICAST/raw/main/prebuilt_databases/NC_004162.2.tar.gz",
+      "url": "https://github.com/mihinduk/VICAST/raw/main/prebuilt_databases/NC_004162.2.tar.gz",
       "md5": "77909904dc7f9c3237ca8ddc9510662a"
     },
     {
@@ -293,7 +293,7 @@
       "size_mb": 0.03,
       "features": 22,
       "tags": ["filovirus", "hemorrhagic", "BSL4"],
-      "url": "https://github.com/shandley/VICAST/raw/main/prebuilt_databases/NC_002549.1.tar.gz",
+      "url": "https://github.com/mihinduk/VICAST/raw/main/prebuilt_databases/NC_002549.1.tar.gz",
       "md5": "7ab63f1321b8c2e3d5ba8f75216ee635"
     },
     {
@@ -307,7 +307,7 @@
       "size_mb": 0.02,
       "features": 20,
       "tags": ["paramyxovirus", "respiratory", "rsv"],
-      "url": "https://github.com/shandley/VICAST/raw/main/prebuilt_databases/NC_001803.1.tar.gz",
+      "url": "https://github.com/mihinduk/VICAST/raw/main/prebuilt_databases/NC_001803.1.tar.gz",
       "md5": "01ad7c4537e85874619c59eba232d01b"
     },
     {
@@ -321,7 +321,7 @@
       "size_mb": 0.02,
       "features": 20,
       "tags": ["paramyxovirus", "respiratory", "rsv", "surveillance"],
-      "url": "https://github.com/shandley/VICAST/raw/main/prebuilt_databases/OZ409268.1.tar.gz",
+      "url": "https://github.com/mihinduk/VICAST/raw/main/prebuilt_databases/OZ409268.1.tar.gz",
       "md5": "642eb512d34348692848296578ee5129"
     },
     {
@@ -365,7 +365,7 @@
       "size_mb": 0.02,
       "features": 12,
       "tags": ["bunyavirus", "segmented", "arbovirus"],
-      "url": "https://github.com/shandley/VICAST/raw/main/prebuilt_databases/rvfv.tar.gz",
+      "url": "https://github.com/mihinduk/VICAST/raw/main/prebuilt_databases/rvfv.tar.gz",
       "md5": "582ea744ac61250ab254772ce524a349"
     },
     {
@@ -380,7 +380,7 @@
       "size_mb": 0.03,
       "features": 24,
       "tags": ["reovirus", "segmented", "enteric"],
-      "url": "https://github.com/shandley/VICAST/raw/main/prebuilt_databases/rotavirus_a.tar.gz",
+      "url": "https://github.com/mihinduk/VICAST/raw/main/prebuilt_databases/rotavirus_a.tar.gz",
       "md5": "94169d14fbe2a9c2ed011d96ae81b27e"
     }
   ]
