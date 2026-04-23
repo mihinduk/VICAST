@@ -877,14 +877,10 @@ def map_and_call_variants(
             vector_db = os.path.join(
                 os.environ.get('BLAST_DB_DIR', '/opt/vicast/blast_db'),
                 'cloning_vectors.fasta')
-            if os.path.exists(vector_db):
+            if os.path.exists(vector_db) and os.path.exists(vector_db + '.bwt'):
                 logger.info(f"Filtering cloning vector reads for {sample_name}")
                 novector_r1 = os.path.join(mapping_dir, f"{sample_name}_novector_R1.fastq.gz")
                 novector_r2 = os.path.join(mapping_dir, f"{sample_name}_novector_R2.fastq.gz")
-
-                # Index vector DB if not already indexed
-                if not os.path.exists(vector_db + '.bwt'):
-                    run_command(f"bwa index {vector_db}", shell=True)
 
                 # Map to vectors, keep only unmapped read pairs (-f 12)
                 run_command(
@@ -916,6 +912,11 @@ def map_and_call_variants(
                 # Use filtered reads for all downstream steps
                 r1_path = novector_r1
                 r2_path = novector_r2
+            elif os.path.exists(vector_db):
+                logger.warning(
+                    f"Vector database {vector_db} is not indexed "
+                    f"(missing {vector_db}.bwt) — skipping vector filtering"
+                )
             else:
                 logger.debug("No vector database found — skipping vector filtering")
 

@@ -219,8 +219,8 @@ RUN bash ${VICAST_HOME}/vicast-analyze/setup_blast_db.sh ${BLAST_DB_DIR} || \
 RUN wget -q -O ${BLAST_DB_DIR}/cloning_vectors.fasta \
         "https://ftp.ncbi.nlm.nih.gov/pub/UniVec/UniVec" && \
     bwa index ${BLAST_DB_DIR}/cloning_vectors.fasta && \
-    echo "UniVec database installed: $(grep -c '^>' ${BLAST_DB_DIR}/cloning_vectors.fasta) vectors" || \
-    echo "WARNING: UniVec download failed - vector filtering will be skipped at runtime"
+    chmod 644 ${BLAST_DB_DIR}/cloning_vectors.fasta* && \
+    echo "UniVec database installed: $(grep -c '^>' ${BLAST_DB_DIR}/cloning_vectors.fasta) vectors"
 
 # Set working directory
 WORKDIR /data
