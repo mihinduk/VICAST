@@ -228,7 +228,7 @@ RUN if wget -q -O ${BLAST_DB_DIR}/cloning_vectors.fasta \
         echo "Check network access to github.com and ftp.ncbi.nlm.nih.gov." >&2; \
         exit 1; \
     fi && \
-    bwa index ${BLAST_DB_DIR}/cloning_vectors.fasta && \
+    /opt/conda/bin/bwa index ${BLAST_DB_DIR}/cloning_vectors.fasta && \
     chmod 644 ${BLAST_DB_DIR}/cloning_vectors.fasta* && \
     echo "UniVec database installed: $(grep -c '^>' ${BLAST_DB_DIR}/cloning_vectors.fasta) vectors"
 
