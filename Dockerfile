@@ -32,6 +32,7 @@ USER root
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
+    ca-certificates \
     unzip \
     git \
     fonts-noto-color-emoji \
@@ -216,8 +217,17 @@ RUN bash ${VICAST_HOME}/vicast-analyze/setup_blast_db.sh ${BLAST_DB_DIR} || \
 # Removes cloning vector artifacts (e.g., NotI sites from infectious clones).
 # Used automatically by Step 4 (map_and_call_variants) before BWA alignment.
 # =============================================================================
-RUN wget -q -O ${BLAST_DB_DIR}/cloning_vectors.fasta \
-        "https://ftp.ncbi.nlm.nih.gov/pub/UniVec/UniVec" && \
+RUN if wget -q -O ${BLAST_DB_DIR}/cloning_vectors.fasta \
+            "https://github.com/mihinduk/VICAST/releases/download/blast-db-v1.0/cloning_vectors.fasta"; then \
+        echo "UniVec source: VICAST GitHub release blast-db-v1.0"; \
+    elif wget -q -O ${BLAST_DB_DIR}/cloning_vectors.fasta \
+            "https://ftp.ncbi.nlm.nih.gov/pub/UniVec/UniVec"; then \
+        echo "UniVec source: NCBI FTP"; \
+    else \
+        echo "ERROR: Could not download UniVec from VICAST GitHub release or NCBI FTP." >&2; \
+        echo "Check network access to github.com and ftp.ncbi.nlm.nih.gov." >&2; \
+        exit 1; \
+    fi && \
     bwa index ${BLAST_DB_DIR}/cloning_vectors.fasta && \
     chmod 644 ${BLAST_DB_DIR}/cloning_vectors.fasta* && \
     echo "UniVec database installed: $(grep -c '^>' ${BLAST_DB_DIR}/cloning_vectors.fasta) vectors"
